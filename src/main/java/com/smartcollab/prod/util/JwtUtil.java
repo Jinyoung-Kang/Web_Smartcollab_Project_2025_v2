@@ -24,7 +24,7 @@ public class JwtUtil {
     private Key secretKey;
 
     // 8시간
-    private final long expirationTime = 1000L * 60 * 60 * 8;
+    private final long expirationTime = 1000L * 60 * 60 * 12;
 
     // 의존성 주입 후 비밀 키 초기화
     @PostConstruct

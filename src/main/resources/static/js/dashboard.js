@@ -444,25 +444,31 @@ const Dashboard = ({ user }) => {
             }
         }
     };
+
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="h-screen bg-gray-50 flex flex-col">
             <Header user={user} reloadMyTeams={reloadMyTeams} onDeleteAccount={handleDeleteAccount} />
-            <div className="grid grid-cols-12 gap-6 p-6">
-                <Sidebar
-                    personalFolders={personalFolders}
-                    myTeams={myTeams}
-                    onFolderSelect={handlePersonalFolderSelect}
-                    onTeamSelect={handleTeamSelect}
-                    onNewTeamClick={() => setIsNewTeamModalOpen(true)}
-                    onReloadMyTeams={handleReloadMyTeams}
-                    activeContext={viewContext}
-                    activePersonalRootId={
-                        viewContext.type === 'personal' && breadcrumbPath.length ? breadcrumbPath[0].id : null
-                    }
-                    selectedTeamContext={selectedTeamContext}
-                    unreadChats={unreadChats}
-                />
-                <div className="col-span-6 space-y-4 h-full">
+
+            <div className="flex-grow grid grid-cols-12 gap-6 p-6 overflow-hidden">
+
+                <div className="col-span-3 overflow-y-auto">
+                    <Sidebar
+                        personalFolders={personalFolders}
+                        myTeams={myTeams}
+                        onFolderSelect={handlePersonalFolderSelect}
+                        onTeamSelect={handleTeamSelect}
+                        onNewTeamClick={() => setIsNewTeamModalOpen(true)}
+                        onReloadMyTeams={handleReloadMyTeams}
+                        activeContext={viewContext}
+                        activePersonalRootId={
+                            viewContext.type === 'personal' && breadcrumbPath.length ? breadcrumbPath[0].id : null
+                        }
+                        selectedTeamContext={selectedTeamContext}
+                        unreadChats={unreadChats}
+                    />
+                </div>
+
+                <div className="col-span-6 flex flex-col gap-4 overflow-hidden">
                     {editingFile ? (
                         <EditorView
                             file={editingFile}
@@ -475,65 +481,73 @@ const Dashboard = ({ user }) => {
                         />
                     ) : (
                         <>
-                            <Toolbar
-                                selectedCount={selectedItems.length}
-                                permissions={currentUserPermissions}
-                                onDelete={handleDelete}
-                                onRename={handleRename}
-                                onDownload={handleDownload}
-                                onMove={handleMove}
-                                onCopy={handleCopy}
-                                onShare={handleShare}
-                                onShowHistory={handleShowHistory}
-                            />
-                            <MainContent
-                                items={sortedItems}
-                                viewContext={viewContext}
-                                permissions={currentUserPermissions}
-                                onFolderSelect={viewContext.type === 'team' ? handleTeamSubFolderSelect : handlePersonalFolderSelect}
-                                onFileUpload={handleFileUpload}
-                                onNewFolderClick={() => setIsNewFolderModalOpen(true)}
-                                onRefresh={() => refreshCurrentView(true)}
-                                selectedItems={selectedItems}
-                                onItemSelect={handleItemSelect}
-                                onSelectAll={handleSelectAll}
-                                onOpenFile={handleOpenFile}
-                                requestSort={requestSort}
-                                sortConfig={sortConfig}
-                                breadcrumbPath={breadcrumbPath}
-                                onBreadcrumbNavigate={handleBreadcrumbNavigate}
-                                onSearch={handleSearch}
-                                searchQuery={searchQuery}
-                                setSearchQuery={setSearchQuery}
-                                searchResults={searchResults}
-                                onClearSearch={handleClearSearch}
-                            />
+                            <div className="flex-shrink-0">
+                                <Toolbar
+                                    selectedCount={selectedItems.length}
+                                    permissions={currentUserPermissions}
+                                    onDelete={handleDelete}
+                                    onRename={handleRename}
+                                    onDownload={handleDownload}
+                                    onMove={handleMove}
+                                    onCopy={handleCopy}
+                                    onShare={handleShare}
+                                    onShowHistory={handleShowHistory}
+                                />
+                            </div>
+                            <div className="flex-grow min-h-0 overflow-y-auto">
+                                <MainContent
+                                    items={sortedItems}
+                                    viewContext={viewContext}
+                                    permissions={currentUserPermissions}
+                                    onFolderSelect={viewContext.type === 'team' ? handleTeamSubFolderSelect : handlePersonalFolderSelect}
+                                    onFileUpload={handleFileUpload}
+                                    onNewFolderClick={() => setIsNewFolderModalOpen(true)}
+                                    onRefresh={() => refreshCurrentView(true)}
+                                    selectedItems={selectedItems}
+                                    onItemSelect={handleItemSelect}
+                                    onSelectAll={handleSelectAll}
+                                    onOpenFile={handleOpenFile}
+                                    requestSort={requestSort}
+                                    sortConfig={sortConfig}
+                                    breadcrumbPath={breadcrumbPath}
+                                    onBreadcrumbNavigate={handleBreadcrumbNavigate}
+                                    onSearch={handleSearch}
+                                    searchQuery={searchQuery}
+                                    setSearchQuery={setSearchQuery}
+                                    searchResults={searchResults}
+                                    onClearSearch={handleClearSearch}
+                                />
+                            </div>
                         </>
                     )}
                 </div>
-                {selectedTeamContext ? (
-                    <CollaborationPanel
-                        user={user}
-                        teamContext={selectedTeamContext}
-                        permissions={currentUserPermissions}
-                        onInviteClick={() => setIsInviteModalOpen(true)}
-                        onRemoveMember={handleRemoveMember}
-                        onEditPermissions={handleEditPermissions}
-                        onDelegateLeadership={handleDelegateLeadership}
-                        onDeleteOrLeaveTeam={handleDeleteOrLeaveTeam}
-                        onClearChatHistory={handleClearChatHistory}
-                        onReloadMembers={handleReloadTeamMembers}
-                        chatMessages={chatMessages}
-                        onSendMessage={handleSendMessage}
-                        onFileUploadSuccess={refreshCurrentView}
-                        unreadChats={unreadChats}
-                        activeTab={activeCollabTab}
-                        onTabSelect={handleCollabTabSelect}
-                    />
-                ) : (
-                    <InfoPanel />
-                )}
+
+                <div className="col-span-3 overflow-hidden">
+                    {selectedTeamContext ? (
+                        <CollaborationPanel
+                            user={user}
+                            teamContext={selectedTeamContext}
+                            permissions={currentUserPermissions}
+                            onInviteClick={() => setIsInviteModalOpen(true)}
+                            onRemoveMember={handleRemoveMember}
+                            onEditPermissions={handleEditPermissions}
+                            onDelegateLeadership={handleDelegateLeadership}
+                            onDeleteOrLeaveTeam={handleDeleteOrLeaveTeam}
+                            onClearChatHistory={handleClearChatHistory}
+                            onReloadMembers={handleReloadTeamMembers}
+                            chatMessages={chatMessages}
+                            onSendMessage={handleSendMessage}
+                            onFileUploadSuccess={refreshCurrentView}
+                            unreadChats={unreadChats}
+                            activeTab={activeCollabTab}
+                            onTabSelect={handleCollabTabSelect}
+                        />
+                    ) : (
+                        <InfoPanel />
+                    )}
+                </div>
             </div>
+
             <NewFolderModal
                 isOpen={isNewFolderModalOpen}
                 onClose={() => setIsNewFolderModalOpen(false)}

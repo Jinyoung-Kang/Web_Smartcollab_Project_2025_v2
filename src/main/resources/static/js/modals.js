@@ -541,3 +541,43 @@ const AiResultModal = ({ isOpen, onClose, title, content, isLoading }) => {
         </div>
     );
 };
+
+
+const WelcomeInfoModal = ({ isOpen, onClose }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+            <div className="bg-white p-8 rounded-lg w-[550px] shadow-2xl flex flex-col">
+                <h2 className="text-2xl font-bold mb-4 text-center text-blue-600">SmartCollab에 오신 것을 환영합니다!</h2>
+                <div className="text-sm text-gray-800 space-y-4 mb-8">
+                    <div>
+                        <h3 className="font-semibold text-md mb-1">[ 🚀 프로젝트 개요 ]</h3>
+                        <p className="pl-2">
+                            • 본 프로젝트는 포트폴리오용으로 제작된 클라우드 협업 시스템입니다.<br/>
+                            • 회원가입 후 파일 업로드, 팀 생성, 실시간 채팅 등 모든 기능을 자유롭게 테스트하실 수 있습니다.
+                        </p>
+                    </div>
+                    <div>
+                        <h3 className="font-semibold text-md mb-1">[ 👨‍💻 테스트용 계정 ]</h3>
+                        <p className="pl-2">• 아이디: <strong>test1</strong> / 비밀번호: <strong>Tester123@</strong></p>
+                        <p className="pl-2">• 아이디: <strong>test2</strong> / 비밀번호: <strong>Tester123@</strong></p>
+                        <p className="pl-2">• 아이디: <strong>test3</strong> / 비밀번호: <strong>Tester123@</strong></p>
+                    </div>
+                    <div>
+                        <h3 className="font-semibold text-md mb-1">[ ⚠️ 주의사항 ]</h3>
+                        <p className="pl-2">• 본 시스템은 주기적으로 데이터가 초기화될 수 있으며, 업로드된 파일은 영구 보관되지 않습니다.</p>
+                    </div>
+                </div>
+                <div className="flex justify-center">
+                    <button
+                        onClick={onClose}
+                        className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                    >
+                        확인하고 시작하기
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};

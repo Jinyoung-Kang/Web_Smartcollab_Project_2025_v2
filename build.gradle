@@ -66,8 +66,7 @@ tasks.named('test') {
     useJUnitPlatform()
 }
 
-bootJar {
-    into('BOOT-INF/classes') {
-        from 'web.config'
-    }
+
+processResources {
+    from(project.file('web.config'))
 }

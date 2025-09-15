@@ -509,17 +509,16 @@ const CollaborationPanel = ({
                                 chatMessages, onSendMessage,
                                 unreadChats, activeTab, onTabSelect
                             }) => {
-    const commonTabStyle = "px-4 py-2 text-sm font-medium relative"; // relative 추가
+    const commonTabStyle = "px-4 py-2 text-sm font-medium relative";
     const activeTabStyle = "border-b-2 border-blue-500 text-blue-600";
     const inactiveTabStyle = "text-gray-500 hover:text-gray-700";
     const isCurrentUserLeader = user.username === teamContext.ownerUsername;
-
     return (
-        <aside className="col-span-3 bg-white rounded-lg shadow flex flex-col">
+        <aside className="col-span-3 bg-white rounded-lg shadow flex flex-col h-full">
             <div className="border-b">
                 <nav className="-mb-px flex space-x-4 px-4">
                     <button onClick={() => onTabSelect('members', teamContext.id)} className={`${commonTabStyle} ${activeTab === 'members' ? activeTabStyle : inactiveTabStyle}`}>
-                        팀원  ({teamContext.members.length})
+                        팀원 ({teamContext.members.length})
                     </button>
                     <button onClick={() => onTabSelect('chat', teamContext.id)} className={`${commonTabStyle} ${activeTab === 'chat' ? activeTabStyle : inactiveTabStyle}`}>
                         채팅
@@ -571,14 +570,16 @@ const CollaborationPanel = ({
                 </div>
             )}
             {activeTab === 'chat' && (
-                <ChatPanel
-                    teamId={teamContext.id}
-                    messages={chatMessages}
-                    onSendMessage={onSendMessage}
-                    username={user.username}
-                    isCurrentUserLeader={isCurrentUserLeader}
-                    onClearChatHistory={onClearChatHistory}
-                />
+                <div className="flex-grow min-h-0">
+                    <ChatPanel
+                        teamId={teamContext.id}
+                        messages={chatMessages}
+                        onSendMessage={onSendMessage}
+                        username={user.username}
+                        isCurrentUserLeader={isCurrentUserLeader}
+                        onClearChatHistory={onClearChatHistory}
+                    />
+                </div>
             )}
         </aside>
     );
