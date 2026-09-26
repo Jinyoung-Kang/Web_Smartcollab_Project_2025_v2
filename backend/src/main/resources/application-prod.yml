@@ -7,6 +7,9 @@ spring:
 app:
   cookie:
     secure: true
+  cors:
+    # 운영은 화면과 API 가 같은 출처라 CORS 가 필요 없습니다. 공통 설정의 localhost 개발 출처를 물려받지 않도록 비웁니다.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:}
   storage:
     type: azure
 
