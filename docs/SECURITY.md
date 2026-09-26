@@ -6,7 +6,7 @@
 |---|---|---|
 | 다른 사용자의 파일·팀 데이터 접근 (IDOR) | 모든 파일·폴더·팀 요청을 `AccessPolicy` 로 판단. 읽을 수 없으면 404 로 존재 여부도 숨김 | `access/AccessPolicy` |
 | 토큰 탈취 (XSS) | JWT 를 HttpOnly 쿠키에 보관(자바스크립트로 읽을 수 없음), CSP `script-src 'self'` | `AuthCookies`, `SecurityConfig.CSP` |
-| CSRF | 쿠키 `SameSite=Strict` + SPA CSRF 토큰(`XSRF-TOKEN` → `X-XSRF-TOKEN`) | `SecurityConfig` |
+| CSRF | 쿠키 `SameSite=Strict` + SPA CSRF 토큰(`XSRF-TOKEN` → `X-XSRF-TOKEN`). 토큰은 로그인·로그아웃 때만 교체(요청마다 교체하면 요청이 겹칠 때 어긋남) | `SecurityConfig`, `AuthCookies.clearCsrf` |
 | WebSocket 도청·사칭 (CSWSH 포함) | 핸드셰이크 쿠키 인증 + 출처 검사, 구독마다 팀 멤버 확인, 보낸 사람은 Principal | `StompAuthorizationInterceptor` |
 | 권한이 사라진 뒤의 WebSocket 수신 | 팀에서 제외·나가기·탈퇴가 커밋되면 그 사용자의 열린 팀 구독을 브로커에서 해제. 로그인(JWT)이 만료된 세션은 1분 안에 닫고, 만료 후의 SUBSCRIBE·SEND 는 거절 | `TeamSubscriptionTracker`, `WebSocketSessionExpiry` |
 | 무차별 대입 | 로그인: IP 당 분당 10회 + **계정당 10분 20회**(성공 시 초기화) / 공유 비밀번호: 링크+IP 당 10분 10회 + **링크당 10분 50회** (슬라이딩 윈도) | `SlidingWindowRateLimiter`, `AuthService`, `ShareService` |

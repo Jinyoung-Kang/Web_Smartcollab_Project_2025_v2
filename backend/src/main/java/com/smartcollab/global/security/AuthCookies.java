@@ -14,6 +14,7 @@ import java.time.Duration;
 public class AuthCookies {
 
     public static final String NAME = "SC_AUTH";
+    static final String CSRF_COOKIE = "XSRF-TOKEN";
 
     private final boolean secure;
 
@@ -27,6 +28,14 @@ public class AuthCookies {
 
     public ResponseCookie clear() {
         return base("").maxAge(Duration.ZERO).build();
+    }
+
+    /**
+     * CSRF 토큰 쿠키(XSRF-TOKEN)를 지웁니다. 로그인·로그아웃 때 보내, 다음 변경 요청 전에 새 토큰을 받게 합니다
+     * (로그인 전에 심어진 토큰을 계속 쓰지 않도록 — 요청마다가 아니라 이 시점에만 교체) [BUG-08].
+     */
+    public ResponseCookie clearCsrf() {
+        return ResponseCookie.from(CSRF_COOKIE, "").path("/").maxAge(Duration.ZERO).build();
     }
 
     private ResponseCookie.ResponseCookieBuilder base(String value) {

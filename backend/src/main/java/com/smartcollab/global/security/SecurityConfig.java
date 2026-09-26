@@ -16,6 +16,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.session.NullAuthenticatedSessionStrategy;
 import org.springframework.security.web.csrf.CsrfException;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.security.web.header.writers.StaticHeadersWriter;
@@ -60,7 +61,10 @@ public class SecurityConfig {
         converter.setPrincipalClaimName(JwtTokenService.CLAIM_USERNAME);
 
         http
-                .csrf(csrf -> csrf.spa().ignoringRequestMatchers("/api/public/**"))
+                // 세션 없이 요청마다 인증하므로, 기본 CSRF 인증 전략은 "새로 인증됨"으로 보고 요청마다 토큰을 교체합니다.
+                // 그러면 요청이 겹칠 때 헤더와 쿠키가 어긋나 403 이 나므로 끄고, 교체는 로그인·로그아웃 때만 합니다 [BUG-08].
+                .csrf(csrf -> csrf.spa().ignoringRequestMatchers("/api/public/**")
+                        .sessionAuthenticationStrategy(new NullAuthenticatedSessionStrategy()))
                 .cors(cors -> cors.configurationSource(corsConfigurationSource(props)))
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .formLogin(f -> f.disable())

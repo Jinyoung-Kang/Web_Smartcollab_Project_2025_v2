@@ -61,7 +61,10 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ResponseEntity<Void> logout() {
-        return ResponseEntity.noContent().header(HttpHeaders.SET_COOKIE, cookies.clear().toString()).build();
+        return ResponseEntity.noContent()
+                .header(HttpHeaders.SET_COOKIE, cookies.clear().toString())
+                .header(HttpHeaders.SET_COOKIE, cookies.clearCsrf().toString())
+                .build();
     }
 
     @GetMapping("/me")
@@ -73,6 +76,7 @@ public class AuthController {
         String token = authService.issueToken(user);
         return ResponseEntity.status(status)
                 .header(HttpHeaders.SET_COOKIE, cookies.issue(token, authService.tokenTtl()).toString())
+                .header(HttpHeaders.SET_COOKIE, cookies.clearCsrf().toString())
                 .body(authService.me(user.getId()));
     }
 }

@@ -10,7 +10,7 @@
 | **백엔드** | Java 21 · Spring Boot 4.1 · Spring Security (쿠키 JWT·CSRF) · JPA/Hibernate 7 · Flyway · STOMP WebSocket |
 | **프론트엔드** | React 19 · TypeScript · Vite · TanStack Query · Tailwind CSS 4 |
 | **데이터·인프라** | MySQL 8 · Azure Blob Storage(또는 로컬 디스크) · Docker · GitHub Actions |
-| **테스트** | JUnit 5 + Testcontainers(MySQL·Azurite) 132건 · Vitest 28건 · Playwright E2E 6개 시나리오 |
+| **테스트** | JUnit 5 + Testcontainers(MySQL·Azurite) 135건 · Vitest 28건 · Playwright E2E 6개 시나리오 |
 
 ---
 
@@ -85,12 +85,12 @@ API 문서: <http://localhost:8080/swagger-ui.html> · 전체 목록 [docs/API.m
 ## 테스트
 
 ```bash
-cd backend && ./gradlew test          # 132건 (MySQL·Azurite 컨테이너 자동 실행), 커버리지 리포트 포함
+cd backend && ./gradlew test          # 135건 (MySQL·Azurite 컨테이너 자동 실행), 커버리지 리포트 포함
 cd frontend && npm test               # 28건
 docker compose up -d --wait && cd e2e && npm ci && npx playwright test   # E2E 6개 시나리오
 ```
 
-백엔드 라인 커버리지 88.9%. v1 에서 찾은 결함마다 회귀 테스트가 있습니다 → [docs/TESTING.md](docs/TESTING.md)
+백엔드 라인 커버리지 89.0%. v1 에서 찾은 결함마다 회귀 테스트가 있습니다 → [docs/TESTING.md](docs/TESTING.md)
 
 ## 문서
 
