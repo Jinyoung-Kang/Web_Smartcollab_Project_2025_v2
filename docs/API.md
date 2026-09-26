@@ -33,7 +33,7 @@
 
 | Method | Path | 설명 |
 |---|---|---|
-| GET | `/api/auth/csrf` | CSRF 토큰 발급 |
+| GET | `/api/auth/csrf` | CSRF 토큰 발급 — 쿠키와 같은 값을 돌려주므로 그대로 `X-XSRF-TOKEN` 헤더에 사용 |
 | POST | `/api/auth/signup` | 가입 후 바로 로그인 (201) |
 | POST | `/api/auth/login` | 로그인 (IP 당 분당 10회 제한) |
 | POST | `/api/auth/logout` | 쿠키 삭제 |
