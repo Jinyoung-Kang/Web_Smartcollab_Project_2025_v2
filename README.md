@@ -1,135 +1,119 @@
-# SmartCollab - 클라우드 기반 파일 협업 플랫폼
+# SmartCollab v2 — 팀을 위한 클라우드 파일 협업 공간
 
-SmartCollab은 개인 및 팀 단위의 효율적인 파일 관리를 돕는 클라우드 네이티브 웹 애플리케이션입니다. 파일 업로드, 다운로드, 버전 관리, 실시간 채팅 및 번역 등 협업에 필요한 다양한 기능을 제공하여 생산성을 극대화합니다. 이 프로젝트는 졸업 작품으로 개발되었습니다.
+팀이 파일을 한 곳에 모으고, **권한을 나눠 관리하고, 수정 이력과 승인(서명)을 남기고, 채팅으로 바로 공유**하는 웹 서비스입니다.
+졸업 작품으로 만든 [v1](https://github.com/Jinyoung-Kang/Web_Smartcollab_Project_2025) 의 모든 코드·메뉴·기능을 검토해 보안 결함과 버그를 고치고, 아키텍처·성능·UI/UX 를 다시 설계한 버전입니다.
 
------
-## 🚀 라이브 데모
+![팀 드라이브와 실시간 채팅](docs/images/team-drive.png)
 
-> URL: `https://@@@.azurewebsites.net`
->
-> 테스트 계정:
->  아이디: `@@@`
->  비밀번호: `@@@`
-
------
-
-## ✨ 주요 기능
-
-SmartCollab은 다음과 같은 핵심 기능들을 제공합니다.
-
-* 🗂️ 파일 및 폴더 관리
-    * 개인/팀 스토리지 내 파일 및 폴더 생성, 이름 변경, 이동, 복사, 삭제 기능
-    * 강력한 파일 검색 기능 (개인/팀 범위 지정 가능)
-    * 이름, 생성 날짜, 생성자, 파일 크기 기준 정렬
-    * 텍스트 파일(.txt, .md)의 웹 에디터를 통한 버전 관리 및 특정 버전 복원 기능
-
-* 🤝 팀 협업 기능
-    * 팀 생성, 사용자 초대, 멤버 권한(편집, 삭제, 초대) 관리 및 팀장 위임
-    * WebSocket(STOMP) 기반의 실시간 팀 채팅 및 파일 공유 기능
-    * 팀 초대, 수락/거절 등 다양한 활동에 대한 실시간 알림 기능
-
-* 🔗 파일 공유 및 미리보기
-    * 비밀번호 및 만료일 설정이 가능한 보안 공유 링크 생성 
-    * 이미지(png, jpg), PDF, 텍스트(txt, md) 파일 미리보기 
-    * Azure SAS Token을 활용한 안전한 MS Office(docx, pptx, xlsx) 문서 미리보기 
-
-* 🤖 AI 도구 연동
-    * DeepL API를 연동한 텍스트 파일의 실시간 한/영 번역 기능 (긴 텍스트 자동 분할 처리) 
-    * 파일 내용 요약 기능 (Mock) 
-
-* 🔐 보안 및 인증
-    * JWT(JSON Web Token) 기반의 안전한 사용자 인증 및 인가 
-    * API Key, 데이터베이스 접속 정보 등 민감 정보의 환경 변수화 
+| | |
+|---|---|
+| **백엔드** | Java 21 · Spring Boot 4.1 · Spring Security (쿠키 JWT·CSRF) · JPA/Hibernate 7 · Flyway · STOMP WebSocket |
+| **프론트엔드** | React 19 · TypeScript · Vite · TanStack Query · Tailwind CSS 4 |
+| **데이터·인프라** | MySQL 8 · Azure Blob Storage(또는 로컬 디스크) · Docker · GitHub Actions |
+| **테스트** | JUnit 5 + Testcontainers(MySQL·Azurite) 79건 · Vitest 15건 · Playwright E2E 5개 시나리오 |
 
 ---
 
-## 🏗️ 아키텍처
+## v2 에서 달라진 점
 
-본 프로젝트는 확장성과 안정성을 고려하여 Microsoft Azure 클라우드 서비스를 기반으로 설계되었습니다.
+| 구분 | 결과 | 자세히 |
+|---|---|---|
+| **보안** | 인증 없이 남의 파일을 열 수 있던 경로를 포함해 권한 결함 **14건** 수정 (IDOR, WebSocket 도청·사칭, 소스에 박힌 시스템 계정 비밀번호 등) | [REFACTORING_REPORT §1](docs/REFACTORING_REPORT.md#1-보안) |
+| **버그** | 폴더·계정 삭제 실패, 복사본 다운로드 불가, 순환 이동 무한 재귀, 공유 링크 9시간 조기 만료, 동시 편집 덮어쓰기 등 **22건** 수정 | [REFACTORING_REPORT §2](docs/REFACTORING_REPORT.md#2-기능-결함) |
+| **성능** | 폴더 62개 기준 트리 조회 SQL **63 → 1회**, 검색 **125 → 2회** · 32MB 다운로드 힙 할당 **100.7MB → 17KB** · 첫 화면 JS **1,156KB → 133KB**, 스크립트 실행 **566 → 33ms** | [PERFORMANCE](docs/PERFORMANCE.md) |
+| **아키텍처** | 도메인별 패키지, 권한 판단 단일화(AccessPolicy), 저장소 전략 패턴 + 트랜잭션 연동, Flyway, 커밋 후 실시간 이벤트 | [ARCHITECTURE](docs/ARCHITECTURE.md) · [ADR](docs/adr/README.md) |
+| **UI/UX** | URL 라우팅, 여러 파일 드래그 업로드·진행률, 휴지통·버전 서명·공유 링크 관리 화면, 편집 충돌 해결, 실시간 접속 표시, 반응형 | [REFACTORING_REPORT §4](docs/REFACTORING_REPORT.md#4-uiux) |
 
+모든 수치는 저장소의 테스트·스크립트로 측정한 값입니다 (원자료: [docs/measurements](docs/measurements)).
 
+## 주요 기능
 
-* Frontend (UI): React 18 (UMD)와 Tailwind CSS를 사용하여 동적이고 반응형인 UI를 구현했습니다. Babel Standalone을 통해 브라우저에서 JSX를 직접 렌더링합니다.
-* Backend (API): Spring Boot 3.2.5 기반의 RESTful API 서버로, WebSocket(STOMP)을 이용한 실시간 통신을 지원합니다. 
-* Database: Azure Database for MySQL을 사용하여 사용자, 파일 메타데이터, 팀 정보 등을 안정적으로 관리합니다.
-* Storage: 모든 파일 데이터는 Azure Blob Storage에 안전하게 저장되며, 서버는 파일 접근을 위한 SAS 토큰을 발급하는 역할을 합니다.
-* Deployment: Azure Web App (Linux) 환경에 배포되며, `web.config`를 통해 JVM 타임존(`Asia/Seoul`)을 고정합니다.
+- **드라이브**: 개인·팀 스토리지, 폴더 트리, 여러 파일 업로드(드래그 앤 드롭·진행률·취소), 이동·복사(폴더는 하위까지), 이름 검색(경로 표시), 휴지통(30일 후 자동 삭제)
+- **미리보기·편집**: 이미지·PDF·텍스트 미리보기, Office 문서(Azure 저장소일 때), 텍스트 편집기(저장 충돌 감지), 핵심 문장 추출 요약, DeepL 번역(키 설정 시)
+- **버전·서명**: 저장할 때마다 버전과 SHA-256 기록, 되돌리기, 팀장·소유자 서명(내용이 바뀌면 자동 무효 표시)
+- **팀 협업**: 초대·수락, 멤버별 편집·삭제·초대 권한, 팀장 위임, 실시간 채팅(파일 공유), 접속 중 표시, 다른 사람의 변경 즉시 반영
+- **외부 공유**: 비밀번호·유효 기간·다운로드 횟수 제한 링크, 링크 목록·해제, 로그인 없는 다운로드 페이지
+- **알림**: 초대·권한 변경·팀장 위임 등을 WebSocket 으로 즉시 전달
 
----
+| 버전 기록·서명 | 편집기·핵심 문장 요약 |
+|---|---|
+| ![버전 기록](docs/images/version-history.png) | ![편집기](docs/images/editor-summary.png) |
+| **공유 링크 관리** | **모바일** |
+| ![공유](docs/images/share-dialog.png) | <img src="docs/images/mobile-chat.png" width="260" alt="모바일 채팅"> |
 
-## 🛠️ 기술 스택
+## 아키텍처
 
-### Backend
-* Framework: Spring Boot 3.2.5, Spring Data JPA, Spring Security, Spring WebSocket 
-* Language: Java 17 
-* Database: MySQL 8 
-* Authentication: JSON Web Token (jjwt library) 
-* Build Tool: Gradle
+```mermaid
+flowchart LR
+    B["브라우저<br/>React SPA"] -- "HTTPS /api<br/>HttpOnly 쿠키 + CSRF" --> S
+    B <-- "WSS /ws (STOMP)" --> S
+    subgraph S["Spring Boot (단일 jar)"]
+      direction TB
+      F["Security: 쿠키 JWT · CSRF · CSP · 요청 제한"] --> C["REST / STOMP"]
+      C --> P["AccessPolicy (권한)"] --> V["서비스"]
+      V -- "커밋 후 이벤트" --> R["실시간 발행"]
+    end
+    V --> DB[("MySQL 8<br/>Flyway")]
+    V --> ST[("Blob 저장소<br/>Azure · 로컬")]
+```
 
-### Frontend
-* Library: React 18 (UMD), Babel Standalone
-* Styling: Tailwind CSS 
-* Real-time: SockJS, Stomp.js 
-* Icons: Lucide Icons
+자세한 설계(데이터 모델, 권한 모델, 업로드·편집·실시간 흐름, 한계와 확장 방안)는 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-### Infrastructure
-* Platform: Azure Web App (Linux)
-* Storage: Azure Blob Storage
-* Database: Azure Database for MySQL
+## 빠르게 실행하기
 
----
+필요한 것: Docker
 
-## ⚙️ 로컬 환경에서 실행하기
+```bash
+cp .env.example .env
+# .env 에서 JWT_SECRET 을 32자 이상 무작위 값으로, 체험 데이터가 필요하면 DEMO_ENABLED=true · DEMO_PASSWORD=원하는값(영문+숫자 8자 이상)
+docker compose up -d --build --wait
+```
 
-1.  사전 요구사항
-    * Java 17 (JDK)
-    * Gradle
-    * MySQL 8
-    * Git
+<http://localhost:8080> 에 접속합니다. 데모 모드라면 로그인 화면의 데모 계정(김하늘·이도윤·박서연)을 눌러 바로 체험할 수 있습니다.
 
-2.  프로젝트 클론
-    ```bash
-    git clone [https://github.com/your-username/smartcollab-prod.git](https://github.com/your-username/smartcollab-prod.git)
-    cd smartcollab-prod
-    ```
+### 개발 모드
 
-3.  데이터베이스 설정
-    * 로컬 MySQL 서버에 `smartcollab_db`와 같은 이름의 새 데이터베이스(Schema)를 생성합니다.
-    * 해당 데이터베이스에 접근할 수 있는 사용자 계정을 생성합니다.
+```bash
+docker compose up -d db                                   # MySQL (localhost:3307)
+cd backend && DB_URL="jdbc:mysql://localhost:3307/smartcollab?serverTimezone=UTC" \
+  DB_PASSWORD=smartcollab ./gradlew bootRun               # API :8080
+cd frontend && npm ci && npm run dev                      # 화면 :5173 (API·WebSocket 프록시)
+```
 
-4.  환경 변수 설정
-    * IntelliJ의 `Run/Debug Configurations`에서 아래의 환경 변수를 설정합니다. application.yml` 파일이 이 값들을 참조합니다. 
-    * `SPRING_DATASOURCE_URL`: `jdbc:mysql://localhost:3306/smartcollab_db`
-    * `SPRING_DATASOURCE_USERNAME`: `your_mysql_username`
-    * `SPRING_DATASOURCE_PASSWORD`: `your_mysql_password`
-    * `SPRING_CLOUD_AZURE_STORAGE_BLOB_CONNECTION_STRING`: `your_azure_blob_storage_connection_string`
-    * `JWT_SECRET_KEY`: `your_super_strong_jwt_secret_key_for_local_test`
-    * `DEEPL_API_KEY`: (선택 사항) DeepL 번역 API 키
+API 문서: <http://localhost:8080/swagger-ui.html> · 전체 목록 [docs/API.md](docs/API.md)
 
-5.  애플리케이션 실행
-    * IntelliJ에서 `SmartcolllabLocalApplication.java` 파일을 열고 `main` 메소드를 실행합니다.
-    * 서버가 정상적으로 시작되면 웹 브라우저에서 `http://localhost:8080`으로 접속합니다.
+## 테스트
 
----
+```bash
+cd backend && ./gradlew test          # 79건 (MySQL·Azurite 컨테이너 자동 실행), 커버리지 리포트 포함
+cd frontend && npm test               # 15건
+docker compose up -d --wait && cd e2e && npm ci && npx playwright test   # E2E 5개 시나리오
+```
 
-## 📖 API 엔드포인트 요약
+백엔드 라인 커버리지 81.8%. v1 에서 찾은 결함마다 회귀 테스트가 있습니다 → [docs/TESTING.md](docs/TESTING.md)
 
-| 기능 분류 | Method | 경로 | 설명 |
-|---|---|---|---|
-| 인증 | `POST` | `/api/auth/login`, `/api/auth/signup` | 로그인 및 회원가입 |
-| | `GET` | `/api/auth/me` | 현재 로그인된 사용자 정보 조회 |
-| 대시보드/탐색 | `GET` | `/api/dashboard/root` | 개인 루트 폴더/파일 조회 |
-| | `GET` | `/api/dashboard/folder/{id}` | 특정 폴더 내용 조회 |
-| | `GET` | `/api/dashboard/team/{id}/root` | 팀 루트 폴더/파일 조회 |
-| 파일 | `POST` | `/api/files/upload` | 파일 업로드 (FormData) |
-| | `GET` | `/api/files/download-by-id/{id}` | 파일 다운로드 |
-| | `PUT` | `/api/files/{id}/rename` | 파일 이름 변경 |
-| | `POST` | `/api/files/copy`, `/api/files/move` | 파일 복사 및 이동 |
-| | `GET` | `/api/files/preview-url/{id}` | MS Office 미리보기용 SAS URL 생성 |
-| 팀/채팅 | `POST` | `/api/teams` | 새 팀 생성 |
-| | `POST` | `/api/teams/{id}/invite` | 팀원 초대 |
-| | `GET` | `/api/teams/{id}/members` | 팀원 목록 조회 |
-| | `GET` | `/api/chat/{id}/history` | 채팅 기록 조회 |
-| | `WS` | `/ws` | WebSocket 연결 엔드포인트 |
-| 공유 | `POST` | `/api/share/{fileId}` | 파일 공유 링크 생성 |
-| | `GET` | `/api/share/download/{urlKey}` | 공유 파일 다운로드 |
+## 문서
+
+| 문서 | 내용 |
+|---|---|
+| [REFACTORING_REPORT](docs/REFACTORING_REPORT.md) | v1 검토 결과 — 보안 14 · 버그 22 · 성능 · UI/UX, 원인·해결·검증 테스트 |
+| [ARCHITECTURE](docs/ARCHITECTURE.md) | 구성도, 패키지, 데이터·권한 모델, 주요 흐름, 한계 |
+| [PERFORMANCE](docs/PERFORMANCE.md) | 측정 방법과 결과 |
+| [SECURITY](docs/SECURITY.md) | 위협별 대응, 인증 흐름, 보안 헤더 |
+| [API](docs/API.md) | 엔드포인트, 오류 코드, WebSocket |
+| [TESTING](docs/TESTING.md) | 테스트 전략과 목록 |
+| [DEPLOYMENT](docs/DEPLOYMENT.md) | 환경 변수, Azure 배포, CI |
+| [ADR](docs/adr/README.md) | 주요 설계 결정 8건 |
+
+## 폴더 구조
+
+```
+backend/    Spring Boot (도메인별 패키지: auth·file·folder·team·chat·share·storage·realtime …)
+frontend/   React + TypeScript (api·realtime·features·components)
+e2e/        Playwright E2E, 화면 캡처·성능 측정 스크립트
+docs/       기술 문서, ADR, 측정 원자료, 화면
+```
+
+## 한계
+
+단일 인스턴스를 전제로 합니다(인메모리 STOMP 브로커·요청 제한). 텍스트는 동시 편집 충돌을 감지하지만 여러 사람이 한 화면에서 동시에 입력하는 공동 편집은 아닙니다. 확장 방안은 [ARCHITECTURE §7](docs/ARCHITECTURE.md#7-한계와-확장-방안).

@@ -1,0 +1,118 @@
+{
+  "runs": 5,
+  "measuredAt": "2026-09-26T17:38:12.617Z",
+  "v1": {
+    "requests": 20,
+    "totalKb": 1288,
+    "jsKb": 1156,
+    "cssKb": 0,
+    "fontKb": 0,
+    "scriptMs": 566,
+    "elapsedMs": 1132
+  },
+  "v2": {
+    "requests": 21,
+    "totalKb": 496,
+    "jsKb": 133,
+    "cssKb": 23,
+    "fontKb": 334,
+    "scriptMs": 33,
+    "elapsedMs": 205
+  },
+  "raw": {
+    "v1": [
+      {
+        "requests": 20,
+        "totalKb": 1288,
+        "jsKb": 1155,
+        "cssKb": 0,
+        "fontKb": 0,
+        "scriptMs": 563,
+        "elapsedMs": 1132
+      },
+      {
+        "requests": 20,
+        "totalKb": 1288,
+        "jsKb": 1156,
+        "cssKb": 0,
+        "fontKb": 0,
+        "scriptMs": 552,
+        "elapsedMs": 1047
+      },
+      {
+        "requests": 20,
+        "totalKb": 1288,
+        "jsKb": 1156,
+        "cssKb": 0,
+        "fontKb": 0,
+        "scriptMs": 613,
+        "elapsedMs": 1423
+      },
+      {
+        "requests": 20,
+        "totalKb": 1289,
+        "jsKb": 1156,
+        "cssKb": 0,
+        "fontKb": 0,
+        "scriptMs": 611,
+        "elapsedMs": 1150
+      },
+      {
+        "requests": 20,
+        "totalKb": 1288,
+        "jsKb": 1155,
+        "cssKb": 0,
+        "fontKb": 0,
+        "scriptMs": 566,
+        "elapsedMs": 1054
+      }
+    ],
+    "v2": [
+      {
+        "requests": 21,
+        "totalKb": 496,
+        "jsKb": 133,
+        "cssKb": 23,
+        "fontKb": 334,
+        "scriptMs": 33,
+        "elapsedMs": 158
+      },
+      {
+        "requests": 21,
+        "totalKb": 496,
+        "jsKb": 133,
+        "cssKb": 23,
+        "fontKb": 334,
+        "scriptMs": 34,
+        "elapsedMs": 205
+      },
+      {
+        "requests": 21,
+        "totalKb": 496,
+        "jsKb": 133,
+        "cssKb": 23,
+        "fontKb": 334,
+        "scriptMs": 39,
+        "elapsedMs": 220
+      },
+      {
+        "requests": 21,
+        "totalKb": 496,
+        "jsKb": 133,
+        "cssKb": 23,
+        "fontKb": 334,
+        "scriptMs": 32,
+        "elapsedMs": 228
+      },
+      {
+        "requests": 21,
+        "totalKb": 496,
+        "jsKb": 133,
+        "cssKb": 23,
+        "fontKb": 334,
+        "scriptMs": 33,
+        "elapsedMs": 171
+      }
+    ]
+  }
+}

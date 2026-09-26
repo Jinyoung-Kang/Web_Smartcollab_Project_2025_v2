@@ -1,0 +1,114 @@
+# API 레퍼런스
+
+실행 중인 서버의 **Swagger UI** (`/swagger-ui.html`, 운영 프로필에서는 `SWAGGER_ENABLED=true` 일 때만)에서 요청·응답 스키마를 확인하고 직접 호출해 볼 수 있습니다. 이 문서는 전체 목록과 공통 규칙을 요약합니다.
+
+## 공통 규칙
+
+| 항목 | 규칙 |
+|---|---|
+| 인증 | 로그인·가입 시 HttpOnly 쿠키 `SC_AUTH`(JWT, 기본 8시간)가 설정됩니다. API 클라이언트는 `Authorization: Bearer <JWT>` 헤더도 쓸 수 있습니다. |
+| CSRF | 쿠키로 인증된 `POST/PUT/PATCH/DELETE` 는 `XSRF-TOKEN` 쿠키 값을 `X-XSRF-TOKEN` 헤더로 보내야 합니다. 토큰은 `GET /api/auth/csrf` 로 받습니다. |
+| 오류 형식 | RFC 9457 `application/problem+json` — `{ "status", "title", "detail", "code", "errors"? }` |
+| 시각 | ISO-8601 UTC (`2026-09-27T02:40:00Z`) |
+| 권한 없음 | 읽을 수 없는 대상은 `404`(존재 여부 비공개), 읽을 수 있지만 권한이 부족하면 `403` |
+
+### 오류 코드
+
+| code | HTTP | 의미 |
+|---|---|---|
+| `INVALID_REQUEST` | 400 | 입력 검증 실패 (`errors` 에 필드별 메시지) |
+| `UNAUTHORIZED` / `INVALID_CREDENTIALS` | 401 | 로그인 필요 / 아이디·비밀번호 불일치 |
+| `FORBIDDEN` / `CSRF_INVALID` | 403 | 권한 부족 / CSRF 토큰 없음·만료 (클라이언트는 토큰을 새로 받아 1회 재시도) |
+| `NOT_FOUND` | 404 | 대상 없음 또는 접근 불가 |
+| `CONFLICT` / `EDIT_CONFLICT` | 409 | 상태 충돌 / 다른 사람이 먼저 저장함 |
+| `LINK_EXPIRED` | 410 | 만료·소진·휴지통 파일의 공유 링크 |
+| `PAYLOAD_TOO_LARGE` | 413 | 업로드·편집 한도 초과 |
+| `RATE_LIMITED` | 429 | 요청 제한 초과 |
+| `FEATURE_DISABLED` | 503 | 서버에 설정되지 않은 기능 (번역 키 없음, 로컬 저장소에서 Office 미리보기 등) |
+
+## 엔드포인트
+
+### 인증·계정
+
+| Method | Path | 설명 |
+|---|---|---|
+| GET | `/api/auth/csrf` | CSRF 토큰 발급 |
+| POST | `/api/auth/signup` | 가입 후 바로 로그인 (201) |
+| POST | `/api/auth/login` | 로그인 (IP 당 분당 10회 제한) |
+| POST | `/api/auth/logout` | 쿠키 삭제 |
+| GET | `/api/auth/me` | 내 정보 + 개인 루트 폴더 ID |
+| DELETE | `/api/users/me` | 회원 탈퇴 (`{password}` 재확인) |
+
+### 폴더·파일
+
+| Method | Path | 설명 |
+|---|---|---|
+| GET | `/api/folders/{id}` | 폴더 내용 · 경로 · 이 폴더에서의 내 권한 |
+| GET | `/api/folders/tree?teamId=` | 폴더 트리 (쿼리 1회) |
+| POST | `/api/folders` | 폴더 만들기 `{parentId, name}` |
+| PATCH | `/api/folders/{id}` | 이름 바꾸기 |
+| DELETE | `/api/folders/{id}` | 하위까지 영구 삭제 |
+| POST | `/api/files/upload?folderId=` | 업로드 (multipart `file`) |
+| GET | `/api/files/{id}/download` | 다운로드 (스트리밍) |
+| GET | `/api/files/{id}/view` | 미리보기 (이미지·PDF·텍스트만 inline) |
+| GET | `/api/files/{id}/office-preview-url` | Office 미리보기용 10분 SAS URL (Azure 저장소일 때) |
+| PATCH | `/api/files/{id}` | 이름 바꾸기 |
+| DELETE | `/api/files/{id}` | 휴지통으로 이동 |
+| GET / PUT | `/api/files/{id}/content` | 텍스트 내용 / 새 버전 저장 `{content, baseVersionId}` |
+| GET | `/api/files/{id}/versions` | 버전 기록 + 서명 |
+| POST | `/api/files/{id}/versions/{versionId}/restore` | 버전 되돌리기 |
+| POST | `/api/files/{id}/signatures` | 현재 버전에 서명 |
+| GET | `/api/files/search?q=&teamId=` | 이름 검색 (최대 100건, 경로 포함) |
+| GET | `/api/files/usage?teamId=` | 파일 수·용량 |
+| POST | `/api/items/move` · `/api/items/copy` | `{items:[{type,id}], targetFolderId}` |
+| GET / DELETE | `/api/trash?teamId=` | 휴지통 목록 / 비우기 |
+| POST | `/api/trash/{fileId}/restore` | 복원 |
+| DELETE | `/api/trash/{fileId}` | 영구 삭제 |
+
+### 문서 도구
+
+| Method | Path | 설명 |
+|---|---|---|
+| POST | `/api/files/{id}/summary` | 핵심 문장 추출 요약 (단어 빈도 기반, 생성형 아님) |
+| POST | `/api/files/{id}/translation?target=EN\|KO` | DeepL 번역 (키 없으면 503) |
+
+### 팀·채팅·알림
+
+| Method | Path | 설명 |
+|---|---|---|
+| GET / POST | `/api/teams` | 내 팀 목록 / 팀 만들기 |
+| GET / DELETE | `/api/teams/{id}` | 팀 상세(멤버·내 권한·루트 폴더) / 팀 삭제 |
+| GET | `/api/teams/{id}/presence` | 접속 중인 멤버 |
+| POST | `/api/teams/{id}/invitations` | 초대 `{username}` |
+| POST | `/api/invitations/{id}/accept` · `/reject` | 초대 응답 |
+| PUT | `/api/teams/{id}/members/{memberId}/permissions` | 권한 변경 (팀장) |
+| DELETE | `/api/teams/{id}/members/{memberId}` | 내보내기 (팀장) |
+| POST | `/api/teams/{id}/leader/{memberId}` | 팀장 위임 |
+| POST | `/api/teams/{id}/leave` | 팀 나가기 |
+| GET | `/api/teams/{id}/messages?before=&size=` | 채팅 기록 (커서 페이지) |
+| POST / DELETE | `/api/teams/{id}/messages` | 메시지 전송(HTTP) / 기록 비우기(팀장) |
+| GET / DELETE | `/api/notifications` | 최근 알림 + 안 읽은 수 / 모두 삭제 |
+| POST | `/api/notifications/{id}/read` · `/read-all` | 읽음 처리 |
+
+### 공유 링크
+
+| Method | Path | 인증 | 설명 |
+|---|---|---|---|
+| GET / POST | `/api/files/{id}/share-links` | 필요 | 링크 목록 / 만들기 `{password?, expiresInHours?, downloadLimit?}` |
+| DELETE | `/api/share-links/{linkId}` | 필요 | 링크 해제 |
+| GET | `/api/public/shares/{token}` | 불필요 | 파일명·크기·조건 |
+| POST | `/api/public/shares/{token}/unlock` | 불필요 | 비밀번호 확인 → 5분짜리 `grant` |
+| GET | `/api/public/shares/{token}/download?grant=` | 불필요 | 다운로드 (횟수 1 차감) |
+
+### 기타
+
+| Method | Path | 설명 |
+|---|---|---|
+| GET | `/api/public/config` | 기능 사용 가능 여부·업로드 한도·데모 계정(데모 모드일 때) |
+| GET | `/actuator/health` | 헬스 체크 (liveness/readiness 포함) |
+
+## WebSocket (STOMP)
+
+- 엔드포인트: `ws(s)://<host>/ws` — 핸드셰이크에 인증 쿠키 필요
+- 전송: `SEND /app/teams/{teamId}/chat` 본문 `{ "content": "…" }` 또는 `{ "fileId": 12 }` (팀 파일 공유)
+- 구독 목적지와 권한: [ARCHITECTURE.md §5.3](ARCHITECTURE.md#53-실시간--커밋-후-이벤트)

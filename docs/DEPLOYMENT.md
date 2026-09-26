@@ -1,0 +1,81 @@
+# 배포 가이드
+
+## 1. 로컬 (Docker Compose)
+
+```bash
+cp .env.example .env         # JWT_SECRET 등 값 입력 (openssl rand -base64 48)
+docker compose up -d --build --wait
+open http://localhost:8080
+```
+
+`DEMO_ENABLED=true` 와 `DEMO_PASSWORD` 를 넣으면 체험용 계정(demo1~3)·팀·문서가 만들어집니다.
+
+## 2. 환경 변수
+
+| 변수 | 필수 | 기본값 | 설명 |
+|---|---|---|---|
+| `SPRING_PROFILES_ACTIVE` | 운영 | – | `prod` 이면 Azure 저장소·보안 쿠키·Swagger 비활성 |
+| `DB_URL` | ✔ | `jdbc:mysql://localhost:3306/smartcollab…` | MySQL 8 JDBC URL (`serverTimezone=UTC` 권장) |
+| `DB_USERNAME` / `DB_PASSWORD` | ✔ | – | DB 계정 |
+| `JWT_SECRET` | ✔(운영) | 개발 시 임시 키 | 32바이트 이상 무작위 문자열 |
+| `JWT_TTL` | | `8h` | 로그인 유지 시간 |
+| `STORAGE_TYPE` | | `local` (`prod` 는 `azure`) | `local` \| `azure` |
+| `STORAGE_LOCAL_ROOT` | | `~/smartcollab-data` | 로컬 저장소 경로 |
+| `AZURE_STORAGE_CONNECTION_STRING` | azure 시 ✔ | – | Blob Storage 연결 문자열 |
+| `AZURE_STORAGE_CONTAINER` | | `smartcollab-files` | 컨테이너 이름 (없으면 생성) |
+| `COOKIE_SECURE` | | `false` (`prod` 는 `true`) | HTTPS 에서만 쿠키 전송 |
+| `CORS_ALLOWED_ORIGINS` | | `http://localhost:5173,…` | 다른 출처에서 API 를 부를 때만 |
+| `UPLOAD_MAX_FILE_SIZE` | | `200MB` | 업로드 한도 |
+| `TRASH_RETENTION_DAYS` | | `30` | 휴지통 보관 기간 |
+| `DEEPL_API_KEY` | | – | 번역 기능 (없으면 번역 버튼 비활성) |
+| `DEMO_ENABLED` / `DEMO_PASSWORD` | | `false` | 데모 데이터 생성 |
+| `SWAGGER_ENABLED` | | `false` (`prod`) | 운영에서 API 문서 노출 여부 |
+
+## 3. Azure (App Service + Database for MySQL + Blob Storage)
+
+v1 과 같은 Azure 구성을 그대로 쓸 수 있습니다.
+
+### 3.1 리소스
+
+1. **Azure Database for MySQL – Flexible Server** (MySQL 8.0 이상): DB `smartcollab` 과 전용 사용자를 만듭니다. 스키마는 앱이 시작할 때 Flyway 가 만듭니다.
+2. **Storage Account**: 연결 문자열을 준비합니다. 컨테이너는 앱이 없으면 만듭니다.
+3. **App Service (Linux)**: 둘 중 하나
+   - **컨테이너**: 저장소의 `Dockerfile` 로 만든 이미지를 레지스트리(ACR·GHCR)에 올려 사용
+   - **Java 21 런타임**: `cd backend && ./gradlew bootJar -PbundleFrontend` 로 만든 `build/libs/smartcollab.jar` 배포
+
+### 3.2 App Service 설정
+
+```bash
+# WebSocket 사용 (채팅·실시간 반영에 필수)
+az webapp config set -g <리소스그룹> -n <앱이름> --web-sockets-enabled true
+
+# 환경 변수
+az webapp config appsettings set -g <리소스그룹> -n <앱이름> --settings \
+  SPRING_PROFILES_ACTIVE=prod \
+  DB_URL="jdbc:mysql://<서버>.mysql.database.azure.com:3306/smartcollab?sslMode=REQUIRED&serverTimezone=UTC" \
+  DB_USERNAME=<사용자> DB_PASSWORD=<비밀번호> \
+  JWT_SECRET=<32바이트 이상 무작위> \
+  AZURE_STORAGE_CONNECTION_STRING="<연결 문자열>"
+
+# Java 런타임으로 jar 배포하는 경우
+az webapp deploy -g <리소스그룹> -n <앱이름> --src-path backend/build/libs/smartcollab.jar --type jar
+```
+
+- 헬스 체크 경로: `/actuator/health/readiness`
+- HTTPS 전용으로 설정하세요(`COOKIE_SECURE=true` 가 `prod` 프로필 기본값이므로 HTTP 로는 로그인 쿠키가 전송되지 않습니다).
+- 인스턴스는 1개로 운영하세요. 실시간 브로커·요청 제한이 인메모리입니다([ARCHITECTURE.md §7](ARCHITECTURE.md#7-한계와-확장-방안)).
+
+### 3.3 v1 데이터베이스에서 옮길 때
+
+v2 스키마는 v1 과 다릅니다(시각을 UTC 로 저장, 파일 원본 키를 버전 테이블로 이동, 공유 링크 토큰·비밀번호 컬럼 변경 등). **새 데이터베이스로 시작하는 것을 권장**합니다. v1 데이터를 유지해야 한다면 v1 스키마를 읽어 v2 테이블로 옮기는 일회성 이전 스크립트가 필요합니다.
+
+## 4. CI
+
+`.github/workflows/ci.yml` 이 푸시·PR 마다 실행합니다.
+
+| 작업 | 내용 |
+|---|---|
+| backend | 단위·통합 테스트(MySQL·Azurite Testcontainers), 커버리지·측정 리포트 업로드 |
+| frontend | 타입 검사 · ESLint · Vitest · 빌드 |
+| e2e | Docker 이미지로 전체 스택 실행 → Playwright 사용자 시나리오 |
+| secrets | gitleaks 로 전체 커밋 이력 비밀값 검사 |
