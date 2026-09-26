@@ -1,6 +1,7 @@
 package com.smartcollab.global.error;
 
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
@@ -41,8 +42,18 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     ResponseEntity<ProblemDetail> handleIntegrity(DataIntegrityViolationException e) {
-        log.info("Data integrity violation: {}", e.getMostSpecificCause().getMessage());
+        // DB 오류 메시지에는 중복된 값(이메일 등)이 그대로 들어 있으므로 제약 이름만 기록합니다 [SEC-08].
+        log.info("Data integrity violation: constraint={}", constraintName(e));
         return problem(ErrorCode.CONFLICT, "이미 존재하거나 다른 데이터가 참조하고 있어 처리할 수 없습니다.");
+    }
+
+    private static String constraintName(Throwable e) {
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            if (t instanceof ConstraintViolationException violation && violation.getConstraintName() != null) {
+                return violation.getConstraintName();
+            }
+        }
+        return "unknown";
     }
 
     @ExceptionHandler(AuthenticationException.class)

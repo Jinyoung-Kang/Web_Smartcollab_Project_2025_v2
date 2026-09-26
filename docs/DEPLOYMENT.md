@@ -24,7 +24,7 @@ open http://localhost:8080
 | `AZURE_STORAGE_CONNECTION_STRING` | azure 시 ✔ | – | Blob Storage 연결 문자열 |
 | `AZURE_STORAGE_CONTAINER` | | `smartcollab-files` | 컨테이너 이름 (없으면 생성) |
 | `COOKIE_SECURE` | | `false` (`prod` 는 `true`) | HTTPS 에서만 쿠키 전송 |
-| `CORS_ALLOWED_ORIGINS` | | `http://localhost:5173,…` | 다른 출처에서 API 를 부를 때만 |
+| `CORS_ALLOWED_ORIGINS` | | 개발 `http://localhost:5173,…` / `prod` 는 비어 있음 | 다른 출처에서 API 를 부를 때만 |
 | `UPLOAD_MAX_FILE_SIZE` | | `200MB` | 업로드 한도 |
 | `TRASH_RETENTION_DAYS` | | `30` | 휴지통 보관 기간 |
 | `TRASH_PURGE_CRON` / `TRASH_PURGE_ZONE` | | `0 0 4 * * *` / `Asia/Seoul` | 휴지통 자동 비우기 시각과 그 기준 시간대 |
@@ -61,7 +61,9 @@ az webapp config appsettings set -g <리소스그룹> -n <앱이름> --settings 
   JWT_SECRET=<32바이트 이상 무작위> \
   AZURE_STORAGE_CONNECTION_STRING="<연결 문자열>"
 
-# Java 런타임으로 jar 배포하는 경우
+# Java 런타임으로 jar 배포하는 경우 (컨테이너는 Dockerfile 에 이미 포함)
+az webapp config appsettings set -g <리소스그룹> -n <앱이름> --settings \
+  JAVA_OPTS="-Djdk.httpclient.allowRestrictedHeaders=content-length"   # Azure SDK 요청마다 남는 경고 방지
 az webapp deploy -g <리소스그룹> -n <앱이름> --src-path backend/build/libs/smartcollab.jar --type jar
 ```
 

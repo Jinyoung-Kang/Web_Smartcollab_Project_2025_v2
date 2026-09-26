@@ -35,9 +35,6 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember, Long> {
             """)
     List<TeamSize> countMembers(@Param("teamIds") Collection<Long> teamIds);
 
-    @Query("select m.user.username from TeamMember m where m.team.id = :teamId")
-    List<String> findUsernames(@Param("teamId") Long teamId);
-
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("delete from TeamMember m where m.team.id = :teamId")
     int deleteByTeam(@Param("teamId") Long teamId);
