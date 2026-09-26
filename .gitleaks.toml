@@ -1,0 +1,7 @@
+# gitleaks 설정: 기본 규칙 + 예외 1건
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Azurite(Azure Storage 에뮬레이터)의 공개 개발용 계정 키 — Microsoft 문서에 공개된 고정 값이며 실제 비밀값이 아님"
+paths = ['''backend/src/test/java/com/smartcollab/storage/AzureBlobStorageTest\.java''']

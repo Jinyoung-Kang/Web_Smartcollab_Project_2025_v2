@@ -1,0 +1,13 @@
+{
+  "name": "smartcollab-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "screenshots": "node scripts/screenshots.mjs",
+    "measure": "node scripts/measure-initial-load.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}

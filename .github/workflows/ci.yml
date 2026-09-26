@@ -1,0 +1,81 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend · 단위·통합 테스트 (MySQL·Azurite Testcontainers)
+    runs-on: ubuntu-24.04
+    defaults: { run: { working-directory: backend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "21" }
+      - uses: gradle/actions/setup-gradle@v4
+      - name: 테스트 + 커버리지
+        run: ./gradlew test --no-daemon
+      - name: 테스트·커버리지·측정 리포트
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-reports
+          path: |
+            backend/build/reports/tests/test
+            backend/build/reports/jacoco/test/html
+            backend/build/reports/metrics
+
+  frontend:
+    name: Frontend · 타입 검사·린트·테스트·빌드
+    runs-on: ubuntu-24.04
+    defaults: { run: { working-directory: frontend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  e2e:
+    name: E2E · Docker 이미지로 전체 스택 실행 후 사용자 시나리오 검증
+    runs-on: ubuntu-24.04
+    needs: [backend, frontend]
+    env:
+      JWT_SECRET: ci-only-jwt-secret-ci-only-jwt-secret-0000
+      DEMO_ENABLED: "true"
+      DEMO_PASSWORD: ci-demo-1234
+    steps:
+      - uses: actions/checkout@v4
+      - name: 전체 스택 실행 (MySQL + 앱)
+        run: docker compose up -d --build --wait
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm, cache-dependency-path: e2e/package-lock.json }
+      - name: Playwright 설치
+        working-directory: e2e
+        run: npm ci --no-audit --no-fund && npx playwright install --with-deps chromium
+      - name: E2E 테스트
+        working-directory: e2e
+        run: npx playwright test
+      - name: 실패 시 앱 로그
+        if: failure()
+        run: docker compose logs app
+      - name: Playwright 리포트
+        if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: e2e-report, path: e2e/playwright-report }
+
+  secrets:
+    name: 비밀값 유출 검사 (gitleaks)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: gitleaks
+        run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest git /repo --no-banner --redact -v --config /repo/.gitleaks.toml
