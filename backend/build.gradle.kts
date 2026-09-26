@@ -13,6 +13,8 @@ java {
 
 repositories { mavenCentral() }
 
+val mockitoAgent = configurations.create("mockitoAgent")
+
 dependencies {
     val bom = platform(org.springframework.boot.gradle.plugin.SpringBootPlugin.BOM_COORDINATES)
     implementation(bom)
@@ -65,6 +67,8 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testImplementation("org.testcontainers:testcontainers-mysql")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    mockitoAgent(platform(org.springframework.boot.gradle.plugin.SpringBootPlugin.BOM_COORDINATES))
+    mockitoAgent("org.mockito:mockito-core") { isTransitive = false }
 }
 
 tasks.withType<JavaCompile> {
@@ -75,7 +79,9 @@ tasks.withType<JavaCompile> {
 tasks.test {
     useJUnitPlatform()
     // 운영 컨테이너·CI 와 같은 UTC 로 실행해, 개발 PC 시간대(KST)에서만 통과하는 테스트가 생기지 않게 합니다.
-    jvmArgs("-Dfile.encoding=UTF-8", "-Duser.timezone=UTC", "-XX:+EnableDynamicAgentLoading")
+    // Mockito 인라인 목은 JDK 21+ 에서 동적 에이전트 대신 명시적 -javaagent 로 등록합니다(Mockito 권장 방식).
+    // 목 디스패처를 부트스트랩 경로에 추가하므로, 의미 없는 CDS 경고를 피하려고 테스트 JVM 의 클래스 데이터 공유를 끕니다.
+    jvmArgs("-Dfile.encoding=UTF-8", "-Duser.timezone=UTC", "-javaagent:${mockitoAgent.asPath}", "-Xshare:off")
     testLogging {
         events("failed", "skipped")
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
@@ -94,14 +100,14 @@ tasks.jacocoTestReport {
 val frontendDir = layout.projectDirectory.dir("../frontend")
 val bundleFrontend = providers.gradleProperty("bundleFrontend").isPresent
 
-val npmCi by tasks.registering(Exec::class) {
+val npmCi = tasks.register<Exec>("npmCi") {
     workingDir(frontendDir)
     commandLine("npm", "ci", "--no-audit", "--no-fund")
     inputs.file(frontendDir.file("package-lock.json"))
     outputs.dir(frontendDir.dir("node_modules"))
 }
 
-val npmBuild by tasks.registering(Exec::class) {
+val npmBuild = tasks.register<Exec>("npmBuild") {
     dependsOn(npmCi)
     workingDir(frontendDir)
     commandLine("npm", "run", "build")
