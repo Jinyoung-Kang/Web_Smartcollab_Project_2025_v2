@@ -13,7 +13,8 @@ import java.util.UUID;
 /**
  * DB 트랜잭션과 저장소(외부 시스템) 사이의 일관성을 맞춥니다.
  * <ul>
- *   <li>업로드: 저장소에 먼저 쓰고, DB 트랜잭션이 롤백되면 방금 쓴 파일을 지웁니다 (고아 파일 방지).</li>
+ *   <li>업로드·복사: 저장소 작업은 DB 트랜잭션 밖에서 먼저 하고({@link #discard}), 이어지는 DB 저장이 실패하면 방금 쓴 파일을 지웁니다.
+ *       트랜잭션 안에서 쓰는 작은 파일(텍스트 새 버전)은 롤백되면 지웁니다({@link #putWithRollbackCleanup}).</li>
  *   <li>삭제: DB 커밋이 끝난 뒤에만 저장소에서 지웁니다. 커밋 전에 지웠다가 롤백되면 DB 는 남고 내용은 사라지기 때문입니다.</li>
  * </ul>
  * v1 은 트랜잭션 도중 Blob 을 먼저 삭제해, 이후 DB 오류가 나면 복구할 수 없는 상태가 될 수 있었습니다.
@@ -44,18 +45,9 @@ public class BlobLifecycle {
         return blob;
     }
 
-    public void copyWithRollbackCleanup(String sourceKey, String targetKey) {
-        storage.copy(sourceKey, targetKey);
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCompletion(int status) {
-                    if (status != STATUS_COMMITTED) {
-                        deleteQuietly(List.of(targetKey));
-                    }
-                }
-            });
-        }
+    /** 트랜잭션 밖에서 미리 써 둔 파일을, 이어지는 DB 저장이 실패했을 때 지웁니다 (실패해도 고아 파일만 남음). */
+    public void discard(Collection<String> keys) {
+        deleteQuietly(List.copyOf(keys));
     }
 
     public void deleteAfterCommit(Collection<String> keys) {

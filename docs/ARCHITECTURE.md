@@ -99,19 +99,21 @@ erDiagram
 ```mermaid
 sequenceDiagram
     participant C as 클라이언트
-    participant S as FileService (@Transactional)
+    participant S as FileService
     participant B as BlobStorage
     participant D as MySQL
     C->>S: POST /api/files/upload (multipart)
-    S->>S: AccessPolicy.requireEdit(folder)
-    S->>B: put(key, stream) — SHA-256 동시 계산
-    S->>D: INSERT files, file_versions, UPDATE active_version
-    alt 커밋 성공
+    S->>D: ① 짧은 읽기 트랜잭션 — 폴더·편집 권한 확인
+    S->>B: ② 트랜잭션 밖 — put(key, stream), SHA-256 동시 계산
+    S->>D: ③ 짧은 쓰기 트랜잭션 — 권한 재확인, INSERT files·file_versions
+    alt ③ 커밋 성공
         S-->>C: 201 Created
-    else 롤백
-        S->>B: afterCompletion → 방금 쓴 blob 삭제
+    else ③ 실패
+        S->>B: 방금 쓴 blob 삭제 (BlobLifecycle.discard)
     end
 ```
+
+저장소 쓰기(Azure 라면 네트워크 전송)를 트랜잭션 밖에 두어, 큰 파일을 올리는 동안 DB 커넥션을 붙잡지 않습니다. 처음에는 한 트랜잭션 안에서 썼는데, 측정해 보니 풀 크기만큼 업로드가 동시에 진행되면 다른 요청이 저장소 작업이 끝날 때까지 기다렸습니다(폴더 조회 1,482ms → 개선 후 56ms, [PERFORMANCE §4](PERFORMANCE.md#4-저장소-입출력과-db-커넥션)). 복사(`ItemTransferService.copy`)도 같은 3단계(계획 → 저장소 복사 → 저장)로 처리합니다.
 
 삭제는 반대로 **DB 커밋이 끝난 뒤에만** 저장소에서 지웁니다(`BlobLifecycle.deleteAfterCommit`). 커밋 전에 지웠다가 롤백되면 "DB 에는 있는데 내용이 없는" 복구 불가 상태가 되기 때문입니다. 반대 경우(커밋 후 저장소 삭제 실패)는 고아 파일만 남아 사용자 데이터 정합성은 깨지지 않습니다.
 

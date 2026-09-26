@@ -8,6 +8,7 @@ import com.smartcollab.folder.FolderRepository;
 import com.smartcollab.folder.FolderTree;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.error.ErrorCode;
+import com.smartcollab.global.tx.TransactionRunner;
 import com.smartcollab.global.util.FileNames;
 import com.smartcollab.realtime.RealtimeEvents;
 import com.smartcollab.storage.BlobLifecycle;
@@ -43,34 +44,51 @@ public class FileService {
     private final BlobLifecycle blobLifecycle;
     private final BlobStorage storage;
     private final ApplicationEventPublisher events;
+    private final TransactionRunner tx;
 
     /**
-     * 업로드: 저장소에 스트리밍으로 쓰면서 SHA-256 을 계산하고, 메타데이터와 첫 버전을 저장합니다.
-     * DB 저장이 실패하면 {@link BlobLifecycle} 이 방금 쓴 파일을 지웁니다.
+     * 업로드. 저장소 쓰기(Azure 라면 네트워크 전송)는 DB 트랜잭션 밖에서 하여 그동안 커넥션을 붙잡지 않습니다 [PERF-01].
+     * <ol>
+     *   <li>짧은 읽기 트랜잭션: 폴더와 편집 권한 확인 (권한 없는 사용자가 저장소에 쓰지 못하게)</li>
+     *   <li>트랜잭션 밖: 저장소에 스트리밍으로 쓰면서 SHA-256 계산</li>
+     *   <li>짧은 쓰기 트랜잭션: 그 사이 폴더·권한이 바뀌었을 수 있으므로 다시 확인하고 메타데이터·첫 버전 저장</li>
+     * </ol>
+     * 3단계가 실패하면 2단계에서 쓴 파일을 지웁니다.
      */
-    @Transactional
     public DriveDtos.ItemResponse upload(Long folderId, MultipartFile multipart, Long userId) {
         if (multipart == null || multipart.isEmpty()) {
             throw ApiException.badRequest("빈 파일은 업로드할 수 없습니다.");
         }
-        Folder folder = folders.findById(folderId).orElseThrow(() -> ApiException.notFound("폴더"));
-        accessPolicy.requireEdit(folder, userId);
-        User uploader = users.findById(userId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
         String name = FileNames.sanitizeUploadName(multipart.getOriginalFilename());
+        tx.readOnly(() -> accessPolicy.requireEdit(getFolder(folderId), userId));
 
         String key = BlobLifecycle.newFileKey();
         StoredBlob blob;
         try (InputStream in = multipart.getInputStream()) {
-            blob = blobLifecycle.putWithRollbackCleanup(key, in, multipart.getSize());
+            blob = storage.put(key, in, multipart.getSize());
         } catch (IOException e) {
             throw new UncheckedIOException("업로드 스트림을 읽지 못했습니다.", e);
         }
 
-        FileEntity file = files.save(new FileEntity(folder, uploader, name, blob.size()));
-        FileVersion first = versions.save(new FileVersion(file, key, uploader, blob.size(), blob.sha256()));
-        file.activate(first);
-        publishChanged(folder);
-        return DriveDtos.ItemResponse.of(file);
+        try {
+            return tx.write(() -> {
+                Folder folder = getFolder(folderId);
+                accessPolicy.requireEdit(folder, userId);
+                User uploader = users.findById(userId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
+                FileEntity file = files.save(new FileEntity(folder, uploader, name, blob.size()));
+                FileVersion first = versions.save(new FileVersion(file, key, uploader, blob.size(), blob.sha256()));
+                file.activate(first);
+                publishChanged(folder);
+                return DriveDtos.ItemResponse.of(file);
+            });
+        } catch (RuntimeException e) {
+            blobLifecycle.discard(List.of(key));
+            throw e;
+        }
+    }
+
+    private Folder getFolder(Long folderId) {
+        return folders.findById(folderId).orElseThrow(() -> ApiException.notFound("폴더"));
     }
 
     /** 다운로드 대상 정보(트랜잭션 안에서 권한 확인). 실제 바이트 스트림은 트랜잭션 밖에서 엽니다. */
