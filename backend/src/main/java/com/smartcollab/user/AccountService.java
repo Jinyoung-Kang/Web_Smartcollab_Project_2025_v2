@@ -81,7 +81,9 @@ public class AccountService {
         members.deleteByUser(userId);
         users.deleteById(userId);
 
-        teamIds.forEach(teamId -> events.publishEvent(
-                new RealtimeEvents.TeamChanged(teamId, RealtimeEvents.TeamChangeType.MEMBERS_CHANGED)));
+        teamIds.forEach(teamId -> {
+            events.publishEvent(new RealtimeEvents.MembershipRevoked(teamId, userId));
+            events.publishEvent(new RealtimeEvents.TeamChanged(teamId, RealtimeEvents.TeamChangeType.MEMBERS_CHANGED));
+        });
     }
 }

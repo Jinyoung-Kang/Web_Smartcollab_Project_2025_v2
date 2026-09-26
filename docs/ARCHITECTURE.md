@@ -49,7 +49,7 @@ com.smartcollab
 ├── share       공유 링크, HMAC 다운로드 허가
 ├── signature   버전 서명
 ├── notification 알림
-├── realtime    WebSocket 설정, STOMP 인가, 접속자 추적, 커밋 후 이벤트 발행
+├── realtime    WebSocket 설정, STOMP 인가, 팀 구독 추적(접속 표시·권한 회수), 커밋 후 이벤트 발행
 ├── ai          추출 요약, DeepL 클라이언트
 └── system      공개 설정, 데모 데이터
 ```
@@ -150,10 +150,15 @@ sequenceDiagram
 | `/user/queue/notifications` | 개인 알림 | 본인 |
 | `/user/queue/errors` | STOMP 처리 오류 | 본인 |
 
+구독 권한은 SUBSCRIBE 순간에 검사되므로, 권한이 사라진 뒤의 수신은 따로 막습니다.
+- 팀에서 제외·나가기·탈퇴가 커밋되면 `TeamSubscriptionTracker` 가 그 사용자의 해당 팀 구독을 브로커 레지스트리에서 해제합니다(연결은 유지되어 개인 알림은 계속 받음).
+- 로그인(JWT)이 만료된 연결은 `WebSocketSessionExpiry` 가 1분 안에 닫고, 재연결할 때 다시 인증합니다.
+- 클라이언트는 재연결하면 팀 목록을 다시 받아, 빠진 팀의 토픽을 다시 구독하지 않습니다.
+
 ### 5.4 공유 링크 다운로드
 
 1. `GET /api/public/shares/{token}` — 파일명·크기·비밀번호 여부 (만료·소진·휴지통이면 410)
-2. 비밀번호가 있으면 `POST …/unlock {password}` → 5분짜리 `grant = 만료시각.HMAC-SHA256(token|만료시각)` (토큰+IP 기준 10분 10회 제한)
+2. 비밀번호가 있으면 `POST …/unlock {password}` → 5분짜리 `grant = 만료시각.HMAC-SHA256(token|만료시각)` (링크+IP 기준 10분 10회, 링크 기준 10분 50회 제한)
 3. `GET …/download?grant=` → 조건부 UPDATE 로 다운로드 횟수를 원자적으로 차감 후 스트리밍
 
 ## 6. 프론트엔드
@@ -181,5 +186,4 @@ frontend/src
 | SimpleBroker(인메모리) | 인스턴스 2개 이상이면 서로 다른 서버의 구독자에게 메시지가 가지 않음 | RabbitMQ STOMP 릴레이 또는 Redis Pub/Sub |
 | 요청 제한·접속자 추적 인메모리 | 인스턴스마다 따로 셈 | Redis |
 | 로그아웃은 쿠키 삭제 | 탈취된 토큰은 만료(기본 8시간)까지 유효 | 토큰 버전·차단 목록 또는 짧은 액세스 토큰 + 리프레시 토큰 |
-| 팀 탈퇴·추방 즉시 구독 해제 안 됨 | 이미 열린 WebSocket 은 재연결 전까지 메시지를 받을 수 있음 | 서버에서 해당 세션 강제 종료 |
 | 텍스트 동시 편집은 충돌 감지까지 | 실시간 공동 편집(여러 커서) 아님 | CRDT(Yjs 등) 도입 |

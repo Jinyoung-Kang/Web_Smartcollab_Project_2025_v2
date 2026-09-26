@@ -151,7 +151,9 @@ public class TeamService {
         Team team = target.getTeam();
         User removed = target.getUser();
         members.delete(target);
-        notifications.notify(removed, Notification.Type.REMOVED_FROM_TEAM, "'" + team.getName() + "' 팀에서 제외되었습니다.", null);
+        // 알림에 팀 ID 를 담아, 그 팀 화면을 보고 있던 사용자를 화면에서 내보낼 수 있게 합니다.
+        notifications.notify(removed, Notification.Type.REMOVED_FROM_TEAM, "'" + team.getName() + "' 팀에서 제외되었습니다.", team);
+        events.publishEvent(new RealtimeEvents.MembershipRevoked(teamId, removed.getId()));
         events.publishEvent(new RealtimeEvents.TeamChanged(teamId, RealtimeEvents.TeamChangeType.MEMBERS_CHANGED));
     }
 
@@ -162,6 +164,7 @@ public class TeamService {
             throw ApiException.badRequest("팀장은 팀을 나갈 수 없습니다. 팀장을 위임하거나 팀을 삭제하세요.");
         }
         members.delete(me);
+        events.publishEvent(new RealtimeEvents.MembershipRevoked(teamId, userId));
         events.publishEvent(new RealtimeEvents.TeamChanged(teamId, RealtimeEvents.TeamChangeType.MEMBERS_CHANGED));
     }
 

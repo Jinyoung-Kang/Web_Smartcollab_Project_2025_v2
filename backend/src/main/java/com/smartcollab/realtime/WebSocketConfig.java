@@ -26,6 +26,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final AppProperties props;
     private final StompAuthorizationInterceptor authorizationInterceptor;
+    private final WebSocketSessionExpiry sessionExpiry;
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
@@ -56,5 +57,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void configureWebSocketTransport(WebSocketTransportRegistration registration) {
         registration.setMessageSizeLimit(16 * 1024);
+        registration.addDecoratorFactory(sessionExpiry::decorate);
     }
 }
