@@ -8,6 +8,7 @@ import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * 슬라이딩 윈도(로그) 방식의 인메모리 요청 제한기.
@@ -19,9 +20,9 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class SlidingWindowRateLimiter {
 
-    private static final Duration LONGEST_WINDOW = Duration.ofMinutes(10);
-
     private final ConcurrentHashMap<String, Deque<Long>> hits = new ConcurrentHashMap<>();
+    /** 지금까지 쓰인 가장 긴 창. 정리할 때 이보다 최근 기록이 있는 키는 남깁니다 (고정값이면 긴 창의 기록이 일찍 지워짐). */
+    private final AtomicLong longestWindowMillis = new AtomicLong(Duration.ofMinutes(10).toMillis());
     private final Clock clock;
 
     public SlidingWindowRateLimiter() {
@@ -38,6 +39,7 @@ public class SlidingWindowRateLimiter {
     public boolean tryAcquire(String key, int limit, Duration window) {
         long now = clock.millis();
         long windowStart = now - window.toMillis();
+        longestWindowMillis.accumulateAndGet(window.toMillis(), Math::max);
         boolean[] allowed = {false};
         hits.compute(key, (k, deque) -> {
             Deque<Long> d = deque == null ? new ArrayDeque<>() : deque;
@@ -61,7 +63,7 @@ public class SlidingWindowRateLimiter {
     /** 오래된 키를 정리해 메모리가 계속 늘지 않게 합니다. */
     @Scheduled(fixedDelay = 5 * 60 * 1000)
     public void evictStale() {
-        long threshold = clock.millis() - LONGEST_WINDOW.toMillis();
+        long threshold = clock.millis() - longestWindowMillis.get();
         for (String key : hits.keySet()) {
             hits.computeIfPresent(key, (k, d) -> d.isEmpty() || d.peekLast() <= threshold ? null : d);
         }
