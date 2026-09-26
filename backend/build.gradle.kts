@@ -32,7 +32,13 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-restclient")
     implementation("org.flywaydb:flyway-mysql")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1")
-    implementation("com.azure:azure-storage-blob:12.35.1")
+    // Azure SDK 는 BOM 으로 버전을 맞추고, 기본 HTTP 클라이언트(Netty 4.1)를 JDK HttpClient 로 교체합니다.
+    // Spring Boot 4 가 관리하는 Netty 4.2 와 azure-core-http-netty(4.1) 의 버전 충돌을 원천 차단하기 위함입니다.
+    implementation(platform("com.azure:azure-sdk-bom:1.3.8"))
+    implementation("com.azure:azure-storage-blob") {
+        exclude(group = "com.azure", module = "azure-core-http-netty")
+    }
+    implementation("com.azure:azure-core-http-jdk-httpclient")
     runtimeOnly("com.mysql:mysql-connector-j")
 
     compileOnly("org.projectlombok:lombok")

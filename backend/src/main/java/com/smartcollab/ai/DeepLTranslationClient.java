@@ -33,12 +33,21 @@ public class DeepLTranslationClient {
     private final AppProperties.Deepl config;
     private final RestClient client;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public DeepLTranslationClient(AppProperties props, RestClient.Builder builder) {
+        this(props, builder.baseUrl(props.deepl().baseUrl()).requestFactory(timeouts()).build());
+    }
+
+    DeepLTranslationClient(AppProperties props, RestClient client) {
         this.config = props.deepl();
+        this.client = client;
+    }
+
+    private static SimpleClientHttpRequestFactory timeouts() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(Duration.ofSeconds(5));
         factory.setReadTimeout(Duration.ofSeconds(30));
-        this.client = builder.baseUrl(config.baseUrl()).requestFactory(factory).build();
+        return factory;
     }
 
     public boolean enabled() {
