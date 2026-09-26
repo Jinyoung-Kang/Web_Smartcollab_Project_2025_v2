@@ -131,6 +131,50 @@ class WebSocketSecurityTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("[SEC-02] 팀에서 내보낸 사용자는 이미 열린 구독으로도 이후 채팅·이벤트를 받지 못한다")
+    void removedMemberStopsReceiving() throws Exception {
+        Api.Session leader = api().signUp("wsr");
+        Api.Session member = api().signUp("wsrm");
+        long[] team = teamWith(leader, member);
+
+        StompSession memberWs = connect(member);
+        BlockingQueue<Map<String, Object>> chat = subscribe(memberWs, "/topic/teams/" + team[0] + "/chat");
+        BlockingQueue<Map<String, Object>> events = subscribe(memberWs, "/topic/teams/" + team[0] + "/events");
+        Thread.sleep(300);
+        leader.postJson("/api/teams/{t}/messages", Map.of("content", "내보내기 전"), team[0]);
+        assertThat(chat.poll(5, TimeUnit.SECONDS)).isNotNull();
+
+        List<Number> memberIds = Api.read(leader.get("/api/teams/{t}", team[0]),
+                "$.members[?(@.username == '" + member.username + "')].memberId");
+        long memberId = memberIds.getFirst().longValue();
+        leader.delete("/api/teams/{t}/members/{m}", team[0], memberId);
+        events.clear();
+        Thread.sleep(300);
+
+        leader.postJson("/api/teams/{t}/messages", Map.of("content", "내보낸 뒤"), team[0]);
+        leader.createFolder(team[1], "내보낸 뒤 만든 폴더");
+        assertThat(chat.poll(1500, TimeUnit.MILLISECONDS)).isNull();
+        assertThat(events.poll(500, TimeUnit.MILLISECONDS)).isNull();
+    }
+
+    @Test
+    @DisplayName("[SEC-02] 탈퇴한 사용자의 열린 구독으로는 팀 채팅이 전달되지 않는다")
+    void deletedAccountStopsReceiving() throws Exception {
+        Api.Session leader = api().signUp("wsd");
+        Api.Session member = api().signUp("wsdm");
+        long[] team = teamWith(leader, member);
+
+        StompSession memberWs = connect(member);
+        BlockingQueue<Map<String, Object>> chat = subscribe(memberWs, "/topic/teams/" + team[0] + "/chat");
+        Thread.sleep(300);
+        member.deleteJson("/api/users/me", Map.of("password", Api.PASSWORD)).andReturn();
+        Thread.sleep(300);
+
+        leader.postJson("/api/teams/{t}/messages", Map.of("content", "탈퇴 뒤"), team[0]);
+        assertThat(chat.poll(1500, TimeUnit.MILLISECONDS)).isNull();
+    }
+
+    @Test
     @DisplayName("알림은 WebSocket 개인 큐로 즉시 전달된다 (v1: 10초 폴링)")
     void notificationIsPushed() throws Exception {
         Api.Session leader = api().signUp("wsn");

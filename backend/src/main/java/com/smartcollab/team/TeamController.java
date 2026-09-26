@@ -3,7 +3,7 @@ package com.smartcollab.team;
 import com.smartcollab.access.AccessPolicy;
 import com.smartcollab.global.security.AuthUser;
 import com.smartcollab.global.security.CurrentUser;
-import com.smartcollab.realtime.PresenceTracker;
+import com.smartcollab.realtime.TeamSubscriptionTracker;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -29,7 +29,7 @@ public class TeamController {
 
     private final TeamService teamService;
     private final AccessPolicy accessPolicy;
-    private final PresenceTracker presence;
+    private final TeamSubscriptionTracker subscriptions;
 
     @GetMapping
     public List<TeamDtos.TeamSummary> myTeams(@CurrentUser AuthUser user) {
@@ -52,7 +52,7 @@ public class TeamController {
     @GetMapping("/{teamId}/presence")
     public TeamDtos.PresenceResponse presence(@PathVariable Long teamId, @CurrentUser AuthUser user) {
         accessPolicy.requireMember(teamId, user.id());
-        return new TeamDtos.PresenceResponse(presence.onlineUsers(teamId));
+        return new TeamDtos.PresenceResponse(subscriptions.onlineUsers(teamId));
     }
 
     @PostMapping("/{teamId}/invitations")

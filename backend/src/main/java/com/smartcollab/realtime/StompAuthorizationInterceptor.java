@@ -15,6 +15,7 @@ import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.stereotype.Component;
 
 import java.security.Principal;
+import java.time.Instant;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -24,6 +25,7 @@ import java.util.regex.Pattern;
  *   <li>CONNECT: 인증된 핸드셰이크만 허용</li>
  *   <li>SUBSCRIBE: 팀 토픽은 그 팀 멤버만, 개인 큐는 본인만 (그 외 목적지는 거부)</li>
  *   <li>SEND: /app/** 만 허용 (보낸 사람은 페이로드가 아니라 Principal 로 결정)</li>
+ *   <li>로그인(JWT)이 만료된 세션의 CONNECT·SUBSCRIBE·SEND 는 거절 — 연결은 핸드셰이크 때 한 번만 인증되기 때문 [SEC-02]</li>
  * </ul>
  */
 @Component
@@ -45,6 +47,10 @@ public class StompAuthorizationInterceptor implements ChannelInterceptor {
             AuthUser user = authUser(accessor.getUser());
             if (user == null) {
                 throw new MessageDeliveryException("인증되지 않은 연결입니다.");
+            }
+            Instant expiresAt = JwtTokenService.expiresAt(accessor.getUser());
+            if (expiresAt != null && !expiresAt.isAfter(Instant.now())) {
+                throw new MessageDeliveryException("로그인이 만료되었습니다. 다시 로그인하세요.");
             }
             if (command == StompCommand.SUBSCRIBE) {
                 authorizeSubscribe(accessor.getDestination(), user);

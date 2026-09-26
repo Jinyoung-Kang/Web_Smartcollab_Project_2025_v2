@@ -46,6 +46,8 @@ public abstract class IntegrationTest {
         r.add("app.storage.type", () -> "local");
         r.add("app.storage.local-root", STORAGE_ROOT::toString);
         r.add("app.rate-limit.login-per-minute", () -> 1000);
+        r.add("app.rate-limit.login-per-account-per-10-minutes", () -> 1000);
+        r.add("app.rate-limit.share-password-per-link-per-10-minutes", () -> 1000);
     }
 
     @Autowired

@@ -20,6 +20,10 @@ public final class RealtimeEvents {
 
     public enum TeamChangeType {MEMBERS_CHANGED, TEAM_DELETED, CHAT_CLEARED}
 
+    /** 사용자가 팀에서 빠짐(제외·나가기·탈퇴) → 그 사용자의 열린 팀 구독을 해제 [SEC-02] */
+    public record MembershipRevoked(Long teamId, Long userId) {
+    }
+
     /** 특정 사용자에게 보내는 알림 */
     public record UserNotified(String username, Object payload) {
     }

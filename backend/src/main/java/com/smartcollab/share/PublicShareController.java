@@ -1,6 +1,7 @@
 package com.smartcollab.share;
 
 import com.smartcollab.file.FileService;
+import com.smartcollab.global.security.ClientIp;
 import com.smartcollab.global.util.FileResponses;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -35,7 +36,7 @@ public class PublicShareController {
     public ShareDtos.UnlockResponse unlock(@PathVariable String token, @RequestBody(required = false) ShareDtos.UnlockRequest body,
                                            HttpServletRequest http) {
         return new ShareDtos.UnlockResponse(shareService.unlock(token, body == null ? null : body.password(),
-                http.getRemoteAddr()));
+                ClientIp.of(http)));
     }
 
     @Operation(summary = "다운로드", description = "비밀번호가 걸린 링크는 unlock 으로 받은 grant 가 필요합니다. 호출마다 다운로드 횟수가 1 차감됩니다.")

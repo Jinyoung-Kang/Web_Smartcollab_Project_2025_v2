@@ -1,12 +1,15 @@
 package com.smartcollab.share;
 
+import com.smartcollab.global.security.SlidingWindowRateLimiter;
 import com.smartcollab.support.Api;
 import com.smartcollab.support.IntegrationTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -23,6 +26,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class ShareLinkTest extends IntegrationTest {
+
+    @Autowired
+    SlidingWindowRateLimiter rateLimiter;
 
     private String createLink(Api.Session s, long fileId, Map<String, Object> options) throws Exception {
         return Api.read(s.postJson("/api/files/{id}/share-links", options, fileId), "$.token");
@@ -51,6 +57,24 @@ class ShareLinkTest extends IntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Disposition", containsString("%EA%B3%B5%EC%9C%A0%20%EB%AC%B8%EC%84%9C_%EC%B5%9C%EC%A2%85.txt")))
                 .andExpect(content().string("shared content"));
+    }
+
+    @Test
+    @DisplayName("[SEC-01] 한 링크의 비밀번호 시도가 한도를 넘으면 IP 가 달라도 429")
+    void unlockIsRateLimitedPerLink() throws Exception {
+        Api.Session s = api().signUp("sharelim");
+        long file = s.uploadText(s.rootFolderId, "limited-link.txt", "x");
+        String token = createLink(s, file, Map.of("password", "pa55word"));
+        while (rateLimiter.tryAcquire("share-link:" + token, 1000, Duration.ofMinutes(10))) {
+            // 테스트 설정의 링크 단위 한도(10분 1000회)를 채움
+        }
+        api().perform(MockMvcRequestBuilders.post("/api/public/shares/{t}/unlock", token)
+                        .with(r -> {
+                            r.setRemoteAddr("10.40.50." + (int) (Math.random() * 200));
+                            return r;
+                        })
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"password\":\"pa55word\"}"))
+                .andExpect(status().isTooManyRequests());
     }
 
     @Test

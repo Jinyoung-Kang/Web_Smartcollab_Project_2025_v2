@@ -23,6 +23,7 @@ import org.springframework.util.StringUtils;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.security.Principal;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
@@ -86,6 +87,11 @@ public class JwtTokenService {
 
     public Duration ttl() {
         return ttl;
+    }
+
+    /** 인증 객체의 토큰 만료 시각. JWT 인증이 아니면 null. (WebSocket 세션은 연결 이후 토큰을 다시 검증하지 않으므로 따로 확인) */
+    public static Instant expiresAt(Principal principal) {
+        return principal instanceof JwtAuthenticationToken token ? token.getToken().getExpiresAt() : null;
     }
 
     /** 인증 객체(HTTP·STOMP 공통)에서 사용자 정보를 꺼냅니다. */

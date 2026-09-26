@@ -41,6 +41,17 @@ dependencies {
     implementation("com.azure:azure-core-http-jdk-httpclient")
     runtimeOnly("com.mysql:mysql-connector-j")
 
+    // Boot 4.1.1 이 관리하는 Tomcat 11.0.24 에는 CVE-2026-65905·65182·68525 가 있습니다(11.0.25 에서 수정).
+    // 이 서비스는 Tomcat 자체 인증·보안 제약을 쓰지 않아 직접 영향은 낮지만, Boot 패치가 나올 때까지 같은 마이너의 패치 버전으로 올립니다.
+    // Boot 를 올릴 때 이 블록을 지우고 Boot 가 관리하는 버전이 11.0.25 이상인지 확인하세요.
+    constraints {
+        listOf("tomcat-embed-core", "tomcat-embed-el", "tomcat-embed-websocket").forEach { module ->
+            implementation("org.apache.tomcat.embed:$module:11.0.26") {
+                because("CVE-2026-65905, CVE-2026-65182, CVE-2026-68525 (fixed in 11.0.25)")
+            }
+        }
+    }
+
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
     testCompileOnly("org.projectlombok:lombok")

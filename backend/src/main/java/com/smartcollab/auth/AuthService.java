@@ -53,10 +53,20 @@ public class AuthService {
         return user;
     }
 
+    /**
+     * 로그인. 시도 횟수를 IP 단위(분당)와 계정 단위(10분)로 함께 제한합니다.
+     * 계정 단위 제한은 여러 IP 에서 한 계정의 비밀번호를 맞히려는 시도를 막으며, 성공하면 초기화됩니다.
+     * 제한에 걸리면 비밀번호가 맞아도 거절합니다(그렇지 않으면 응답 차이로 비밀번호를 계속 맞혀 볼 수 있음).
+     */
     @Transactional(readOnly = true)
     public User authenticate(String username, String password, String clientIp) {
         if (!rateLimiter.tryAcquire("login:" + clientIp, props.rateLimit().loginPerMinute(), Duration.ofMinutes(1))) {
             throw new ApiException(ErrorCode.RATE_LIMITED, "로그인 시도가 너무 많습니다. 1분 뒤 다시 시도하세요.");
+        }
+        // 아이디 비교는 DB 콜레이션(대소문자 구분 없음)과 같게 소문자로 묶습니다.
+        String accountKey = "login-account:" + username.strip().toLowerCase(Locale.ROOT);
+        if (!rateLimiter.tryAcquire(accountKey, props.rateLimit().loginPerAccountPer10Minutes(), Duration.ofMinutes(10))) {
+            throw new ApiException(ErrorCode.RATE_LIMITED, "이 계정의 로그인 시도가 너무 많습니다. 10분 뒤 다시 시도하세요.");
         }
         User user = users.findByUsername(username).orElse(null);
         String hash = user == null ? dummyHash() : user.getPassword();
@@ -64,6 +74,7 @@ public class AuthService {
         if (user == null || !matches || user.isSystem()) {
             throw new ApiException(ErrorCode.INVALID_CREDENTIALS);
         }
+        rateLimiter.reset(accountKey);
         return user;
     }
 

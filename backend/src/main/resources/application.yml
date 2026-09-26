@@ -39,7 +39,10 @@ spring:
 server:
   port: ${PORT:8080}
   shutdown: graceful
-  forward-headers-strategy: framework
+  # 프록시 헤더(X-Forwarded-For/Proto)는 Tomcat RemoteIpValve 가 처리합니다. 오른쪽(프록시가 덧붙인 값)부터 읽어
+  # 신뢰할 프록시(기본: 사설·루프백 대역, SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES 로 변경)를 건너뛴 첫 주소를 클라이언트 IP 로 씁니다.
+  # 'framework'(ForwardedHeaderFilter)는 클라이언트가 넣은 맨 앞 값을 믿어 요청 제한을 우회할 수 있었습니다 [SEC-01].
+  forward-headers-strategy: native
   compression:
     enabled: true
     # Vite 산출물(.js)은 text/javascript 로 응답되므로 반드시 포함해야 압축됩니다.
@@ -86,7 +89,11 @@ app:
     trash-retention-days: ${TRASH_RETENTION_DAYS:30}
   rate-limit:
     login-per-minute: ${LOGIN_RATE_PER_MINUTE:10}
+    # 여러 IP 에서 한 계정을 노리는 시도 제한. 로그인에 성공하면 초기화됩니다.
+    login-per-account-per-10-minutes: ${LOGIN_ACCOUNT_RATE:20}
     share-password-per-10-minutes: ${SHARE_PASSWORD_RATE:10}
+    # 여러 IP 에서 한 공유 링크의 비밀번호를 맞히려는 시도 제한
+    share-password-per-link-per-10-minutes: ${SHARE_PASSWORD_LINK_RATE:50}
   deepl:
     api-key: ${DEEPL_API_KEY:}
     base-url: ${DEEPL_API_URL:https://api-free.deepl.com}
