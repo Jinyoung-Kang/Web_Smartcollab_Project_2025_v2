@@ -74,7 +74,8 @@ tasks.withType<JavaCompile> {
 
 tasks.test {
     useJUnitPlatform()
-    jvmArgs("-Dfile.encoding=UTF-8", "-XX:+EnableDynamicAgentLoading")
+    // 운영 컨테이너·CI 와 같은 UTC 로 실행해, 개발 PC 시간대(KST)에서만 통과하는 테스트가 생기지 않게 합니다.
+    jvmArgs("-Dfile.encoding=UTF-8", "-Duser.timezone=UTC", "-XX:+EnableDynamicAgentLoading")
     testLogging {
         events("failed", "skipped")
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL

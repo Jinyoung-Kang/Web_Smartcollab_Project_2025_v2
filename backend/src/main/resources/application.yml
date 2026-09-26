@@ -87,6 +87,9 @@ app:
   files:
     text-edit-max-bytes: ${TEXT_EDIT_MAX_BYTES:2097152}
     trash-retention-days: ${TRASH_RETENTION_DAYS:30}
+    # 보관 기간이 지난 휴지통 파일을 비우는 시각. 서버(컨테이너) 시간대가 UTC 여도 이 시간대 기준으로 실행합니다.
+    trash-purge-cron: ${TRASH_PURGE_CRON:0 0 4 * * *}
+    trash-purge-zone: ${TRASH_PURGE_ZONE:Asia/Seoul}
   rate-limit:
     login-per-minute: ${LOGIN_RATE_PER_MINUTE:10}
     # 여러 IP 에서 한 계정을 노리는 시도 제한. 로그인에 성공하면 초기화됩니다.

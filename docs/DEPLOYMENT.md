@@ -27,6 +27,7 @@ open http://localhost:8080
 | `CORS_ALLOWED_ORIGINS` | | `http://localhost:5173,…` | 다른 출처에서 API 를 부를 때만 |
 | `UPLOAD_MAX_FILE_SIZE` | | `200MB` | 업로드 한도 |
 | `TRASH_RETENTION_DAYS` | | `30` | 휴지통 보관 기간 |
+| `TRASH_PURGE_CRON` / `TRASH_PURGE_ZONE` | | `0 0 4 * * *` / `Asia/Seoul` | 휴지통 자동 비우기 시각과 그 기준 시간대 |
 | `LOGIN_RATE_PER_MINUTE` / `LOGIN_ACCOUNT_RATE` | | `10` / `20` | 로그인 시도 한도 (IP 당 분당 / 계정당 10분) |
 | `SHARE_PASSWORD_RATE` / `SHARE_PASSWORD_LINK_RATE` | | `10` / `50` | 공유 비밀번호 시도 한도 (링크+IP 당 / 링크당, 10분) |
 | `SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES` | | Tomcat 기본값(사설·루프백 대역) | X-Forwarded-For 를 믿을 프록시 주소(정규식). 프록시 없이 직접 노출할 때는 좁히세요 |
