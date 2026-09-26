@@ -129,6 +129,40 @@ class AuthFlowTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("[SEC-01] 한 계정에 대한 시도가 한도를 넘으면 IP 와 무관하게, 비밀번호가 맞아도 429")
+    void loginIsRateLimitedPerAccount() throws Exception {
+        Api.Session s = api().signUp("acclimit");
+        while (rateLimiter.tryAcquire("login-account:" + s.username.toLowerCase(), 1000, Duration.ofMinutes(10))) {
+            // 테스트 설정의 계정 단위 한도(10분 1000회)를 채움
+        }
+        login(s.username, Api.PASSWORD, "10.20.30." + (int) (Math.random() * 200))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("RATE_LIMITED"));
+    }
+
+    @Test
+    @DisplayName("[SEC-01] 로그인에 성공하면 계정 단위 시도 기록이 초기화된다")
+    void successfulLoginResetsAccountLimit() throws Exception {
+        Api.Session s = api().signUp("accreset");
+        String key = "login-account:" + s.username.toLowerCase();
+        for (int i = 0; i < 999; i++) {
+            rateLimiter.tryAcquire(key, 1000, Duration.ofMinutes(10));
+        }
+        login(s.username, Api.PASSWORD, "10.20.31.1").andExpect(status().isOk());   // 1000번째 시도 → 성공 → 초기화
+        login(s.username, Api.PASSWORD, "10.20.31.1").andExpect(status().isOk());   // 초기화되지 않았다면 429
+    }
+
+    private org.springframework.test.web.servlet.ResultActions login(String username, String password, String ip) {
+        return api().perform(MockMvcRequestBuilders.post("/api/auth/login").with(csrf())
+                .with(r -> {
+                    r.setRemoteAddr(ip);
+                    return r;
+                })
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(api().toJson(Map.of("username", username, "password", password))));
+    }
+
+    @Test
     @DisplayName("가입 검증: 아이디 형식·비밀번호 규칙 위반은 400과 필드 메시지")
     void signUpValidation() throws Exception {
         api().perform(MockMvcRequestBuilders.post("/api/auth/signup").with(csrf())

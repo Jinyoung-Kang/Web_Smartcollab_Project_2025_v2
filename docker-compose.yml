@@ -36,6 +36,8 @@ services:
       DEMO_ENABLED: ${DEMO_ENABLED:-false}
       DEMO_PASSWORD: ${DEMO_PASSWORD:-}
       COOKIE_SECURE: "false"
+      # 로컬에는 앞단 프록시가 없으므로 X-Forwarded-For 를 믿지 않습니다 (Docker 게이트웨이도 사설 대역이라 기본값이면 믿게 됨).
+      SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES: "127\\.0\\.0\\.1|0:0:0:0:0:0:0:1"
     ports:
       - "127.0.0.1:${APP_PORT:-8080}:8080"
     volumes:

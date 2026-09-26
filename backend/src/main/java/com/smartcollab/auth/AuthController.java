@@ -2,6 +2,7 @@ package com.smartcollab.auth;
 
 import com.smartcollab.global.security.AuthCookies;
 import com.smartcollab.global.security.AuthUser;
+import com.smartcollab.global.security.ClientIp;
 import com.smartcollab.global.security.CurrentUser;
 import com.smartcollab.user.User;
 import io.swagger.v3.oas.annotations.Operation;
@@ -41,11 +42,11 @@ public class AuthController {
         return withLoginCookie(HttpStatus.CREATED, user);
     }
 
-    @Operation(summary = "로그인", description = "성공하면 HttpOnly 인증 쿠키(SC_AUTH)를 설정합니다. IP 당 분당 시도 횟수가 제한됩니다.")
+    @Operation(summary = "로그인", description = "성공하면 HttpOnly 인증 쿠키(SC_AUTH)를 설정합니다. IP 당 분당, 계정당 10분 시도 횟수가 제한됩니다.")
     @PostMapping("/login")
     public ResponseEntity<AuthDtos.MeResponse> login(@Valid @RequestBody AuthDtos.LoginRequest request,
                                                      HttpServletRequest http) {
-        User user = authService.authenticate(request.username(), request.password(), http.getRemoteAddr());
+        User user = authService.authenticate(request.username(), request.password(), ClientIp.of(http));
         return withLoginCookie(HttpStatus.OK, user);
     }
 

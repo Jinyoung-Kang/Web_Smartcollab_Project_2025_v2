@@ -39,7 +39,8 @@ public record AppProperties(
     public record Files(long textEditMaxBytes, int trashRetentionDays) {
     }
 
-    public record RateLimit(int loginPerMinute, int sharePasswordPer10Minutes) {
+    public record RateLimit(int loginPerMinute, int loginPerAccountPer10Minutes, int sharePasswordPer10Minutes,
+                            int sharePasswordPerLinkPer10Minutes) {
     }
 
     public record Deepl(String apiKey, String baseUrl) {

@@ -73,7 +73,10 @@ public class ShareService {
                 link.getExpiresAt(), remaining);
     }
 
-    /** 비밀번호 확인 → 5분짜리 다운로드 허가 발급. 토큰+IP 기준 10분에 N회로 시도 횟수를 제한합니다. */
+    /**
+     * 비밀번호 확인 → 5분짜리 다운로드 허가 발급.
+     * 시도 횟수는 링크+IP 단위와 링크 단위(여러 IP 에서 오는 대입 공격 대비)로 10분마다 제한합니다.
+     */
     @Transactional(readOnly = true)
     public String unlock(String token, String password, String clientIp) {
         ShareLink link = usable(token);
@@ -81,6 +84,8 @@ public class ShareService {
             return grants.issue(token);
         }
         if (!rateLimiter.tryAcquire("share:" + token + ":" + clientIp, props.rateLimit().sharePasswordPer10Minutes(),
+                Duration.ofMinutes(10))
+                || !rateLimiter.tryAcquire("share-link:" + token, props.rateLimit().sharePasswordPerLinkPer10Minutes(),
                 Duration.ofMinutes(10))) {
             throw new ApiException(ErrorCode.RATE_LIMITED, "비밀번호 입력 시도가 너무 많습니다. 10분 뒤 다시 시도하세요.");
         }

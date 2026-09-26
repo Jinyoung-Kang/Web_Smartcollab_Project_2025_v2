@@ -27,6 +27,9 @@ open http://localhost:8080
 | `CORS_ALLOWED_ORIGINS` | | `http://localhost:5173,…` | 다른 출처에서 API 를 부를 때만 |
 | `UPLOAD_MAX_FILE_SIZE` | | `200MB` | 업로드 한도 |
 | `TRASH_RETENTION_DAYS` | | `30` | 휴지통 보관 기간 |
+| `LOGIN_RATE_PER_MINUTE` / `LOGIN_ACCOUNT_RATE` | | `10` / `20` | 로그인 시도 한도 (IP 당 분당 / 계정당 10분) |
+| `SHARE_PASSWORD_RATE` / `SHARE_PASSWORD_LINK_RATE` | | `10` / `50` | 공유 비밀번호 시도 한도 (링크+IP 당 / 링크당, 10분) |
+| `SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES` | | Tomcat 기본값(사설·루프백 대역) | X-Forwarded-For 를 믿을 프록시 주소(정규식). 프록시 없이 직접 노출할 때는 좁히세요 |
 | `DEEPL_API_KEY` | | – | 번역 기능 (없으면 번역 버튼 비활성) |
 | `DEMO_ENABLED` / `DEMO_PASSWORD` | | `false` | 데모 데이터 생성 |
 | `SWAGGER_ENABLED` | | `false` (`prod`) | 운영에서 API 문서 노출 여부 |
@@ -63,6 +66,7 @@ az webapp deploy -g <리소스그룹> -n <앱이름> --src-path backend/build/li
 
 - 헬스 체크 경로: `/actuator/health/readiness`
 - HTTPS 전용으로 설정하세요(`COOKIE_SECURE=true` 가 `prod` 프로필 기본값이므로 HTTP 로는 로그인 쿠키가 전송되지 않습니다).
+- 배포 후 클라이언트 IP 판별을 확인하세요: 한 네트워크에서 로그인을 11번 틀리면 429, 그 사이 다른 네트워크(휴대폰 데이터 등)에서는 정상 로그인되어야 합니다. 모두 함께 막히면 프록시 주소가 `SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES` 에 포함되지 않은 것입니다.
 - 인스턴스는 1개로 운영하세요. 실시간 브로커·요청 제한이 인메모리입니다([ARCHITECTURE.md §7](ARCHITECTURE.md#7-한계와-확장-방안)).
 
 ### 3.3 v1 데이터베이스에서 옮길 때
