@@ -97,7 +97,9 @@ public class TeamSubscriptionTracker {
         Set<Long> presenceChanged = new HashSet<>();
         sessionUsers.forEach((sessionId, user) -> {
             if (!user.id().equals(event.userId())) return;
-            Map<String, TeamSubscription> subs = subscriptions.getOrDefault(sessionId, Map.of());
+            // 같은 순간 연결이 끊겨 구독 목록이 먼저 지워졌을 수 있습니다.
+            Map<String, TeamSubscription> subs = subscriptions.get(sessionId);
+            if (subs == null) return;
             subs.entrySet().removeIf(entry -> {
                 if (!entry.getValue().teamId().equals(event.teamId())) return false;
                 if (handler != null) {
