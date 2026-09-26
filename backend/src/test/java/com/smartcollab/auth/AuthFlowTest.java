@@ -141,6 +141,25 @@ class AuthFlowTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("[SEC-05] 같은 IP 의 가입이 시간당 한도를 넘으면 429")
+    void signUpIsRateLimitedPerIp() throws Exception {
+        String ip = "10.30.40." + (int) (Math.random() * 200);
+        while (rateLimiter.tryAcquire("signup:" + ip, 1000, Duration.ofHours(1))) {
+            // 테스트 설정의 가입 한도(시간당 1000회)를 채움
+        }
+        api().perform(MockMvcRequestBuilders.post("/api/auth/signup").with(csrf())
+                        .with(r -> {
+                            r.setRemoteAddr(ip);
+                            return r;
+                        })
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(api().toJson(Map.of("username", "ratelim" + UUID.randomUUID().toString().substring(0, 6),
+                                "password", "abcd1234", "passwordConfirm", "abcd1234", "name", "가입제한"))))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("RATE_LIMITED"));
+    }
+
+    @Test
     @DisplayName("[SEC-01] 로그인에 성공하면 계정 단위 시도 기록이 초기화된다")
     void successfulLoginResetsAccountLimit() throws Exception {
         Api.Session s = api().signUp("accreset");

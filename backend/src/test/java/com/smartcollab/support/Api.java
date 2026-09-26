@@ -49,6 +49,19 @@ public class Api {
                 ((Number) JsonPath.read(body, "$.rootFolderId")).longValue(), result.getResponse().getCookie("SC_AUTH"));
     }
 
+    /** 이미 있는 계정으로 로그인 (데모 계정 등) */
+    public Session login(String username, String password) {
+        MvcResult result = perform(MockMvcRequestBuilders.post("/api/auth/login").with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(Map.of("username", username, "password", password)))).andReturn();
+        String body = content(result);
+        if (result.getResponse().getStatus() != 200) {
+            throw new AssertionError("login failed: " + body);
+        }
+        return new Session(username, ((Number) JsonPath.read(body, "$.id")).longValue(),
+                ((Number) JsonPath.read(body, "$.rootFolderId")).longValue(), result.getResponse().getCookie("SC_AUTH"));
+    }
+
     public ResultActions perform(org.springframework.test.web.servlet.RequestBuilder builder) {
         try {
             return mvc.perform(builder);

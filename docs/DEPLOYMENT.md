@@ -27,12 +27,16 @@ open http://localhost:8080
 | `CORS_ALLOWED_ORIGINS` | | 개발 `http://localhost:5173,…` / `prod` 는 비어 있음 | 다른 출처에서 API 를 부를 때만 |
 | `UPLOAD_MAX_FILE_SIZE` | | `200MB` | 업로드 한도 |
 | `TRASH_RETENTION_DAYS` | | `30` | 휴지통 보관 기간 |
+| `QUOTA_PERSONAL` / `QUOTA_TEAM` | | `1GB` / `5GB` | 저장 공간 한도 (옛 버전·휴지통 포함) |
+| `SIGNUP_RATE_PER_HOUR` | | `5` | IP 당 시간당 가입 횟수 |
+| `DEMO_QUOTA` | | `50MB` | 체험 계정·체험 팀의 저장 한도 |
+| `DEMO_RESET_CRON` / `DEMO_RESET_ZONE` | | `0 0 5 * * *` / `Asia/Seoul` | 체험 데이터 초기화 시각 |
 | `TRASH_PURGE_CRON` / `TRASH_PURGE_ZONE` | | `0 0 4 * * *` / `Asia/Seoul` | 휴지통 자동 비우기 시각과 그 기준 시간대 |
 | `LOGIN_RATE_PER_MINUTE` / `LOGIN_ACCOUNT_RATE` | | `10` / `20` | 로그인 시도 한도 (IP 당 분당 / 계정당 10분) |
 | `SHARE_PASSWORD_RATE` / `SHARE_PASSWORD_LINK_RATE` | | `10` / `50` | 공유 비밀번호 시도 한도 (링크+IP 당 / 링크당, 10분) |
 | `SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES` | | Tomcat 기본값(사설·루프백 대역) | X-Forwarded-For 를 믿을 프록시 주소(정규식). 프록시 없이 직접 노출할 때는 좁히세요 |
 | `DEEPL_API_KEY` | | – | 번역 기능 (없으면 번역 버튼 비활성) |
-| `DEMO_ENABLED` / `DEMO_PASSWORD` | | `false` | 데모 데이터 생성 |
+| `DEMO_ENABLED` / `DEMO_PASSWORD` | | `false` | 체험 계정·데이터 생성. 비밀번호가 공개 설정 API 로 안내되므로 체험 전용 배포에서만 켜세요 |
 | `SWAGGER_ENABLED` | | `false` (`prod`) | 운영에서 API 문서 노출 여부 |
 
 ## 3. Azure (App Service + Database for MySQL + Blob Storage)

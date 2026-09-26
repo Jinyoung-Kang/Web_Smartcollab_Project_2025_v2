@@ -46,6 +46,7 @@ public class FileContentService {
     private final BlobLifecycle blobLifecycle;
     private final AppProperties props;
     private final ApplicationEventPublisher events;
+    private final StorageQuota quota;
 
     @Transactional(readOnly = true)
     public TextContent readText(Long fileId, Long userId) {
@@ -81,6 +82,8 @@ public class FileContentService {
             throw new ApiException(ErrorCode.EDIT_CONFLICT);
         }
         User editor = users.findById(userId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
+        // 새 버전은 저장 공간을 더 차지하므로 한도를 확인합니다 (반복 저장으로 버전을 한없이 쌓지 못하게) [SEC-05]
+        quota.lockAndCheckRoom(StorageQuota.Scope.of(file.getFolder()), bytes.length);
 
         String key = "versions/" + UUID.randomUUID();
         StoredBlob blob = blobLifecycle.putWithRollbackCleanup(key, new ByteArrayInputStream(bytes), bytes.length);

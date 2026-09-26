@@ -56,8 +56,12 @@ export interface SearchResult {
 }
 
 export interface Usage {
+  /** 휴지통을 뺀 파일 수·크기 */
   fileCount: number
   totalBytes: number
+  /** 한도에 셈하는 실제 저장량 (옛 버전·휴지통 포함) */
+  storedBytes: number
+  quotaBytes: number
 }
 
 export interface TrashItem {

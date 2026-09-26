@@ -157,7 +157,8 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: 'login' | '
                 <Sparkles aria-hidden className="size-4" /> 체험용 데모 계정
               </p>
               <p className="mt-1 text-xs text-slate-600">
-                눌러서 입력한 뒤 로그인하세요. 데모 데이터는 주기적으로 초기화될 수 있습니다.
+                눌러서 입력한 뒤 로그인하세요. 여러 방문자가 함께 쓰는 계정이라 데이터는 주기적으로 초기화되고,
+                탈퇴·팀 삭제처럼 다른 방문자에게 영향을 주는 기능은 막혀 있습니다.
               </p>
               <div className="mt-3 grid gap-2">
                 {config.demo.accounts.map((a) => (

@@ -13,6 +13,7 @@ import com.smartcollab.global.error.ErrorCode;
 import com.smartcollab.notification.Notification;
 import com.smartcollab.notification.NotificationService;
 import com.smartcollab.realtime.RealtimeEvents;
+import com.smartcollab.user.DemoAccounts;
 import com.smartcollab.user.User;
 import com.smartcollab.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +40,7 @@ public class TeamService {
     private final DriveCleanupService cleanup;
     private final NotificationService notifications;
     private final ApplicationEventPublisher events;
+    private final DemoAccounts demoAccounts;
 
     /** 팀과 팀장 멤버십, 팀 루트 폴더를 함께 만듭니다. */
     @Transactional
@@ -148,6 +150,7 @@ public class TeamService {
         if (target.isTeamLeader()) {
             throw ApiException.badRequest("팀장은 내보낼 수 없습니다.");
         }
+        demoAccounts.forbidIfDemo(target.getUser(), "체험 계정은 팀에서 내보낼 수 없습니다.");
         Team team = target.getTeam();
         User removed = target.getUser();
         members.delete(target);
@@ -163,6 +166,7 @@ public class TeamService {
         if (me.isTeamLeader()) {
             throw ApiException.badRequest("팀장은 팀을 나갈 수 없습니다. 팀장을 위임하거나 팀을 삭제하세요.");
         }
+        demoAccounts.forbidIfDemo(me.getUser(), "체험 계정은 팀을 나갈 수 없습니다.");
         members.delete(me);
         events.publishEvent(new RealtimeEvents.MembershipRevoked(teamId, userId));
         events.publishEvent(new RealtimeEvents.TeamChanged(teamId, RealtimeEvents.TeamChangeType.MEMBERS_CHANGED));
@@ -172,6 +176,7 @@ public class TeamService {
     @Transactional
     public void delegateLeadership(Long teamId, Long memberId, Long userId) {
         TeamMember current = accessPolicy.requireLeader(teamId, userId);
+        demoAccounts.forbidIfDemo(current.getUser(), "체험 계정은 팀장을 넘길 수 없습니다.");
         TeamMember next = memberOf(teamId, memberId);
         if (next.getId().equals(current.getId())) {
             throw ApiException.badRequest("이미 팀장입니다.");
@@ -191,12 +196,22 @@ public class TeamService {
      */
     @Transactional
     public void delete(Long teamId, Long userId) {
-        accessPolicy.requireLeader(teamId, userId);
+        TeamMember leader = accessPolicy.requireLeader(teamId, userId);
+        demoAccounts.forbidIfDemo(leader.getUser(), "체험 계정은 팀을 삭제할 수 없습니다.");
+        purgeTeam(teamId, userId);
+    }
+
+    /**
+     * 팀과 팀 스토리지·채팅·초대·멤버를 지웁니다. <b>권한은 확인하지 않으므로</b> 호출하는 쪽이 확인해야 합니다
+     * (팀 삭제 API, 데모 데이터 초기화). actorUserId(없으면 null)를 뺀 멤버에게 알림을 보냅니다.
+     */
+    @Transactional
+    public void purgeTeam(Long teamId, Long actorUserId) {
         Team team = teams.findWithOwner(teamId).orElseThrow(() -> ApiException.notFound("팀"));
         String teamName = team.getName();
         List<User> others = members.findMembers(teamId).stream()
                 .map(TeamMember::getUser)
-                .filter(u -> !u.getId().equals(userId))
+                .filter(u -> !u.getId().equals(actorUserId))
                 .toList();
 
         chatMessages.deleteByTeam(teamId);

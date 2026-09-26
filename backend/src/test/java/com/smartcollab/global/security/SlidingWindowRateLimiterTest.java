@@ -75,4 +75,19 @@ class SlidingWindowRateLimiterTest {
         limiter.evictStale();
         assertThat(limiter.trackedKeys()).isZero();
     }
+
+    @Test
+    @DisplayName("[SEC-05] 10분보다 긴 창(가입 제한 1시간)의 기록은 창이 끝나기 전에 정리되지 않는다")
+    void longWindowsSurviveEviction() {
+        MutableClock clock = new MutableClock();
+        SlidingWindowRateLimiter limiter = new SlidingWindowRateLimiter(clock);
+        for (int i = 0; i < 5; i++) limiter.tryAcquire("signup:1.2.3.4", 5, Duration.ofHours(1));
+        clock.now = clock.now.plus(Duration.ofMinutes(30));
+        limiter.evictStale();
+
+        assertThat(limiter.tryAcquire("signup:1.2.3.4", 5, Duration.ofHours(1))).isFalse();
+
+        clock.now = clock.now.plus(Duration.ofMinutes(31));
+        assertThat(limiter.tryAcquire("signup:1.2.3.4", 5, Duration.ofHours(1))).isTrue();
+    }
 }

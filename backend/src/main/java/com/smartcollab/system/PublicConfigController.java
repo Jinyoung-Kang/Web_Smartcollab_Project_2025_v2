@@ -1,6 +1,7 @@
 package com.smartcollab.system;
 
 import com.smartcollab.ai.DeepLTranslationClient;
+import com.smartcollab.user.DemoAccounts;
 import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.storage.BlobStorage;
 import io.swagger.v3.oas.annotations.Operation;
@@ -33,7 +34,7 @@ public class PublicConfigController {
     @GetMapping("/api/public/config")
     public PublicConfig config() {
         Demo demo = props.demo().enabled()
-                ? new Demo(true, DemoDataSeeder.ACCOUNTS.stream().map(a -> new DemoAccount(a.username(), a.name(), a.role())).toList(),
+                ? new Demo(true, DemoAccounts.ACCOUNTS.stream().map(a -> new DemoAccount(a.username(), a.name(), a.role())).toList(),
                 props.demo().password())
                 : new Demo(false, List.of(), null);
         return new PublicConfig(translator.enabled(), "azure".equals(storage.type()), maxUpload.toBytes(), demo);

@@ -10,7 +10,7 @@
 | **백엔드** | Java 21 · Spring Boot 4.1 · Spring Security (쿠키 JWT·CSRF) · JPA/Hibernate 7 · Flyway · STOMP WebSocket |
 | **프론트엔드** | React 19 · TypeScript · Vite · TanStack Query · Tailwind CSS 4 |
 | **데이터·인프라** | MySQL 8 · Azure Blob Storage(또는 로컬 디스크) · Docker · GitHub Actions |
-| **테스트** | JUnit 5 + Testcontainers(MySQL·Azurite) 120건 · Vitest 26건 · Playwright E2E 6개 시나리오 |
+| **테스트** | JUnit 5 + Testcontainers(MySQL·Azurite) 135건 · Vitest 28건 · Playwright E2E 6개 시나리오 |
 
 ---
 
@@ -28,7 +28,7 @@
 
 ## 주요 기능
 
-- **드라이브**: 개인·팀 스토리지, 폴더 트리, 여러 파일 업로드(드래그 앤 드롭·진행률·취소), 이동·복사(폴더는 하위까지), 이름 검색(경로 표시), 휴지통(30일 후 자동 삭제)
+- **드라이브**: 개인·팀 스토리지, 폴더 트리, 여러 파일 업로드(드래그 앤 드롭·진행률·취소), 이동·복사(폴더는 하위까지), 이름 검색(경로 표시), 휴지통(30일 후 자동 삭제), 저장 공간 한도(개인 1GB·팀 5GB, 옛 버전·휴지통 포함)
 - **미리보기·편집**: 이미지·PDF·텍스트 미리보기, Office 문서(Azure 저장소일 때), 텍스트 편집기(저장 충돌 감지), 핵심 문장 추출 요약, DeepL 번역(키 설정 시)
 - **버전·서명**: 저장할 때마다 버전과 SHA-256 기록, 되돌리기, 팀장·소유자 서명(내용이 바뀌면 자동 무효 표시)
 - **팀 협업**: 초대·수락, 멤버별 편집·삭제·초대 권한, 팀장 위임, 실시간 채팅(파일 공유), 접속 중 표시, 다른 사람의 변경 즉시 반영
@@ -69,7 +69,7 @@ cp .env.example .env
 docker compose up -d --build --wait
 ```
 
-<http://localhost:8080> 에 접속합니다. 데모 모드라면 로그인 화면의 데모 계정(김하늘·이도윤·박서연)을 눌러 바로 체험할 수 있습니다.
+<http://localhost:8080> 에 접속합니다. 데모 모드라면 로그인 화면의 데모 계정(김하늘·이도윤·박서연)을 눌러 바로 체험할 수 있습니다. 여러 방문자가 함께 쓰는 체험 계정이라 탈퇴·팀 삭제 등은 막혀 있고, 체험 데이터는 매일 05:00(한국 시각) 초기화됩니다.
 
 ### 개발 모드
 
@@ -85,12 +85,12 @@ API 문서: <http://localhost:8080/swagger-ui.html> · 전체 목록 [docs/API.m
 ## 테스트
 
 ```bash
-cd backend && ./gradlew test          # 120건 (MySQL·Azurite 컨테이너 자동 실행), 커버리지 리포트 포함
-cd frontend && npm test               # 26건
+cd backend && ./gradlew test          # 135건 (MySQL·Azurite 컨테이너 자동 실행), 커버리지 리포트 포함
+cd frontend && npm test               # 28건
 docker compose up -d --wait && cd e2e && npm ci && npx playwright test   # E2E 6개 시나리오
 ```
 
-백엔드 라인 커버리지 83.7%. v1 에서 찾은 결함마다 회귀 테스트가 있습니다 → [docs/TESTING.md](docs/TESTING.md)
+백엔드 라인 커버리지 89.0%. v1 에서 찾은 결함마다 회귀 테스트가 있습니다 → [docs/TESTING.md](docs/TESTING.md)
 
 ## 문서
 

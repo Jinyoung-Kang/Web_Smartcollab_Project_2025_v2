@@ -54,6 +54,7 @@ public class ItemTransferService {
     private final BlobStorage storage;
     private final ApplicationEventPublisher events;
     private final TransactionRunner tx;
+    private final StorageQuota quota;
 
     @Transactional
     public void move(DriveDtos.TransferRequest req, Long userId) {
@@ -148,7 +149,9 @@ public class ItemTransferService {
                 throw ApiException.badRequest("한 번에 복사할 수 있는 파일은 " + MAX_COPY_FILES + "개까지입니다.");
             }
         }
-        return new CopyPlan(target.getId(), folderCopies, fileCopies, count);
+        CopyPlan plan = new CopyPlan(target.getId(), folderCopies, fileCopies, count);
+        quota.checkRoom(StorageQuota.Scope.of(target), plan.totalBytes());
+        return plan;
     }
 
     /** 원본 폴더 트리를 너비 우선으로 계획합니다. 폴더 목록은 CTE 1회, 파일은 IN 조회 1회로 읽습니다. */
@@ -190,6 +193,7 @@ public class ItemTransferService {
     private void apply(CopyPlan plan, Long userId) {
         Folder target = getFolder(plan.targetFolderId());
         accessPolicy.requireEdit(target, userId);
+        quota.lockAndCheckRoom(StorageQuota.Scope.of(target), plan.totalBytes());
         User actor = users.findById(userId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
         plan.files().forEach(f -> saveFile(f, target, actor));
         record Pair(FolderCopy copy, Folder parent) {
@@ -238,6 +242,10 @@ public class ItemTransferService {
     }
 
     private record CopyPlan(Long targetFolderId, List<FolderCopy> folders, List<FileCopy> files, int fileCount) {
+        long totalBytes() {
+            return allFiles().stream().mapToLong(FileCopy::size).sum();
+        }
+
         List<FileCopy> allFiles() {
             List<FileCopy> all = new ArrayList<>(files);
             Deque<FolderCopy> stack = new ArrayDeque<>(folders);

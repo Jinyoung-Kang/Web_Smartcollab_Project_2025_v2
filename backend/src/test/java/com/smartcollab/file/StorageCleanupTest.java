@@ -9,6 +9,7 @@ import com.smartcollab.storage.BlobLifecycle;
 import com.smartcollab.storage.BlobNotFoundException;
 import com.smartcollab.storage.BlobStorage;
 import com.smartcollab.storage.StoredBlob;
+import com.smartcollab.user.User;
 import com.smartcollab.user.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -48,6 +49,7 @@ class StorageCleanupTest {
     private final BlobStorage storage = mock(BlobStorage.class);
     private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
     private final TransactionRunner tx = mock(TransactionRunner.class);
+    private final StorageQuota quota = mock(StorageQuota.class);   // 한도 확인은 통과시키고 정리 동작만 봅니다
 
     @SuppressWarnings("unchecked")
     private void runReadOnlyWork() {
@@ -63,11 +65,13 @@ class StorageCleanupTest {
     @SuppressWarnings("unchecked")
     void uploadDiscardsBlobWhenDbWriteFails() {
         runReadOnlyWork();
-        when(folders.findById(10L)).thenReturn(Optional.of(mock(Folder.class)));
+        Folder folder = mock(Folder.class);
+        when(folder.getOwner()).thenReturn(mock(User.class));
+        when(folders.findById(10L)).thenReturn(Optional.of(folder));
         ArgumentCaptor<String> key = ArgumentCaptor.forClass(String.class);
         when(storage.put(key.capture(), any(InputStream.class), anyLong())).thenAnswer(inv -> new StoredBlob(inv.getArgument(0), 5, "h"));
         when(tx.write(any(Supplier.class))).thenThrow(ApiException.notFound("폴더"));
-        FileService service = new FileService(files, versions, folders, users, accessPolicy, blobLifecycle, storage, events, tx);
+        FileService service = new FileService(files, versions, folders, users, accessPolicy, blobLifecycle, storage, events, tx, quota);
 
         assertThatThrownBy(() -> service.upload(10L, new MockMultipartFile("file", "a.txt", "text/plain", "hello".getBytes()), 1L))
                 .isInstanceOf(ApiException.class);
@@ -82,6 +86,7 @@ class StorageCleanupTest {
         runReadOnlyWork();
         Folder target = mock(Folder.class);
         when(target.getId()).thenReturn(100L);
+        when(target.getOwner()).thenReturn(mock(User.class));
         when(folders.findById(100L)).thenReturn(Optional.of(target));
         FileEntity first = file("first.txt", "files/source-1");
         FileEntity second = file("second.txt", "files/source-2");
@@ -91,7 +96,7 @@ class StorageCleanupTest {
         doAnswer(inv -> null).when(storage).copy(eq("files/source-1"), firstCopy.capture());
         doThrow(new BlobNotFoundException("files/source-2")).when(storage).copy(eq("files/source-2"), anyString());
         ItemTransferService service = new ItemTransferService(files, versions, folders, users, accessPolicy, blobLifecycle,
-                storage, events, tx);
+                storage, events, tx, quota);
 
         DriveDtos.TransferRequest request = new DriveDtos.TransferRequest(
                 List.of(new DriveDtos.ItemRef("file", 1L), new DriveDtos.ItemRef("file", 2L)), 100L);

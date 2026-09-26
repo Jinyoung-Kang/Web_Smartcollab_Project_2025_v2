@@ -14,6 +14,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.web.csrf.CsrfToken;
+import org.springframework.security.web.csrf.DeferredCsrfToken;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -29,16 +30,24 @@ public class AuthController {
     private final AuthService authService;
     private final AuthCookies cookies;
 
-    @Operation(summary = "CSRF 토큰 발급", description = "XSRF-TOKEN 쿠키를 설정하고 같은 값을 반환합니다. SPA 가 시작할 때 호출합니다.")
+    /**
+     * CSRF 토큰 발급. 쿠키와 같은 원래 값을 돌려줘 그대로 X-XSRF-TOKEN 헤더에 쓸 수 있게 합니다.
+     * <p>컨트롤러 인자로 받는 {@link CsrfToken} 은 BREACH 방어용으로 매번 가린(masked) 값이라, 헤더로 보내면 거절됩니다
+     * (SPA 방식은 헤더를 원래 값으로 비교). 이 응답에는 사용자 입력이 섞이지 않아 원래 값을 돌려줘도 BREACH 전제가 성립하지 않습니다.</p>
+     */
+    @Operation(summary = "CSRF 토큰 발급", description = "XSRF-TOKEN 쿠키를 설정하고 같은 값을 반환합니다. 변경 요청에 X-XSRF-TOKEN 헤더로 보내세요.")
     @GetMapping("/csrf")
-    public AuthDtos.CsrfResponse csrf(CsrfToken token) {
+    public AuthDtos.CsrfResponse csrf(HttpServletRequest request) {
+        DeferredCsrfToken deferred = (DeferredCsrfToken) request.getAttribute(DeferredCsrfToken.class.getName());
+        CsrfToken token = deferred.get();
         return new AuthDtos.CsrfResponse(token.getHeaderName(), token.getToken());
     }
 
-    @Operation(summary = "회원가입 후 바로 로그인")
+    @Operation(summary = "회원가입 후 바로 로그인", description = "IP 당 시간당 가입 횟수가 제한됩니다.")
     @PostMapping("/signup")
-    public ResponseEntity<AuthDtos.MeResponse> signUp(@Valid @RequestBody AuthDtos.SignUpRequest request) {
-        User user = authService.signUp(request);
+    public ResponseEntity<AuthDtos.MeResponse> signUp(@Valid @RequestBody AuthDtos.SignUpRequest request,
+                                                      HttpServletRequest http) {
+        User user = authService.signUp(request, ClientIp.of(http));
         return withLoginCookie(HttpStatus.CREATED, user);
     }
 
@@ -52,7 +61,10 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ResponseEntity<Void> logout() {
-        return ResponseEntity.noContent().header(HttpHeaders.SET_COOKIE, cookies.clear().toString()).build();
+        return ResponseEntity.noContent()
+                .header(HttpHeaders.SET_COOKIE, cookies.clear().toString())
+                .header(HttpHeaders.SET_COOKIE, cookies.clearCsrf().toString())
+                .build();
     }
 
     @GetMapping("/me")
@@ -64,6 +76,7 @@ public class AuthController {
         String token = authService.issueToken(user);
         return ResponseEntity.status(status)
                 .header(HttpHeaders.SET_COOKIE, cookies.issue(token, authService.tokenTtl()).toString())
+                .header(HttpHeaders.SET_COOKIE, cookies.clearCsrf().toString())
                 .body(authService.me(user.getId()));
     }
 }
