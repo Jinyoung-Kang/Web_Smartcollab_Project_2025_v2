@@ -6,7 +6,9 @@ import com.smartcollab.folder.FolderRepository;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.error.ErrorCode;
 import com.smartcollab.realtime.RealtimeEvents;
+import com.smartcollab.global.tx.TransactionRunner;
 import com.smartcollab.storage.BlobLifecycle;
+import com.smartcollab.storage.BlobStorage;
 import com.smartcollab.user.User;
 import com.smartcollab.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -33,7 +36,8 @@ import java.util.function.Predicate;
  *   <li>팀 폴더를 개인 드라이브로 옮기면 폴더는 개인, 안의 파일은 팀 소속인 모순 상태 → 스토리지 간 이동 금지(복사 사용)</li>
  *   <li>복사본에 버전 레코드를 만들지 않아 복사한 파일을 내려받을 수 없었음 → 현재 버전을 복사하고 첫 버전 생성</li>
  *   <li>폴더 복사 미지원 → 하위 구조까지 너비 우선(BFS)으로 복사</li>
- * </ul></p>
+ * </ul>
+ * 이동은 DB 만 바꾸므로 한 트랜잭션, 복사는 저장소 입출력이 있어 {@link #copy} 에서 단계를 나눕니다.</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -47,7 +51,9 @@ public class ItemTransferService {
     private final UserRepository users;
     private final AccessPolicy accessPolicy;
     private final BlobLifecycle blobLifecycle;
+    private final BlobStorage storage;
     private final ApplicationEventPublisher events;
+    private final TransactionRunner tx;
 
     @Transactional
     public void move(DriveDtos.TransferRequest req, Long userId) {
@@ -82,16 +88,44 @@ public class ItemTransferService {
         publishChanged(touched);
     }
 
-    @Transactional
+    /**
+     * 복사. 저장소 복사(Azure 라면 서버 측 복사 요청과 완료 대기)는 DB 트랜잭션 밖에서 하여 그동안 커넥션을 붙잡지 않습니다 [PERF-01].
+     * <ol>
+     *   <li>짧은 읽기 트랜잭션: 권한·순환·개수 확인 후 만들 폴더·파일과 새 저장소 키를 계획</li>
+     *   <li>트랜잭션 밖: 계획한 파일을 저장소에서 복사</li>
+     *   <li>짧은 쓰기 트랜잭션: 대상 폴더와 편집 권한을 다시 확인하고 폴더·파일·첫 버전 저장</li>
+     * </ol>
+     * 2·3단계가 실패하면 이미 복사한 파일을 지웁니다.
+     */
     public int copy(DriveDtos.TransferRequest req, Long userId) {
+        CopyPlan plan = tx.readOnly(() -> plan(req, userId));
+        List<String> copied = new ArrayList<>();
+        try {
+            for (FileCopy file : plan.allFiles()) {
+                storage.copy(file.sourceKey(), file.targetKey());
+                copied.add(file.targetKey());
+            }
+            tx.write(() -> {
+                apply(plan, userId);
+                return null;
+            });
+        } catch (RuntimeException e) {
+            blobLifecycle.discard(copied);
+            throw e;
+        }
+        return plan.fileCount();
+    }
+
+    private CopyPlan plan(DriveDtos.TransferRequest req, Long userId) {
         Folder target = getFolder(req.targetFolderId());
         accessPolicy.requireEdit(target, userId);
-        User actor = users.findById(userId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
         Set<String> takenNames = new HashSet<>();
         files.findActiveInFolder(target.getId()).forEach(f -> takenNames.add(f.getName()));
         folders.findChildren(target.getId()).forEach(f -> takenNames.add(f.getName()));
 
-        int copied = 0;
+        List<FolderCopy> folderCopies = new ArrayList<>();
+        List<FileCopy> fileCopies = new ArrayList<>();
+        int count = 0;
         for (DriveDtos.ItemRef ref : req.items()) {
             if (ref.type().equals("folder")) {
                 Folder source = getFolder(ref.id());
@@ -100,66 +134,120 @@ public class ItemTransferService {
                 if (cycle) {
                     throw ApiException.badRequest("폴더를 자기 자신이나 하위 폴더 안으로 복사할 수 없습니다.");
                 }
-                String name = uniqueName(source.isRoot() ? "복사된 폴더" : source.getName(), takenNames);
-                copied += copyFolderTree(source, target, name, actor);
+                FolderCopy tree = planFolderTree(source, uniqueName(source.isRoot() ? "복사된 폴더" : source.getName(), takenNames));
+                folderCopies.add(tree);
+                count += tree.fileCount();
             } else {
                 FileEntity source = files.findWithFolder(ref.id()).filter(Predicate.not(FileEntity::isDeleted))
                         .orElseThrow(() -> ApiException.notFound("파일"));
                 accessPolicy.requireFileRead(source, userId);
-                copyFile(source, target, uniqueName(source.getName(), takenNames), actor);
-                copied++;
+                fileCopies.add(FileCopy.of(source, uniqueName(source.getName(), takenNames)));
+                count++;
             }
-            if (copied > MAX_COPY_FILES) {
+            if (count > MAX_COPY_FILES) {
                 throw ApiException.badRequest("한 번에 복사할 수 있는 파일은 " + MAX_COPY_FILES + "개까지입니다.");
             }
         }
-        publishChanged(Set.of(target));
-        return copied;
+        return new CopyPlan(target.getId(), folderCopies, fileCopies, count);
     }
 
-    /** 원본 폴더 트리를 너비 우선으로 복제합니다. 폴더 목록은 CTE 1회, 파일은 IN 조회 1회로 읽습니다. */
-    private int copyFolderTree(Folder sourceRoot, Folder target, String rootName, User actor) {
+    /** 원본 폴더 트리를 너비 우선으로 계획합니다. 폴더 목록은 CTE 1회, 파일은 IN 조회 1회로 읽습니다. */
+    private FolderCopy planFolderTree(Folder sourceRoot, String rootName) {
         List<Long> subtreeIds = folders.findSubtree(sourceRoot.getId()).stream()
                 .map(FolderRepository.SubtreeRow::getId).toList();
         Map<Long, List<Folder>> childrenOf = new HashMap<>();
         for (Folder f : folders.findAllById(subtreeIds)) {
             if (!f.getId().equals(sourceRoot.getId())) {
-                childrenOf.computeIfAbsent(f.getParent().getId(), k -> new java.util.ArrayList<>()).add(f);
+                childrenOf.computeIfAbsent(f.getParent().getId(), k -> new ArrayList<>()).add(f);
             }
         }
-        Map<Long, List<FileEntity>> filesOf = new HashMap<>();
         List<FileEntity> sourceFiles = files.findActiveWithVersionInFolders(subtreeIds);
         if (sourceFiles.size() > MAX_COPY_FILES) {
             throw ApiException.badRequest("한 번에 복사할 수 있는 파일은 " + MAX_COPY_FILES + "개까지입니다.");
         }
-        sourceFiles.forEach(f -> filesOf.computeIfAbsent(f.getFolder().getId(), k -> new java.util.ArrayList<>()).add(f));
+        Map<Long, List<FileEntity>> filesOf = new HashMap<>();
+        sourceFiles.forEach(f -> filesOf.computeIfAbsent(f.getFolder().getId(), k -> new ArrayList<>()).add(f));
 
-        Folder newRoot = folders.save(Folder.childOf(target, rootName, actor));
-        record Pair(Folder source, Folder copy) {
+        FolderCopy root = new FolderCopy(rootName);
+        record Pair(Folder source, FolderCopy copy) {
         }
         Deque<Pair> queue = new ArrayDeque<>();
-        queue.add(new Pair(sourceRoot, newRoot));
-        int count = 0;
+        queue.add(new Pair(sourceRoot, root));
         while (!queue.isEmpty()) {
             Pair p = queue.poll();
             for (FileEntity f : filesOf.getOrDefault(p.source().getId(), List.of())) {
-                copyFile(f, p.copy(), f.getName(), actor);
-                count++;
+                p.copy().files().add(FileCopy.of(f, f.getName()));
             }
             for (Folder child : childrenOf.getOrDefault(p.source().getId(), List.of())) {
-                queue.add(new Pair(child, folders.save(Folder.childOf(p.copy(), child.getName(), actor))));
+                FolderCopy childCopy = new FolderCopy(child.getName());
+                p.copy().children().add(childCopy);
+                queue.add(new Pair(child, childCopy));
             }
         }
-        return count;
+        return root;
     }
 
-    private void copyFile(FileEntity source, Folder target, String name, User actor) {
-        FileVersion active = source.getActiveVersion();
-        String key = BlobLifecycle.newFileKey();
-        blobLifecycle.copyWithRollbackCleanup(active.getStoredPath(), key);
-        FileEntity copy = files.save(new FileEntity(target, actor, name, active.getSize()));
-        FileVersion first = versions.save(new FileVersion(copy, key, actor, active.getSize(), active.getSha256()));
+    private void apply(CopyPlan plan, Long userId) {
+        Folder target = getFolder(plan.targetFolderId());
+        accessPolicy.requireEdit(target, userId);
+        User actor = users.findById(userId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
+        plan.files().forEach(f -> saveFile(f, target, actor));
+        record Pair(FolderCopy copy, Folder parent) {
+        }
+        Deque<Pair> queue = new ArrayDeque<>();
+        plan.folders().forEach(f -> queue.add(new Pair(f, target)));
+        while (!queue.isEmpty()) {
+            Pair p = queue.poll();
+            Folder created = folders.save(Folder.childOf(p.parent(), p.copy().name(), actor));
+            p.copy().files().forEach(f -> saveFile(f, created, actor));
+            p.copy().children().forEach(child -> queue.add(new Pair(child, created)));
+        }
+        publishChanged(Set.of(target));
+    }
+
+    private void saveFile(FileCopy source, Folder target, User actor) {
+        FileEntity copy = files.save(new FileEntity(target, actor, source.name(), source.size()));
+        FileVersion first = versions.save(new FileVersion(copy, source.targetKey(), actor, source.size(), source.sha256()));
         copy.activate(first);
+    }
+
+    /** 복사할 파일 하나: 원본 저장소 키와 복사본에 쓸 새 키 */
+    private record FileCopy(String sourceKey, String targetKey, String name, long size, String sha256) {
+        static FileCopy of(FileEntity source, String name) {
+            FileVersion active = source.getActiveVersion();
+            return new FileCopy(active.getStoredPath(), BlobLifecycle.newFileKey(), name, active.getSize(), active.getSha256());
+        }
+    }
+
+    /** 새로 만들 폴더와 그 안의 파일·하위 폴더 */
+    private record FolderCopy(String name, List<FolderCopy> children, List<FileCopy> files) {
+        FolderCopy(String name) {
+            this(name, new ArrayList<>(), new ArrayList<>());
+        }
+
+        int fileCount() {
+            int count = 0;
+            Deque<FolderCopy> stack = new ArrayDeque<>(List.of(this));
+            while (!stack.isEmpty()) {
+                FolderCopy f = stack.pop();
+                count += f.files().size();
+                stack.addAll(f.children());
+            }
+            return count;
+        }
+    }
+
+    private record CopyPlan(Long targetFolderId, List<FolderCopy> folders, List<FileCopy> files, int fileCount) {
+        List<FileCopy> allFiles() {
+            List<FileCopy> all = new ArrayList<>(files);
+            Deque<FolderCopy> stack = new ArrayDeque<>(folders);
+            while (!stack.isEmpty()) {
+                FolderCopy f = stack.pop();
+                all.addAll(f.files());
+                stack.addAll(f.children());
+            }
+            return all;
+        }
     }
 
     private static void requireSameScope(Folder source, Folder target) {

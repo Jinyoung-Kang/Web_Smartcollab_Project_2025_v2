@@ -1,0 +1,16 @@
+{
+  "measuredAt": "2026-09-27",
+  "test": "backend/src/test/java/com/smartcollab/perf/StorageConnectionBenchmarkTest.java",
+  "storageDelayMs": 1500,
+  "dbPoolSize": 10,
+  "before": {
+    "connectionsHeldDuringUploadStorageWrite": 1,
+    "connectionsHeldDuringCopyStorageCopy": 1,
+    "folderListLatencyMsWhilePoolSizeUploadsWrite": 1482
+  },
+  "after": {
+    "connectionsHeldDuringUploadStorageWrite": 0,
+    "connectionsHeldDuringCopyStorageCopy": 0,
+    "folderListLatencyMsWhilePoolSizeUploadsWrite": 56
+  }
+}
