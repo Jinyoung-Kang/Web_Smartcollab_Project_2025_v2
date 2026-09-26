@@ -8,7 +8,7 @@ v1 은 `index.html` 에서 React **개발용** 빌드, Babel Standalone, Tailwin
 
 ## 결정
 - `frontend/` 를 Vite + React 19 + TypeScript 프로젝트로 분리하고, 빌드 결과를 Spring Boot jar 의 `static/` 에 넣어 **같은 출처**로 제공합니다 (Docker 멀티 스테이지, `./gradlew bootJar -PbundleFrontend`).
-- 클라이언트 라우팅 경로는 `SpaController` 가 `index.html` 로 전달합니다.
+- 클라이언트 라우팅 경로는 `SpaController` 가 `index.html` 로 전달합니다. 경로를 나열하지 않고 "서버 경로(api·ws·actuator·v3·swagger-ui·assets·error)가 아니고 점(.)이 없는 GET" 규칙으로 판단합니다 — 나열 방식에서는 목록에서 빠진 `/search` 가 새로고침 시 404 였습니다([BUG-02]).
 - 해시 파일명 자산은 1년 `immutable` 캐시, `index.html` 은 `no-cache`.
 
 ## 결과
