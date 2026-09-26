@@ -51,6 +51,9 @@ jobs:
       JWT_SECRET: ci-only-jwt-secret-ci-only-jwt-secret-0000
       DEMO_ENABLED: "true"
       DEMO_PASSWORD: ci-demo-1234
+      # E2E 는 모든 요청이 한 IP·같은 체험 계정으로 로그인하므로 운영 한도(분당 10회)에 가깝습니다. 테스트 환경만 넉넉하게.
+      LOGIN_RATE_PER_MINUTE: "200"
+      LOGIN_ACCOUNT_RATE: "200"
     steps:
       - uses: actions/checkout@v4
       - name: 전체 스택 실행 (MySQL + 앱)

@@ -28,7 +28,8 @@ test('팀 문서를 열어 편집·저장하고 버전 기록에서 확인한다
 
   await page.getByRole('button', { name: '버전', exact: true }).click()
   const history = page.getByRole('dialog', { name: '버전 기록' })
-  await expect(history.getByText('현재 버전')).toBeVisible()
+  // 하단의 '현재 버전에 서명' 버튼도 부분 일치하므로 뱃지만 정확히 찾습니다 (버전 목록이 늦게 오면 버튼을 잡고 통과하던 불안정한 검증)
+  await expect(history.getByText('현재 버전', { exact: true })).toBeVisible()
   await expect(history.getByText('김하늘').first()).toBeVisible()
 })
 
