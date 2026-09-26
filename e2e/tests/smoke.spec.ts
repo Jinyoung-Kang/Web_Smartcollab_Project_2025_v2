@@ -94,3 +94,12 @@ test('공유 링크로 로그인 없이 내려받는다', async ({ page, browser
   await anonymous.getByRole('button', { name: '내려받기' }).click()
   expect((await download).suggestedFilename()).toBe('프로젝트 개요.md')
 })
+
+test('[BUG-02] 검색 화면은 주소로 직접 열거나 새로고침해도 열린다', async ({ page }) => {
+  await login(page, 'demo1')
+  await page.goto('/search?q=' + encodeURIComponent('할 일'))
+  await expect(page.getByRole('heading', { name: '‘할 일’ 검색 결과' })).toBeVisible()
+  await expect(page.getByText('할 일.txt')).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('heading', { name: '‘할 일’ 검색 결과' })).toBeVisible()
+})
