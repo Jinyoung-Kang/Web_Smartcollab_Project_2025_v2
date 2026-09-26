@@ -1,6 +1,5 @@
 package com.smartcollab.file;
 
-import com.smartcollab.access.Access;
 import com.smartcollab.access.AccessPolicy;
 import com.smartcollab.folder.Folder;
 import com.smartcollab.folder.FolderNode;
@@ -186,10 +185,6 @@ public class FileService {
             throw ApiException.notFound("파일");
         }
         return file;
-    }
-
-    Access accessForRead(FileEntity file, Long userId) {
-        return accessPolicy.requireFileRead(file, userId);
     }
 
     private void publishChanged(Folder folder) {
