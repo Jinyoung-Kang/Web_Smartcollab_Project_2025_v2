@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useBlocker, useNavigate, useParams } from 'react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, ArrowLeft, Copy, FileSearch, History, Languages, Save, Sparkles, X } from 'lucide-react'
 import { fileApi } from '@/api/endpoints'
@@ -22,7 +22,8 @@ type ToolResult =
 /**
  * 텍스트 편집기.
  * - 저장 시 편집을 시작한 버전 ID 를 함께 보내, 그 사이 다른 사람이 저장했다면 덮어쓰지 않고 충돌을 알립니다(낙관적 잠금).
- * - Ctrl/⌘+S 저장, 저장하지 않은 변경이 있으면 창을 닫을 때 경고합니다.
+ * - Ctrl/⌘+S 저장. 저장하지 않은 변경이 있으면 창을 닫거나 새로고침할 때(beforeunload),
+ *   앱 안의 다른 화면으로 이동할 때(useBlocker) 확인합니다 [BUG-04].
  * - 요약은 단어 빈도 기반 "핵심 문장 추출"이며 생성형 AI 결과가 아닙니다. 번역은 DeepL 키가 있을 때만 켜집니다.
  */
 export default function EditorPage() {
@@ -65,6 +66,26 @@ function Editor({ fileId, initial }: { fileId: number; initial: TextContent }) {
     return () => window.removeEventListener('beforeunload', warn)
   }, [dirty])
 
+  // 사이드바·뒤로 가기 등 앱 안의 이동은 beforeunload 가 발생하지 않으므로 라우터에서 막고 확인합니다.
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => dirty && currentLocation.pathname !== nextLocation.pathname)
+  useEffect(() => {
+    if (blocker.state !== 'blocked') return
+    let active = true
+    void confirm({
+      title: '저장하지 않은 변경이 있습니다',
+      message: '저장하지 않고 나가면 변경 내용이 사라집니다.',
+      confirmLabel: '저장 안 하고 나가기',
+      danger: true,
+    }).then((leave) => {
+      if (!active) return
+      if (leave) blocker.proceed()
+      else blocker.reset()
+    })
+    return () => {
+      active = false
+    }
+  }, [blocker, confirm])
+
   const save = useCallback(async () => {
     if (!editable || saving) return
     setSaving(true)
@@ -99,10 +120,8 @@ function Editor({ fileId, initial }: { fileId: number; initial: TextContent }) {
 
   const backTo = initial.teamId ? `/teams/${initial.teamId}/folders/${initial.folderId}` : `/drive/${initial.folderId}`
 
-  const close = async () => {
-    if (dirty && !(await confirm({ title: '저장하지 않은 변경이 있습니다', message: '저장하지 않고 나가면 변경 내용이 사라집니다.', confirmLabel: '저장 안 하고 나가기', danger: true }))) return
-    navigate(backTo)
-  }
+  // 저장하지 않은 변경이 있으면 위의 이동 차단이 확인을 받습니다.
+  const close = () => navigate(backTo)
 
   /** 충돌 해결 1: 최신 내용을 불러오고, 내 편집본은 클립보드에 보관 */
   const loadLatest = async () => {

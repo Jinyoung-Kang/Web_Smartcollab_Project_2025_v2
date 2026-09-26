@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from 'react-router'
+import { createBrowserRouter } from 'react-router'
+import { RouterProvider } from 'react-router/dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ApiError } from '@/api/http'
 import { ToastProvider } from '@/components/ui/Toast'
@@ -20,18 +21,26 @@ const queryClient = new QueryClient({
   },
 })
 
+function Root() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <ConfirmProvider>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </ConfirmProvider>
+      </ToastProvider>
+    </QueryClientProvider>
+  )
+}
+
+// 화면 경로는 App 의 <Routes> 가 정합니다. 데이터 라우터로 감싸는 이유는 편집기의 이동 차단(useBlocker)이
+// 데이터 라우터에서만 동작하기 때문입니다 [BUG-04].
+const router = createBrowserRouter([{ path: '*', element: <Root /> }])
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
-      <QueryClientProvider client={queryClient}>
-        <ToastProvider>
-          <ConfirmProvider>
-            <AuthProvider>
-              <App />
-            </AuthProvider>
-          </ConfirmProvider>
-        </ToastProvider>
-      </QueryClientProvider>
-    </BrowserRouter>
+    <RouterProvider router={router} />
   </StrictMode>,
 )
