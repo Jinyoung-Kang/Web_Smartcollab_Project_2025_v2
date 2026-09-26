@@ -1,7 +1,10 @@
 # SmartCollab v2 — 팀을 위한 클라우드 파일 협업 공간
 
+[![CI](https://github.com/Jinyoung-Kang/Web_Smartcollab_Project_2025_v2/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Jinyoung-Kang/Web_Smartcollab_Project_2025_v2/actions/workflows/ci.yml)
+
 팀이 파일을 한 곳에 모으고, **권한을 나눠 관리하고, 수정 이력과 승인(서명)을 남기고, 채팅으로 바로 공유**하는 웹 서비스입니다.
-졸업 작품으로 만든 [v1](https://github.com/Jinyoung-Kang/Web_Smartcollab_Project_2025) 의 모든 코드·메뉴·기능을 검토해 보안 결함과 버그를 고치고, 아키텍처·성능·UI/UX 를 다시 설계한 버전입니다.
+대학 졸업 작품으로 단독 개발한 [v1](https://github.com/Jinyoung-Kang/Web_Smartcollab_Project_2025) 의 모든 코드·메뉴·기능을 검토해 보안 결함과 버그를 고치고, 아키텍처·성능·UI/UX 를 다시 설계한 버전입니다.
+v2 를 완성한 뒤에는 실무 코드 리뷰 기준으로 한 번 더 점검해 발견한 28건 중 21건을 고쳤습니다.
 
 ![팀 드라이브와 실시간 채팅](docs/images/team-drive.png)
 
@@ -23,12 +26,13 @@
 | **성능** | 폴더 62개 기준 트리 조회 SQL **63 → 1회**, 검색 **125 → 2회** · 32MB 다운로드 힙 할당 **100.7MB → 17KB** · 첫 화면 JS **1,156KB → 151KB**, 스크립트 실행 **578 → 35ms** | [PERFORMANCE](docs/PERFORMANCE.md) |
 | **아키텍처** | 도메인별 패키지, 권한 판단 단일화(AccessPolicy), 저장소 전략 패턴 + 트랜잭션 연동, Flyway, 커밋 후 실시간 이벤트 | [ARCHITECTURE](docs/ARCHITECTURE.md) · [ADR](docs/adr/README.md) |
 | **UI/UX** | URL 라우팅, 여러 파일 드래그 업로드·진행률, 휴지통·버전 서명·공유 링크 관리 화면, 편집 충돌 해결, 실시간 접속 표시, 반응형 | [REFACTORING_REPORT §4](docs/REFACTORING_REPORT.md#4-uiux) |
+| **완성 후 코드 리뷰** | **28건** 발견(High 2 · Medium 9 · Low 17), **21건** 해결 — 요청 제한 IP 위조 우회, 팀에서 제외된 사용자의 WebSocket 수신, 업로드 중 DB 커넥션 점유, 저장 공간 한도·체험 계정 보호 등 | [REVIEW_2026-09](docs/REVIEW_2026-09.md) |
 
 모든 수치는 저장소의 테스트·스크립트로 측정한 값입니다 (원자료: [docs/measurements](docs/measurements)).
 
 ## 주요 기능
 
-- **드라이브**: 개인·팀 스토리지, 폴더 트리, 여러 파일 업로드(드래그 앤 드롭·진행률·취소), 이동·복사(폴더는 하위까지), 이름 검색(경로 표시), 휴지통(30일 후 자동 삭제), 저장 공간 한도(개인 1GB·팀 5GB, 옛 버전·휴지통 포함)
+- **드라이브**: 개인·팀 스토리지, 폴더 트리, 여러 파일 업로드(드래그 앤 드롭·진행률·취소), 이동·복사(폴더는 하위까지), 이름 검색(경로 표시), 휴지통(30일 후 자동 삭제), 저장 공간 한도(개인 1GB·팀 5GB, 옛 버전·휴지통 포함, 사이드바에 사용량 표시)
 - **미리보기·편집**: 이미지·PDF·텍스트 미리보기, Office 문서(Azure 저장소일 때), 텍스트 편집기(저장 충돌 감지), 핵심 문장 추출 요약, DeepL 번역(키 설정 시)
 - **버전·서명**: 저장할 때마다 버전과 SHA-256 기록, 되돌리기, 팀장·소유자 서명(내용이 바뀌면 자동 무효 표시)
 - **팀 협업**: 초대·수락, 멤버별 편집·삭제·초대 권한, 팀장 위임, 실시간 채팅(파일 공유), 접속 중 표시, 다른 사람의 변경 즉시 반영
@@ -69,7 +73,7 @@ cp .env.example .env
 docker compose up -d --build --wait
 ```
 
-<http://localhost:8080> 에 접속합니다. 데모 모드라면 로그인 화면의 데모 계정(김하늘·이도윤·박서연)을 눌러 바로 체험할 수 있습니다. 여러 방문자가 함께 쓰는 체험 계정이라 탈퇴·팀 삭제 등은 막혀 있고, 체험 데이터는 매일 05:00(한국 시각) 초기화됩니다.
+<http://localhost:8080> 에 접속합니다(8080 포트를 이미 쓰고 있다면 `.env` 의 `APP_PORT` 를 바꾸세요). 데모 모드라면 로그인 화면의 데모 계정(김하늘·이도윤·박서연)을 눌러 바로 체험할 수 있습니다. 여러 방문자가 함께 쓰는 체험 계정이라 탈퇴·팀 삭제 등은 막혀 있고, 저장 한도는 50MB 이며, 체험 데이터는 매일 05:00(한국 시각) 초기화됩니다.
 
 ### 개발 모드
 
@@ -90,7 +94,9 @@ cd frontend && npm test               # 28건
 docker compose up -d --wait && cd e2e && npm ci && npx playwright test   # E2E 6개 시나리오
 ```
 
-백엔드 라인 커버리지 89.0%. v1 에서 찾은 결함마다 회귀 테스트가 있습니다 → [docs/TESTING.md](docs/TESTING.md)
+백엔드 라인 커버리지 89.0%(분기 75.7%). v1 에서 찾은 결함마다 회귀 테스트가 있습니다 → [docs/TESTING.md](docs/TESTING.md)
+GitHub Actions 가 PR 과 main 푸시마다 백엔드·프론트엔드·E2E(Docker 이미지)·비밀값 검사(gitleaks)를 실행합니다.
+E2E 를 1분 안에 여러 번 돌리면 로그인 요청 제한에 걸리므로, 반복 실행 방법은 [TESTING](docs/TESTING.md) 을 참고하세요.
 
 ## 문서
 
@@ -104,7 +110,7 @@ docker compose up -d --wait && cd e2e && npm ci && npx playwright test   # E2E 6
 | [TESTING](docs/TESTING.md) | 테스트 전략과 목록 |
 | [DEPLOYMENT](docs/DEPLOYMENT.md) | 환경 변수, Azure 배포, CI |
 | [ADR](docs/adr/README.md) | 주요 설계 결정 8건 |
-| [REVIEW_2026-09](docs/REVIEW_2026-09.md) | 완성 후 코드 리뷰 — 진단 26건과 승인 항목의 재현·원인·수정·검증 기록 |
+| [REVIEW_2026-09](docs/REVIEW_2026-09.md) | 완성 후 코드 리뷰 — 발견 28건(해결 21 · 보류 7)의 재현·원인·수정·검증 기록 |
 
 ## 폴더 구조
 
