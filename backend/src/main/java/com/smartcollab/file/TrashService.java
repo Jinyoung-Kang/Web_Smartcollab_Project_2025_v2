@@ -73,8 +73,11 @@ public class TrashService {
         return cleanup.purgeFiles(ids);
     }
 
-    /** 매일 새벽 4시(서버 시간) 보관 기간이 지난 파일을 영구 삭제합니다. */
-    @Scheduled(cron = "0 0 4 * * *")
+    /**
+     * 보관 기간이 지난 파일을 매일 영구 삭제합니다 (기본: Asia/Seoul 새벽 4시).
+     * 시간대를 지정하지 않으면 서버 시간대를 따라, UTC 컨테이너에서는 한국 시각 오후 1시에 실행됐습니다 [BUG-05].
+     */
+    @Scheduled(cron = "${app.files.trash-purge-cron}", zone = "${app.files.trash-purge-zone}")
     @Transactional
     public void purgeExpired() {
         Instant cutoff = Instant.now().minus(Duration.ofDays(props.files().trashRetentionDays()));

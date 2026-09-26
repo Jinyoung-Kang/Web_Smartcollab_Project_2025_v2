@@ -163,6 +163,19 @@ class AuthFlowTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("[BUG-01] 글자 수는 72 이하지만 UTF-8 로 72바이트를 넘는 비밀번호(한글 32자)는 500 이 아니라 400 과 필드 메시지")
+    void passwordOver72BytesIsRejected() throws Exception {
+        String password = "a1" + "가".repeat(30);   // 32자, UTF-8 92바이트 — BCrypt 는 72바이트까지만 처리
+        api().perform(MockMvcRequestBuilders.post("/api/auth/signup").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(api().toJson(Map.of("username", "longpw" + UUID.randomUUID().toString().substring(0, 6),
+                                "password", password, "passwordConfirm", password, "name", "긴비번"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.errors.password").value(containsString("72바이트")));
+    }
+
+    @Test
     @DisplayName("가입 검증: 아이디 형식·비밀번호 규칙 위반은 400과 필드 메시지")
     void signUpValidation() throws Exception {
         api().perform(MockMvcRequestBuilders.post("/api/auth/signup").with(csrf())

@@ -40,4 +40,18 @@ describe('createTaskQueue', () => {
     await new Promise((r) => setTimeout(r, 0))
     expect(ran).toEqual([1, 2])
   })
+
+  it('[BUG-03] 대기 중인 작업을 취소하면 실행하지 않는다', async () => {
+    const ran: number[] = []
+    const queue = createTaskQueue<number>(1, async (task) => {
+      ran.push(task.id)
+    })
+    queue.push({ id: 1, payload: 1 })
+    queue.push({ id: 2, payload: 2 })
+    queue.push({ id: 3, payload: 3 })
+    expect(queue.cancel(2)).toBe(true)
+    expect(queue.cancel(99)).toBe(false)
+    await new Promise((r) => setTimeout(r, 0))
+    expect(ran).toEqual([1, 3])
+  })
 })

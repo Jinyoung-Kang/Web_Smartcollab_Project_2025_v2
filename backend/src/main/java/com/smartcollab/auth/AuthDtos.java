@@ -1,5 +1,6 @@
 package com.smartcollab.auth;
 
+import com.smartcollab.global.validation.MaxUtf8Bytes;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -20,6 +21,7 @@ public final class AuthDtos {
             @NotBlank(message = "비밀번호를 입력하세요.")
             @Size(min = 8, max = 72, message = "비밀번호는 8~72자입니다.")
             @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d).+$", message = "비밀번호에는 영문과 숫자가 모두 들어가야 합니다.")
+            @MaxUtf8Bytes(value = 72, message = "비밀번호는 72바이트 이하여야 합니다 (한글은 한 글자에 3바이트).")
             String password,
 
             @NotBlank(message = "비밀번호 확인을 입력하세요.")

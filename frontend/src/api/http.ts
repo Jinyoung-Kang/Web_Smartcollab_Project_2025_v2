@@ -26,6 +26,11 @@ export function onUnauthorized(handler: (() => void) | null) {
   unauthorizedHandler = handler
 }
 
+/** 세션 만료(401)를 알립니다. fetch 요청과 XHR 업로드가 같은 처리를 거치도록 공개합니다. */
+export function notifyUnauthorized() {
+  unauthorizedHandler?.()
+}
+
 export function readCookie(name: string): string | null {
   const match = document.cookie.split('; ').find((c) => c.startsWith(`${name}=`))
   return match ? decodeURIComponent(match.slice(name.length + 1)) : null
@@ -92,20 +97,25 @@ export async function request<T>(path: string, options: RequestOptions = {}, ret
   const data: unknown = isJson ? await res.json().catch(() => null) : await res.text()
 
   if (!res.ok) {
-    const problem = (isJson && data ? data : {}) as { code?: string; detail?: string; errors?: Record<string, string> }
-    const error = new ApiError(res.status, problem.code ?? `HTTP_${res.status}`,
-      problem.detail ?? FALLBACK_MESSAGES[res.status] ?? `요청에 실패했습니다 (${res.status})`, problem.errors)
+    const error = toApiError(res.status, isJson ? data : null)
     // CSRF 토큰이 만료·누락된 경우 한 번만 새로 받아 재시도
     if (error.code === 'CSRF_INVALID' && !retried) {
       await ensureCsrf(true)
       return request<T>(path, options, true)
     }
     if (res.status === 401 && !options.quiet401) {
-      unauthorizedHandler?.()
+      notifyUnauthorized()
     }
     throw error
   }
   return data as T
+}
+
+/** 서버의 ProblemDetail(JSON) 본문을 ApiError 로 바꿉니다. 본문이 없으면 상태 코드별 기본 문구를 씁니다. */
+export function toApiError(status: number, body: unknown, fallback?: string): ApiError {
+  const problem = (body && typeof body === 'object' ? body : {}) as { code?: string; detail?: string; errors?: Record<string, string> }
+  return new ApiError(status, problem.code ?? `HTTP_${status}`,
+    problem.detail ?? fallback ?? FALLBACK_MESSAGES[status] ?? `요청에 실패했습니다 (${status})`, problem.errors)
 }
 
 export const http = {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useBlocker, useNavigate, useParams } from 'react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, ArrowLeft, Copy, FileSearch, History, Languages, Save, Sparkles, X } from 'lucide-react'
 import { fileApi } from '@/api/endpoints'
@@ -13,6 +13,26 @@ import { useToast } from '@/components/ui/Toast'
 import { VersionHistoryDialog } from '@/features/drive/dialogs/VersionHistoryDialog'
 import { formatRelative } from '@/lib/format'
 
+/**
+ * 충돌로 버려질 편집본을 보관합니다. 클립보드가 막혀 있으면(권한·비보안 연결) 텍스트 파일로 내려받습니다.
+ * 이전에는 복사에 실패해도 "클립보드에 복사해 두었습니다"라고 안내했습니다 [BUG-06].
+ */
+async function keepDraft(text: string, fileName: string): Promise<'clipboard' | 'file'> {
+  try {
+    if (!navigator.clipboard) throw new Error('clipboard unavailable')
+    await navigator.clipboard.writeText(text)
+    return 'clipboard'
+  } catch {
+    const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${fileName.replace(/\.[^.]+$/, '')} (내 편집본).txt`
+    link.click()
+    URL.revokeObjectURL(url)
+    return 'file'
+  }
+}
+
 type ToolResult =
   | { kind: 'summary'; sentences: string[]; total: number }
   | { kind: 'translation'; text: string; target: string }
@@ -22,7 +42,8 @@ type ToolResult =
 /**
  * 텍스트 편집기.
  * - 저장 시 편집을 시작한 버전 ID 를 함께 보내, 그 사이 다른 사람이 저장했다면 덮어쓰지 않고 충돌을 알립니다(낙관적 잠금).
- * - Ctrl/⌘+S 저장, 저장하지 않은 변경이 있으면 창을 닫을 때 경고합니다.
+ * - Ctrl/⌘+S 저장. 저장하지 않은 변경이 있으면 창을 닫거나 새로고침할 때(beforeunload),
+ *   앱 안의 다른 화면으로 이동할 때(useBlocker) 확인합니다 [BUG-04].
  * - 요약은 단어 빈도 기반 "핵심 문장 추출"이며 생성형 AI 결과가 아닙니다. 번역은 DeepL 키가 있을 때만 켜집니다.
  */
 export default function EditorPage() {
@@ -65,6 +86,26 @@ function Editor({ fileId, initial }: { fileId: number; initial: TextContent }) {
     return () => window.removeEventListener('beforeunload', warn)
   }, [dirty])
 
+  // 사이드바·뒤로 가기 등 앱 안의 이동은 beforeunload 가 발생하지 않으므로 라우터에서 막고 확인합니다.
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => dirty && currentLocation.pathname !== nextLocation.pathname)
+  useEffect(() => {
+    if (blocker.state !== 'blocked') return
+    let active = true
+    void confirm({
+      title: '저장하지 않은 변경이 있습니다',
+      message: '저장하지 않고 나가면 변경 내용이 사라집니다.',
+      confirmLabel: '저장 안 하고 나가기',
+      danger: true,
+    }).then((leave) => {
+      if (!active) return
+      if (leave) blocker.proceed()
+      else blocker.reset()
+    })
+    return () => {
+      active = false
+    }
+  }, [blocker, confirm])
+
   const save = useCallback(async () => {
     if (!editable || saving) return
     setSaving(true)
@@ -99,20 +140,20 @@ function Editor({ fileId, initial }: { fileId: number; initial: TextContent }) {
 
   const backTo = initial.teamId ? `/teams/${initial.teamId}/folders/${initial.folderId}` : `/drive/${initial.folderId}`
 
-  const close = async () => {
-    if (dirty && !(await confirm({ title: '저장하지 않은 변경이 있습니다', message: '저장하지 않고 나가면 변경 내용이 사라집니다.', confirmLabel: '저장 안 하고 나가기', danger: true }))) return
-    navigate(backTo)
-  }
+  // 저장하지 않은 변경이 있으면 위의 이동 차단이 확인을 받습니다.
+  const close = () => navigate(backTo)
 
-  /** 충돌 해결 1: 최신 내용을 불러오고, 내 편집본은 클립보드에 보관 */
+  /** 충돌 해결 1: 최신 내용을 불러오고, 내 편집본은 클립보드(쓸 수 없으면 파일)로 보관 */
   const loadLatest = async () => {
-    await navigator.clipboard.writeText(draft).catch(() => undefined)
+    const keptIn = await keepDraft(draft, initial.name)
     const latest = await qc.fetchQuery({ queryKey: ['file-content', fileId], queryFn: () => fileApi.content(fileId), staleTime: 0 })
     setDraft(latest.content)
     setSaved(latest.content)
     setBaseVersion(latest.versionId)
     setConflict(false)
-    toast.info('최신 내용을 불러왔습니다. 내가 쓰던 내용은 클립보드에 복사해 두었습니다.')
+    toast.info(keptIn === 'clipboard'
+      ? '최신 내용을 불러왔습니다. 내가 쓰던 내용은 클립보드에 복사해 두었습니다.'
+      : '최신 내용을 불러왔습니다. 클립보드를 쓸 수 없어 내가 쓰던 내용을 파일로 내려받았습니다.')
   }
 
   /** 충돌 해결 2: 최신 버전을 기준으로 내 내용을 새 버전으로 저장 (이전 버전은 기록에 남음) */

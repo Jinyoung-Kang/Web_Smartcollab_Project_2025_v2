@@ -60,6 +60,16 @@ class ShareLinkTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("[BUG-01] 72바이트를 넘는 공유 비밀번호는 500 이 아니라 400")
+    void sharePasswordOver72BytesIsRejected() throws Exception {
+        Api.Session s = api().signUp("sharelong");
+        long file = s.uploadText(s.rootFolderId, "long-pw.txt", "x");
+        s.postJson("/api/files/{id}/share-links", Map.of("password", "비밀번호".repeat(7)), file)   // 28자, 84바이트
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.password").value(containsString("72바이트")));
+    }
+
+    @Test
     @DisplayName("[SEC-01] 한 링크의 비밀번호 시도가 한도를 넘으면 IP 가 달라도 429")
     void unlockIsRateLimitedPerLink() throws Exception {
         Api.Session s = api().signUp("sharelim");
