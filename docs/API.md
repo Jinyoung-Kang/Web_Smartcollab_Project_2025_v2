@@ -23,6 +23,7 @@
 | `CONFLICT` / `EDIT_CONFLICT` | 409 | 상태 충돌 / 다른 사람이 먼저 저장함 |
 | `LINK_EXPIRED` | 410 | 만료·소진·휴지통 파일의 공유 링크 |
 | `PAYLOAD_TOO_LARGE` | 413 | 업로드·편집 한도 초과 |
+| `QUOTA_EXCEEDED` | 413 | 저장 공간 한도 초과 (개인 1GB·팀 5GB 기본, 옛 버전·휴지통 포함) |
 | `RATE_LIMITED` | 429 | 요청 제한 초과 |
 | `FEATURE_DISABLED` | 503 | 서버에 설정되지 않은 기능 (번역 키 없음, 로컬 저장소에서 Office 미리보기 등) |
 
@@ -59,7 +60,7 @@
 | POST | `/api/files/{id}/versions/{versionId}/restore` | 버전 되돌리기 |
 | POST | `/api/files/{id}/signatures` | 현재 버전에 서명 |
 | GET | `/api/files/search?q=&teamId=` | 이름 검색 (최대 100건, 경로 포함) |
-| GET | `/api/files/usage?teamId=` | 파일 수·용량 |
+| GET | `/api/files/usage?teamId=` | 파일 수·크기(휴지통 제외), 실제 저장량 `storedBytes`(옛 버전·휴지통 포함)·한도 `quotaBytes` |
 | POST | `/api/items/move` · `/api/items/copy` | `{items:[{type,id}], targetFolderId}` |
 | GET / DELETE | `/api/trash?teamId=` | 휴지통 목록 / 비우기 |
 | POST | `/api/trash/{fileId}/restore` | 복원 |
