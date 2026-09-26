@@ -13,6 +13,26 @@ import { useToast } from '@/components/ui/Toast'
 import { VersionHistoryDialog } from '@/features/drive/dialogs/VersionHistoryDialog'
 import { formatRelative } from '@/lib/format'
 
+/**
+ * 충돌로 버려질 편집본을 보관합니다. 클립보드가 막혀 있으면(권한·비보안 연결) 텍스트 파일로 내려받습니다.
+ * 이전에는 복사에 실패해도 "클립보드에 복사해 두었습니다"라고 안내했습니다 [BUG-06].
+ */
+async function keepDraft(text: string, fileName: string): Promise<'clipboard' | 'file'> {
+  try {
+    if (!navigator.clipboard) throw new Error('clipboard unavailable')
+    await navigator.clipboard.writeText(text)
+    return 'clipboard'
+  } catch {
+    const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${fileName.replace(/\.[^.]+$/, '')} (내 편집본).txt`
+    link.click()
+    URL.revokeObjectURL(url)
+    return 'file'
+  }
+}
+
 type ToolResult =
   | { kind: 'summary'; sentences: string[]; total: number }
   | { kind: 'translation'; text: string; target: string }
@@ -123,15 +143,17 @@ function Editor({ fileId, initial }: { fileId: number; initial: TextContent }) {
   // 저장하지 않은 변경이 있으면 위의 이동 차단이 확인을 받습니다.
   const close = () => navigate(backTo)
 
-  /** 충돌 해결 1: 최신 내용을 불러오고, 내 편집본은 클립보드에 보관 */
+  /** 충돌 해결 1: 최신 내용을 불러오고, 내 편집본은 클립보드(쓸 수 없으면 파일)로 보관 */
   const loadLatest = async () => {
-    await navigator.clipboard.writeText(draft).catch(() => undefined)
+    const keptIn = await keepDraft(draft, initial.name)
     const latest = await qc.fetchQuery({ queryKey: ['file-content', fileId], queryFn: () => fileApi.content(fileId), staleTime: 0 })
     setDraft(latest.content)
     setSaved(latest.content)
     setBaseVersion(latest.versionId)
     setConflict(false)
-    toast.info('최신 내용을 불러왔습니다. 내가 쓰던 내용은 클립보드에 복사해 두었습니다.')
+    toast.info(keptIn === 'clipboard'
+      ? '최신 내용을 불러왔습니다. 내가 쓰던 내용은 클립보드에 복사해 두었습니다.'
+      : '최신 내용을 불러왔습니다. 클립보드를 쓸 수 없어 내가 쓰던 내용을 파일로 내려받았습니다.')
   }
 
   /** 충돌 해결 2: 최신 버전을 기준으로 내 내용을 새 버전으로 저장 (이전 버전은 기록에 남음) */

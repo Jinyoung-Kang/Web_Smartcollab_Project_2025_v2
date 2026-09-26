@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { configApi, fileApi } from '@/api/endpoints'
+import { ApiError } from '@/api/http'
 import type { PublicConfig, TextContent } from '@/api/types'
 import { ConfirmProvider } from '@/components/ui/Confirm'
 import { ToastProvider } from '@/components/ui/Toast'
@@ -72,3 +73,34 @@ describe('EditorPage — 저장하지 않은 변경 보호', () => {
     expect(screen.queryByText('저장하지 않은 변경이 있습니다')).not.toBeInTheDocument()
   })
 })
+
+describe('EditorPage — 편집 충돌 해결', () => {
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, 'clipboard')
+    Reflect.deleteProperty(URL, 'createObjectURL')
+    Reflect.deleteProperty(URL, 'revokeObjectURL')
+  })
+
+  it('[BUG-06] 클립보드를 쓸 수 없으면 내 편집본을 파일로 내려받고, 사실대로 안내한다', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+    vi.spyOn(fileApi, 'save').mockRejectedValue(new ApiError(409, 'EDIT_CONFLICT', '다른 사용자가 먼저 저장했습니다.'))
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: vi.fn().mockRejectedValue(new DOMException('denied', 'NotAllowedError')) },
+    })
+    const createUrl = vi.fn(() => 'blob:draft')
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createUrl })
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() })
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+
+    await user.type(await screen.findByLabelText('문서 내용'), ' 내 수정')
+    await user.click(screen.getByRole('button', { name: '저장' }))
+    await user.click(await screen.findByRole('button', { name: '최신 내용 불러오기' }))
+
+    expect(await screen.findByText(/파일로 내려받았습니다/)).toBeInTheDocument()
+    expect(createUrl).toHaveBeenCalledOnce()
+    expect(click).toHaveBeenCalledOnce()
+  })
+})
+
