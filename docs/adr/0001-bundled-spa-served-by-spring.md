@@ -2,7 +2,7 @@
 
 ## 배경
 v1 은 `index.html` 에서 React **개발용** 빌드, Babel Standalone, Tailwind Play CDN, 최신 버전 고정 없는 lucide 를 외부 CDN 으로 받고, JSX 를 브라우저에서 변환했습니다.
-- 첫 화면까지 JS 1,156KB 전송, 메인 스레드 스크립트 566ms (측정: [PERFORMANCE.md](../PERFORMANCE.md))
+- 첫 화면까지 JS 1,156KB 전송, 메인 스레드 스크립트 578ms (측정: [PERFORMANCE.md](../PERFORMANCE.md))
 - 브라우저 `eval` 과 여러 외부 출처 때문에 CSP 적용 불가
 - 타입 검사·린트·테스트 불가, 전역 변수로 파일 간 의존
 
@@ -12,7 +12,7 @@ v1 은 `index.html` 에서 React **개발용** 빌드, Babel Standalone, Tailwin
 - 해시 파일명 자산은 1년 `immutable` 캐시, `index.html` 은 `no-cache`.
 
 ## 결과
-- JS 133KB(-88%), 스크립트 실행 33ms(-94%), `script-src 'self'` CSP 적용
+- JS 151KB(-87%), 스크립트 실행 35ms(-94%), `script-src 'self'` CSP 적용 (2026-09 재측정, 데이터 라우터 도입 후)
 - 같은 출처이므로 CORS 불필요, 쿠키를 `SameSite=Strict` 로 둘 수 있음 (ADR-0003)
 - 배포 단위가 하나 — 프론트와 백엔드 버전이 어긋나지 않음
 - 대가: 프론트만 따로 CDN 에 배포하는 구조는 아님 (필요 시 `CORS_ALLOWED_ORIGINS` 로 분리 가능)

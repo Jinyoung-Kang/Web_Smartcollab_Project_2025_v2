@@ -1,52 +1,34 @@
 {
   "runs": 5,
-  "measuredAt": "2026-09-26T17:38:12.617Z",
+  "measuredAt": "2026-09-26T19:17:42.053Z",
   "v1": {
     "requests": 20,
-    "totalKb": 1288,
+    "totalKb": 1289,
     "jsKb": 1156,
     "cssKb": 0,
     "fontKb": 0,
-    "scriptMs": 566,
-    "elapsedMs": 1132
+    "scriptMs": 578,
+    "elapsedMs": 1087
   },
   "v2": {
     "requests": 21,
-    "totalKb": 496,
-    "jsKb": 133,
+    "totalKb": 513,
+    "jsKb": 151,
     "cssKb": 23,
     "fontKb": 334,
-    "scriptMs": 33,
-    "elapsedMs": 205
+    "scriptMs": 35,
+    "elapsedMs": 173
   },
   "raw": {
     "v1": [
       {
         "requests": 20,
         "totalKb": 1288,
-        "jsKb": 1155,
-        "cssKb": 0,
-        "fontKb": 0,
-        "scriptMs": 563,
-        "elapsedMs": 1132
-      },
-      {
-        "requests": 20,
-        "totalKb": 1288,
         "jsKb": 1156,
         "cssKb": 0,
         "fontKb": 0,
-        "scriptMs": 552,
-        "elapsedMs": 1047
-      },
-      {
-        "requests": 20,
-        "totalKb": 1288,
-        "jsKb": 1156,
-        "cssKb": 0,
-        "fontKb": 0,
-        "scriptMs": 613,
-        "elapsedMs": 1423
+        "scriptMs": 697,
+        "elapsedMs": 1173
       },
       {
         "requests": 20,
@@ -54,64 +36,82 @@
         "jsKb": 1156,
         "cssKb": 0,
         "fontKb": 0,
-        "scriptMs": 611,
-        "elapsedMs": 1150
+        "scriptMs": 578,
+        "elapsedMs": 1087
+      },
+      {
+        "requests": 20,
+        "totalKb": 1289,
+        "jsKb": 1156,
+        "cssKb": 0,
+        "fontKb": 0,
+        "scriptMs": 604,
+        "elapsedMs": 1133
       },
       {
         "requests": 20,
         "totalKb": 1288,
-        "jsKb": 1155,
+        "jsKb": 1156,
         "cssKb": 0,
         "fontKb": 0,
-        "scriptMs": 566,
-        "elapsedMs": 1054
+        "scriptMs": 560,
+        "elapsedMs": 1028
+      },
+      {
+        "requests": 20,
+        "totalKb": 1289,
+        "jsKb": 1157,
+        "cssKb": 0,
+        "fontKb": 0,
+        "scriptMs": 530,
+        "elapsedMs": 1007
       }
     ],
     "v2": [
       {
         "requests": 21,
-        "totalKb": 496,
-        "jsKb": 133,
-        "cssKb": 23,
-        "fontKb": 334,
-        "scriptMs": 33,
-        "elapsedMs": 158
-      },
-      {
-        "requests": 21,
-        "totalKb": 496,
-        "jsKb": 133,
+        "totalKb": 513,
+        "jsKb": 151,
         "cssKb": 23,
         "fontKb": 334,
         "scriptMs": 34,
-        "elapsedMs": 205
+        "elapsedMs": 173
       },
       {
         "requests": 21,
-        "totalKb": 496,
-        "jsKb": 133,
+        "totalKb": 513,
+        "jsKb": 151,
         "cssKb": 23,
         "fontKb": 334,
-        "scriptMs": 39,
-        "elapsedMs": 220
+        "scriptMs": 38,
+        "elapsedMs": 224
       },
       {
         "requests": 21,
-        "totalKb": 496,
-        "jsKb": 133,
+        "totalKb": 513,
+        "jsKb": 151,
+        "cssKb": 23,
+        "fontKb": 334,
+        "scriptMs": 36,
+        "elapsedMs": 196
+      },
+      {
+        "requests": 21,
+        "totalKb": 513,
+        "jsKb": 151,
         "cssKb": 23,
         "fontKb": 334,
         "scriptMs": 32,
-        "elapsedMs": 228
+        "elapsedMs": 151
       },
       {
         "requests": 21,
-        "totalKb": 496,
-        "jsKb": 133,
+        "totalKb": 513,
+        "jsKb": 151,
         "cssKb": 23,
         "fontKb": 334,
-        "scriptMs": 33,
-        "elapsedMs": 171
+        "scriptMs": 35,
+        "elapsedMs": 162
       }
     ]
   }

@@ -10,7 +10,7 @@
 | **백엔드** | Java 21 · Spring Boot 4.1 · Spring Security (쿠키 JWT·CSRF) · JPA/Hibernate 7 · Flyway · STOMP WebSocket |
 | **프론트엔드** | React 19 · TypeScript · Vite · TanStack Query · Tailwind CSS 4 |
 | **데이터·인프라** | MySQL 8 · Azure Blob Storage(또는 로컬 디스크) · Docker · GitHub Actions |
-| **테스트** | JUnit 5 + Testcontainers(MySQL·Azurite) 79건 · Vitest 15건 · Playwright E2E 5개 시나리오 |
+| **테스트** | JUnit 5 + Testcontainers(MySQL·Azurite) 120건 · Vitest 26건 · Playwright E2E 6개 시나리오 |
 
 ---
 
@@ -20,7 +20,7 @@
 |---|---|---|
 | **보안** | 인증 없이 남의 파일을 열 수 있던 경로를 포함해 권한 결함 **14건** 수정 (IDOR, WebSocket 도청·사칭, 소스에 박힌 시스템 계정 비밀번호 등) | [REFACTORING_REPORT §1](docs/REFACTORING_REPORT.md#1-보안) |
 | **버그** | 폴더·계정 삭제 실패, 복사본 다운로드 불가, 순환 이동 무한 재귀, 공유 링크 9시간 조기 만료, 동시 편집 덮어쓰기 등 **22건** 수정 | [REFACTORING_REPORT §2](docs/REFACTORING_REPORT.md#2-기능-결함) |
-| **성능** | 폴더 62개 기준 트리 조회 SQL **63 → 1회**, 검색 **125 → 2회** · 32MB 다운로드 힙 할당 **100.7MB → 17KB** · 첫 화면 JS **1,156KB → 133KB**, 스크립트 실행 **566 → 33ms** | [PERFORMANCE](docs/PERFORMANCE.md) |
+| **성능** | 폴더 62개 기준 트리 조회 SQL **63 → 1회**, 검색 **125 → 2회** · 32MB 다운로드 힙 할당 **100.7MB → 17KB** · 첫 화면 JS **1,156KB → 151KB**, 스크립트 실행 **578 → 35ms** | [PERFORMANCE](docs/PERFORMANCE.md) |
 | **아키텍처** | 도메인별 패키지, 권한 판단 단일화(AccessPolicy), 저장소 전략 패턴 + 트랜잭션 연동, Flyway, 커밋 후 실시간 이벤트 | [ARCHITECTURE](docs/ARCHITECTURE.md) · [ADR](docs/adr/README.md) |
 | **UI/UX** | URL 라우팅, 여러 파일 드래그 업로드·진행률, 휴지통·버전 서명·공유 링크 관리 화면, 편집 충돌 해결, 실시간 접속 표시, 반응형 | [REFACTORING_REPORT §4](docs/REFACTORING_REPORT.md#4-uiux) |
 
@@ -85,12 +85,12 @@ API 문서: <http://localhost:8080/swagger-ui.html> · 전체 목록 [docs/API.m
 ## 테스트
 
 ```bash
-cd backend && ./gradlew test          # 79건 (MySQL·Azurite 컨테이너 자동 실행), 커버리지 리포트 포함
-cd frontend && npm test               # 15건
-docker compose up -d --wait && cd e2e && npm ci && npx playwright test   # E2E 5개 시나리오
+cd backend && ./gradlew test          # 120건 (MySQL·Azurite 컨테이너 자동 실행), 커버리지 리포트 포함
+cd frontend && npm test               # 26건
+docker compose up -d --wait && cd e2e && npm ci && npx playwright test   # E2E 6개 시나리오
 ```
 
-백엔드 라인 커버리지 81.8%. v1 에서 찾은 결함마다 회귀 테스트가 있습니다 → [docs/TESTING.md](docs/TESTING.md)
+백엔드 라인 커버리지 83.7%. v1 에서 찾은 결함마다 회귀 테스트가 있습니다 → [docs/TESTING.md](docs/TESTING.md)
 
 ## 문서
 
@@ -104,6 +104,7 @@ docker compose up -d --wait && cd e2e && npm ci && npx playwright test   # E2E 5
 | [TESTING](docs/TESTING.md) | 테스트 전략과 목록 |
 | [DEPLOYMENT](docs/DEPLOYMENT.md) | 환경 변수, Azure 배포, CI |
 | [ADR](docs/adr/README.md) | 주요 설계 결정 8건 |
+| [REVIEW_2026-09](docs/REVIEW_2026-09.md) | 완성 후 코드 리뷰 — 진단 26건과 승인 항목의 재현·원인·수정·검증 기록 |
 
 ## 폴더 구조
 

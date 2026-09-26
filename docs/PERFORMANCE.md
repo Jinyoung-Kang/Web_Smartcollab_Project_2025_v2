@@ -40,15 +40,17 @@ v1 은 업로드 한도가 800MB 여서, 큰 파일 몇 개를 동시에 내려�
 
 | 지표 | v1 | v2 | 비고 |
 |---|---:|---:|---|
-| JavaScript 전송량 | 1,156 KB | **133 KB** | -88% |
-| 메인 스레드 스크립트 실행 시간 (CDP `ScriptDuration`) | 566 ms | **33 ms** | -94%, 네트워크와 무관 |
-| 전체 전송량 | 1,288 KB | 496 KB | v2 는 한글 웹폰트 334KB 포함 (v1 은 시스템 폰트) |
+| JavaScript 전송량 | 1,156 KB | **151 KB** | -87% |
+| 메인 스레드 스크립트 실행 시간 (CDP `ScriptDuration`) | 578 ms | **35 ms** | -94%, 네트워크와 무관 |
+| 전체 전송량 | 1,289 KB | 513 KB | v2 는 한글 웹폰트 334KB 포함 (v1 은 시스템 폰트) |
 | 요청 수 | 20 | 21 | v2 는 글자 범위별 폰트 조각을 받음 |
-| 로그인 화면이 보이기까지 | 1,132 ms | 205 ms | 참고용 — v1 은 인터넷 CDN, v2 는 로컬 서버 |
+| 로그인 화면이 보이기까지 | 1,087 ms | 173 ms | 참고용 — v1 은 인터넷 CDN, v2 는 로컬 서버 |
 
 v1 이 느렸던 이유: React **개발용** 빌드 + 브라우저에서 JSX 를 변환하는 Babel Standalone(약 3MB 원본) + Tailwind Play CDN(런타임 CSS 생성). v2 는 Vite 로 미리 빌드·압축하고, 휴지통·검색·편집기·공유 페이지는 필요할 때 내려받도록 나눴습니다(코드 분할).
 
-측정 중 발견한 설정 결함: Spring Boot 응답 압축 대상에 `text/javascript` 가 빠져 JS 가 **압축 없이** 전송되고 있었습니다(418KB → 수정 후 133KB). `application.yml` 에 추가했습니다.
+측정 중 발견한 설정 결함: Spring Boot 응답 압축 대상에 `text/javascript` 가 빠져 JS 가 **압축 없이** 전송되고 있었습니다(당시 418KB → 수정 후 133KB). `application.yml` 에 추가했습니다.
+
+2026-09 코드 리뷰 후 재측정(위 표): 편집기에서 저장하지 않은 내용을 지키는 앱 내 이동 차단(`useBlocker`, [REVIEW_2026-09 BUG-04](REVIEW_2026-09.md))에 데이터 라우터가 필요해, 라우터 엔진이 들어가며 JS 가 133KB → 151KB(gzip +18KB) 늘었습니다. 데이터 손실 방지가 더 중요하다고 판단해 받아들였습니다.
 
 원자료: [measurements/initial-load.json](measurements/initial-load.json)
 
