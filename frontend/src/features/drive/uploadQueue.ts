@@ -28,6 +28,13 @@ export function createTaskQueue<T>(concurrency: number, run: (task: QueueTask<T>
       waiting.push(task)
       pump()
     },
+    /** 아직 시작하지 않은 작업을 대기열에서 뺍니다. 뺐으면 true. */
+    cancel(id: number): boolean {
+      const index = waiting.findIndex((t) => t.id === id)
+      if (index < 0) return false
+      waiting.splice(index, 1)
+      return true
+    },
     get running() {
       return running
     },

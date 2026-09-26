@@ -15,7 +15,7 @@ interface UploadTask {
   size: number
   folderId: number
   progress: number
-  status: 'queued' | 'uploading' | 'done' | 'error'
+  status: 'queued' | 'uploading' | 'done' | 'error' | 'canceled'
   error?: string
   controller: AbortController
 }
@@ -29,6 +29,7 @@ const CONCURRENCY = 3
 
 /**
  * 여러 파일 업로드 대기열 (동시 3개, 진행률·취소·실패 사유 표시).
+ * 대기 중인 파일을 취소하면 대기열에서 빼고, 올리는 중인 파일은 요청을 중단합니다 [BUG-03].
  * v1 은 파일 1개만, 진행률 없이 업로드한 뒤 alert() 로 결과를 알렸습니다.
  */
 export function UploadProvider({ children }: { children: ReactNode }) {
@@ -50,7 +51,8 @@ export function UploadProvider({ children }: { children: ReactNode }) {
         void qc.invalidateQueries({ queryKey: ['folder', task.folderId] })
         void qc.invalidateQueries({ queryKey: ['usage'] })
       } catch (e) {
-        patch(task.id, { status: 'error', error: e instanceof ApiError ? e.message : '업로드 실패' })
+        if (e instanceof ApiError && e.code === 'ABORTED') patch(task.id, { status: 'canceled' })
+        else patch(task.id, { status: 'error', error: e instanceof ApiError ? e.message : '업로드 실패' })
       }
     })
   })
@@ -77,12 +79,20 @@ export function UploadProvider({ children }: { children: ReactNode }) {
         }
         return { task, file }
       })
-      setTasks((list) => [...list.filter((t) => t.status !== 'done'), ...created.map((c) => c.task)])
+      setTasks((list) => [...list.filter((t) => t.status !== 'done' && t.status !== 'canceled'), ...created.map((c) => c.task)])
       setCollapsed(false)
       created.filter((c) => c.task.status === 'queued').forEach((c) => queue.push({ id: c.task.id, payload: c }))
     },
     [config?.maxUploadBytes, queue],
   )
+
+  const cancel = (task: UploadTask) => {
+    if (task.status === 'queued' && queue.cancel(task.id)) {
+      setTasks((list) => list.map((t) => (t.id === task.id ? { ...t, status: 'canceled' } : t)))
+    } else {
+      task.controller.abort()
+    }
+  }
 
   const api = useMemo(() => ({ enqueue }), [enqueue])
   const active = tasks.filter((t) => t.status === 'queued' || t.status === 'uploading').length
@@ -120,13 +130,15 @@ export function UploadProvider({ children }: { children: ReactNode }) {
                     {t.status === 'done' && <CheckCircle2 aria-label="완료" className="size-4 text-emerald-500" />}
                     {t.status === 'error' && <XCircle aria-label="실패" className="size-4 text-red-500" />}
                     {(t.status === 'queued' || t.status === 'uploading') && (
-                      <IconButton label="업로드 취소" onClick={() => t.controller.abort()}>
+                      <IconButton label="업로드 취소" onClick={() => cancel(t)}>
                         <X className="size-3.5" />
                       </IconButton>
                     )}
                   </div>
                   {t.status === 'error' ? (
                     <p className="mt-0.5 text-xs text-red-600">{t.error}</p>
+                  ) : t.status === 'canceled' ? (
+                    <p className="mt-0.5 text-xs text-slate-500">취소됨</p>
                   ) : (
                     <div className="mt-1.5 flex items-center gap-2">
                       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
