@@ -25,5 +25,6 @@ WORKDIR /app
 COPY --from=api /app/build/libs/smartcollab.jar app.jar
 USER app
 EXPOSE 8080
-ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -Dfile.encoding=UTF-8"
+# allowRestrictedHeaders: Azure SDK(JDK HttpClient)가 Content-Length 를 직접 지정하도록 허용 — 없으면 요청마다 경고 로그
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -Dfile.encoding=UTF-8 -Djdk.httpclient.allowRestrictedHeaders=content-length"
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

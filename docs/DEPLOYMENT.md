@@ -61,7 +61,9 @@ az webapp config appsettings set -g <리소스그룹> -n <앱이름> --settings 
   JWT_SECRET=<32바이트 이상 무작위> \
   AZURE_STORAGE_CONNECTION_STRING="<연결 문자열>"
 
-# Java 런타임으로 jar 배포하는 경우
+# Java 런타임으로 jar 배포하는 경우 (컨테이너는 Dockerfile 에 이미 포함)
+az webapp config appsettings set -g <리소스그룹> -n <앱이름> --settings \
+  JAVA_OPTS="-Djdk.httpclient.allowRestrictedHeaders=content-length"   # Azure SDK 요청마다 남는 경고 방지
 az webapp deploy -g <리소스그룹> -n <앱이름> --src-path backend/build/libs/smartcollab.jar --type jar
 ```
 

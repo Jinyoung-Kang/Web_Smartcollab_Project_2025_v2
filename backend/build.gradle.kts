@@ -71,6 +71,10 @@ dependencies {
     mockitoAgent("org.mockito:mockito-core") { isTransitive = false }
 }
 
+// Azure SDK 의 JDK HttpClient 는 Content-Length 를 직접 지정하는데, JDK 는 이 헤더를 기본으로 막아 요청마다 경고를 남깁니다.
+// 경고 문구가 안내하는 대로 허용합니다 (Dockerfile 의 JAVA_TOOL_OPTIONS 와 같은 값).
+val azureHttpClientOption = "-Djdk.httpclient.allowRestrictedHeaders=content-length"
+
 tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
     options.compilerArgs.addAll(listOf("-parameters", "-Xlint:deprecation"))
@@ -81,7 +85,8 @@ tasks.test {
     // 운영 컨테이너·CI 와 같은 UTC 로 실행해, 개발 PC 시간대(KST)에서만 통과하는 테스트가 생기지 않게 합니다.
     // Mockito 인라인 목은 JDK 21+ 에서 동적 에이전트 대신 명시적 -javaagent 로 등록합니다(Mockito 권장 방식).
     // 목 디스패처를 부트스트랩 경로에 추가하므로, 의미 없는 CDS 경고를 피하려고 테스트 JVM 의 클래스 데이터 공유를 끕니다.
-    jvmArgs("-Dfile.encoding=UTF-8", "-Duser.timezone=UTC", "-javaagent:${mockitoAgent.asPath}", "-Xshare:off")
+    jvmArgs("-Dfile.encoding=UTF-8", "-Duser.timezone=UTC", "-javaagent:${mockitoAgent.asPath}", "-Xshare:off",
+            azureHttpClientOption)
     testLogging {
         events("failed", "skipped")
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
@@ -123,5 +128,6 @@ tasks.processResources {
     }
 }
 
+tasks.bootRun { jvmArgs(azureHttpClientOption) }
 tasks.bootJar { archiveFileName = "smartcollab.jar" }
 tasks.jar { enabled = false }
