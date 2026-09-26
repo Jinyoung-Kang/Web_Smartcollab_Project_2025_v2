@@ -51,10 +51,12 @@ public class AccountService {
     private final DriveCleanupService cleanup;
     private final PasswordEncoder passwordEncoder;
     private final ApplicationEventPublisher events;
+    private final DemoAccounts demoAccounts;
 
     @Transactional
     public void deleteAccount(Long userId, String password) {
         User user = users.findById(userId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
+        demoAccounts.forbidIfDemo(user, "체험 계정은 탈퇴할 수 없습니다.");
         if (password == null || !passwordEncoder.matches(password, user.getPassword())) {
             throw new ApiException(ErrorCode.FORBIDDEN, "비밀번호가 일치하지 않습니다.");
         }
@@ -62,6 +64,18 @@ public class AccountService {
         if (!ledTeams.isEmpty()) {
             throw ApiException.conflict("팀장으로 있는 팀(" + String.join(", ", ledTeams)
                     + ")의 팀장을 위임하거나 팀을 삭제한 뒤 탈퇴할 수 있습니다.");
+        }
+        purgeAccount(userId);
+    }
+
+    /**
+     * 계정과 개인 데이터를 지우고 팀 자료는 시스템 계정으로 넘깁니다. <b>비밀번호·체험 계정 여부는 확인하지 않으므로</b>
+     * 호출하는 쪽이 확인해야 합니다 (회원 탈퇴 API, 데모 데이터 초기화). 팀장인 팀이 남아 있으면 지울 수 없습니다.
+     */
+    @Transactional
+    public void purgeAccount(Long userId) {
+        if (!teams.findIdsOwnedBy(userId).isEmpty()) {
+            throw new IllegalStateException("팀장인 팀을 먼저 삭제하거나 위임해야 합니다: user " + userId);
         }
         User system = users.findFirstByRole(Role.SYSTEM)
                 .orElseThrow(() -> new IllegalStateException("시스템 계정이 없습니다."));

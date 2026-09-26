@@ -2,6 +2,7 @@ package com.smartcollab.global.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.util.StringUtils;
+import org.springframework.util.unit.DataSize;
 
 import java.time.Duration;
 import java.util.List;
@@ -17,6 +18,7 @@ public record AppProperties(
         Storage storage,
         Files files,
         RateLimit rateLimit,
+        Quota quota,
         Deepl deepl,
         Demo demo
 ) {
@@ -40,7 +42,11 @@ public record AppProperties(
     }
 
     public record RateLimit(int loginPerMinute, int loginPerAccountPer10Minutes, int sharePasswordPer10Minutes,
-                            int sharePasswordPerLinkPer10Minutes) {
+                            int sharePasswordPerLinkPer10Minutes, int signupPerHour) {
+    }
+
+    /** 저장 공간 한도 (옛 버전·휴지통 포함 실제 저장량 기준) */
+    public record Quota(DataSize personal, DataSize team) {
     }
 
     public record Deepl(String apiKey, String baseUrl) {
@@ -49,6 +55,7 @@ public record AppProperties(
         }
     }
 
-    public record Demo(boolean enabled, String password) {
+    /** @param quota 체험 계정의 개인 저장소와 체험 계정이 팀장인 팀에 적용하는 한도 */
+    public record Demo(boolean enabled, String password, DataSize quota) {
     }
 }

@@ -34,6 +34,16 @@ public class AuthService {
     /** 존재하지 않는 아이디로 로그인할 때도 BCrypt 비교를 수행해 응답 시간으로 계정 존재 여부를 추측하지 못하게 합니다. */
     private volatile String dummyHash;
 
+    /** 외부 요청의 가입. 한 IP 에서 계정을 대량으로 만드는 것을 막습니다 [SEC-05]. */
+    @Transactional
+    public User signUp(AuthDtos.SignUpRequest req, String clientIp) {
+        if (!rateLimiter.tryAcquire("signup:" + clientIp, props.rateLimit().signupPerHour(), Duration.ofHours(1))) {
+            throw new ApiException(ErrorCode.RATE_LIMITED, "가입 요청이 너무 많습니다. 잠시 후 다시 시도하세요.");
+        }
+        return signUp(req);
+    }
+
+    /** 가입 (요청 제한 없음 — 데모 데이터 생성 등 서버 내부용). */
     @Transactional
     public User signUp(AuthDtos.SignUpRequest req) {
         if (!req.password().equals(req.passwordConfirm())) {

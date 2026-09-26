@@ -35,10 +35,11 @@ public class AuthController {
         return new AuthDtos.CsrfResponse(token.getHeaderName(), token.getToken());
     }
 
-    @Operation(summary = "회원가입 후 바로 로그인")
+    @Operation(summary = "회원가입 후 바로 로그인", description = "IP 당 시간당 가입 횟수가 제한됩니다.")
     @PostMapping("/signup")
-    public ResponseEntity<AuthDtos.MeResponse> signUp(@Valid @RequestBody AuthDtos.SignUpRequest request) {
-        User user = authService.signUp(request);
+    public ResponseEntity<AuthDtos.MeResponse> signUp(@Valid @RequestBody AuthDtos.SignUpRequest request,
+                                                      HttpServletRequest http) {
+        User user = authService.signUp(request, ClientIp.of(http));
         return withLoginCookie(HttpStatus.CREATED, user);
     }
 

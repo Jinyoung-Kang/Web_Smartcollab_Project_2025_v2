@@ -16,6 +16,7 @@ public enum ErrorCode {
     EDIT_CONFLICT(HttpStatus.CONFLICT, "다른 사용자가 먼저 저장했습니다. 최신 내용을 확인한 뒤 다시 저장하세요."),
     LINK_EXPIRED(HttpStatus.GONE, "만료되었거나 더 이상 사용할 수 없는 링크입니다."),
     PAYLOAD_TOO_LARGE(HttpStatus.CONTENT_TOO_LARGE, "파일이 너무 큽니다."),
+    QUOTA_EXCEEDED(HttpStatus.CONTENT_TOO_LARGE, "저장 공간이 부족합니다."),
     RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "요청이 너무 많습니다. 잠시 후 다시 시도하세요."),
     FEATURE_DISABLED(HttpStatus.SERVICE_UNAVAILABLE, "이 기능은 현재 서버에서 설정되어 있지 않습니다."),
     UPSTREAM_ERROR(HttpStatus.BAD_GATEWAY, "외부 서비스 호출에 실패했습니다."),

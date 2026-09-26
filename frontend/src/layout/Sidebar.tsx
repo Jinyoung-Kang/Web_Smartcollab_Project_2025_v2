@@ -5,6 +5,7 @@ import { HardDrive, Plus, Trash2, Users } from 'lucide-react'
 import { fileApi, teamApi } from '@/api/endpoints'
 import { useTeamActivity } from '@/realtime/TeamActivity'
 import { IconButton } from '@/components/ui/Button'
+import { StorageMeter } from '@/components/ui/StorageMeter'
 import { NewTeamDialog } from '@/features/team/NewTeamDialog'
 import { formatBytes } from '@/lib/format'
 import { cn } from '@/lib/cn'
@@ -71,6 +72,8 @@ export function Sidebar() {
           <p className="mt-1">
             파일 {usage.data.fileCount.toLocaleString()}개 · {formatBytes(usage.data.totalBytes)}
           </p>
+          <StorageMeter storedBytes={usage.data.storedBytes} quotaBytes={usage.data.quotaBytes} />
+          <p className="mt-0.5 text-[11px] text-slate-400">옛 버전·휴지통 포함</p>
         </div>
       )}
       <NewTeamDialog open={creating} onClose={() => setCreating(false)} />

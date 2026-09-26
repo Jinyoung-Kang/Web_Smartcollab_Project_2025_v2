@@ -15,8 +15,11 @@ import com.smartcollab.share.ShareService;
 import com.smartcollab.team.TeamDtos;
 import com.smartcollab.team.TeamMember;
 import com.smartcollab.team.TeamMemberRepository;
+import com.smartcollab.team.TeamRepository;
 import com.smartcollab.team.TeamService;
 import com.smartcollab.notification.NotificationRepository;
+import com.smartcollab.user.AccountService;
+import com.smartcollab.user.DemoAccounts;
 import com.smartcollab.user.User;
 import com.smartcollab.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import javax.imageio.ImageIO;
@@ -37,6 +41,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 데모 모드(DEMO_ENABLED=true)에서 체험용 계정·팀·문서를 만듭니다. 실제 서비스 코드(가입·업로드·버전 저장·서명·채팅)를
@@ -47,11 +52,6 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 public class DemoDataSeeder {
-
-    public static final List<Account> ACCOUNTS = List.of(
-            new Account("demo1", "김하늘", "팀장"),
-            new Account("demo2", "이도윤", "팀원 (편집)"),
-            new Account("demo3", "박서연", "팀원 (편집·삭제)"));
 
     private final AppProperties props;
     private final UserRepository users;
@@ -65,6 +65,37 @@ public class DemoDataSeeder {
     private final ChatService chatService;
     private final ShareService shareService;
     private final NotificationRepository notifications;
+    private final TeamRepository teams;
+    private final AccountService accountService;
+
+    /**
+     * 체험 데이터 초기화 [SEC-06]. 체험 계정은 여러 방문자가 함께 쓰므로, 누가 무엇을 바꿨든 주기적으로 처음 상태로 되돌립니다.
+     * 체험 계정이 팀장인 팀(방문자가 만든 팀 포함)과 체험 계정을 모두 지운 뒤 다시 만듭니다.
+     * 일반 사용자의 데이터는 건드리지 않으며, 체험 팀에 들어와 있던 일반 사용자에게는 팀 삭제 알림이 갑니다.
+     */
+    @Scheduled(cron = "${app.demo.reset-cron}", zone = "${app.demo.reset-zone}")
+    public void reset() {
+        if (!props.demo().enabled()) return;
+        List<User> demoUsers = DemoAccounts.ACCOUNTS.stream()
+                .map(a -> users.findByUsername(a.username()))
+                .flatMap(Optional::stream)
+                .toList();
+        try {
+            for (User user : demoUsers) {
+                for (Long teamId : teams.findIdsOwnedBy(user.getId())) {
+                    teamService.purgeTeam(teamId, null);
+                }
+            }
+            for (User user : demoUsers) {
+                accountService.purgeAccount(user.getId());
+            }
+        } catch (RuntimeException e) {
+            // 일부만 지워진 상태로 다시 만들면 계정이 겹치므로, 다음 초기화 때 남은 것부터 다시 지웁니다.
+            log.error("Demo data reset failed; will retry at the next scheduled reset", e);
+            return;
+        }
+        seed();
+    }
 
     @EventListener(ApplicationReadyEvent.class)
     public void seed() {
@@ -74,11 +105,11 @@ public class DemoDataSeeder {
             log.warn("DEMO_ENABLED=true 이지만 DEMO_PASSWORD(8자 이상, 영문+숫자)가 없어 데모 데이터를 만들지 않습니다.");
             return;
         }
-        if (users.existsByUsername(ACCOUNTS.getFirst().username())) return;
+        if (users.existsByUsername(DemoAccounts.ACCOUNTS.getFirst().username())) return;
 
-        User leader = signUp(ACCOUNTS.get(0), password);
-        User editor = signUp(ACCOUNTS.get(1), password);
-        User deleter = signUp(ACCOUNTS.get(2), password);
+        User leader = signUp(DemoAccounts.ACCOUNTS.get(0), password);
+        User editor = signUp(DemoAccounts.ACCOUNTS.get(1), password);
+        User deleter = signUp(DemoAccounts.ACCOUNTS.get(2), password);
 
         // 팀 구성: 초대 → 수락 과정을 그대로 거칩니다.
         TeamDtos.TeamSummary team = teamService.create("SmartCollab 데모 팀", leader.getId());
@@ -130,7 +161,7 @@ public class DemoDataSeeder {
         notifications.findRecent(leader.getId(), PageRequest.of(0, 50)).stream()
                 .filter(n -> n.getInvitation() == null)
                 .forEach(n -> notifications.save(markRead(n)));
-        log.info("Demo data created: accounts {}", ACCOUNTS.stream().map(Account::username).toList());
+        log.info("Demo data created: accounts {}", DemoAccounts.ACCOUNTS.stream().map(DemoAccounts.Account::username).toList());
     }
 
     private static com.smartcollab.notification.Notification markRead(com.smartcollab.notification.Notification n) {
@@ -138,7 +169,7 @@ public class DemoDataSeeder {
         return n;
     }
 
-    private User signUp(Account a, String password) {
+    private User signUp(DemoAccounts.Account a, String password) {
         return authService.signUp(new AuthDtos.SignUpRequest(a.username(), password, password, a.name(), null));
     }
 
@@ -205,8 +236,6 @@ public class DemoDataSeeder {
         }
     }
 
-    public record Account(String username, String name, String role) {
-    }
 
     private static final String PROJECT_OVERVIEW = """
             # 사내 문서 협업 공간 도입 프로젝트 (예시 문서)

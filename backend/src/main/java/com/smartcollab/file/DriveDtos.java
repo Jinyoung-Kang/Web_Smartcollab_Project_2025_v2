@@ -78,7 +78,13 @@ public final class DriveDtos {
     public record SearchResult(ItemResponse item, Long folderId, String path) {
     }
 
-    public record UsageResponse(long fileCount, long totalBytes) {
+    /**
+     * @param fileCount   휴지통을 뺀 파일 수
+     * @param totalBytes  휴지통을 뺀 현재 버전 크기의 합
+     * @param storedBytes 한도에 셈하는 실제 저장량 (옛 버전·휴지통 포함)
+     * @param quotaBytes  저장 한도
+     */
+    public record UsageResponse(long fileCount, long totalBytes, long storedBytes, long quotaBytes) {
     }
 
     public record TrashItem(Long id, String name, Long size, String extension, Instant deletedAt, String deletedByName,

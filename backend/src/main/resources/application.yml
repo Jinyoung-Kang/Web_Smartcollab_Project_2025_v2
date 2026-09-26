@@ -97,12 +97,23 @@ app:
     share-password-per-10-minutes: ${SHARE_PASSWORD_RATE:10}
     # 여러 IP 에서 한 공유 링크의 비밀번호를 맞히려는 시도 제한
     share-password-per-link-per-10-minutes: ${SHARE_PASSWORD_LINK_RATE:50}
+    # 한 IP 에서 계정을 대량으로 만드는 것을 막음 [SEC-05]
+    signup-per-hour: ${SIGNUP_RATE_PER_HOUR:5}
+  # 저장 공간 한도 — 옛 버전·휴지통까지 포함한 실제 저장량 기준 [SEC-05]
+  quota:
+    personal: ${QUOTA_PERSONAL:1GB}
+    team: ${QUOTA_TEAM:5GB}
   deepl:
     api-key: ${DEEPL_API_KEY:}
     base-url: ${DEEPL_API_URL:https://api-free.deepl.com}
   demo:
     enabled: ${DEMO_ENABLED:false}
     password: ${DEMO_PASSWORD:}
+    # 체험 계정의 개인 저장소와 체험 계정이 팀장인 팀의 저장 한도 [SEC-06]
+    quota: ${DEMO_QUOTA:50MB}
+    # 체험 데이터 초기화 시각 [SEC-06]
+    reset-cron: ${DEMO_RESET_CRON:0 0 5 * * *}
+    reset-zone: ${DEMO_RESET_ZONE:Asia/Seoul}
 
 logging:
   level:

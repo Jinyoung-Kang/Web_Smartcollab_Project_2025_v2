@@ -44,6 +44,7 @@ public class FileService {
     private final BlobStorage storage;
     private final ApplicationEventPublisher events;
     private final TransactionRunner tx;
+    private final StorageQuota quota;
 
     /**
      * 업로드. 저장소 쓰기(Azure 라면 네트워크 전송)는 DB 트랜잭션 밖에서 하여 그동안 커넥션을 붙잡지 않습니다 [PERF-01].
@@ -59,7 +60,11 @@ public class FileService {
             throw ApiException.badRequest("빈 파일은 업로드할 수 없습니다.");
         }
         String name = FileNames.sanitizeUploadName(multipart.getOriginalFilename());
-        tx.readOnly(() -> accessPolicy.requireEdit(getFolder(folderId), userId));
+        tx.readOnly(() -> {
+            Folder folder = getFolder(folderId);
+            accessPolicy.requireEdit(folder, userId);
+            quota.checkRoom(StorageQuota.Scope.of(folder), multipart.getSize());
+        });
 
         String key = BlobLifecycle.newFileKey();
         StoredBlob blob;
@@ -73,6 +78,7 @@ public class FileService {
             return tx.write(() -> {
                 Folder folder = getFolder(folderId);
                 accessPolicy.requireEdit(folder, userId);
+                quota.lockAndCheckRoom(StorageQuota.Scope.of(folder), blob.size());
                 User uploader = users.findById(userId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
                 FileEntity file = files.save(new FileEntity(folder, uploader, name, blob.size()));
                 FileVersion first = versions.save(new FileVersion(file, key, uploader, blob.size(), blob.sha256()));
@@ -163,20 +169,21 @@ public class FileService {
                 .toList();
     }
 
+    /** 파일 수·크기(휴지통 제외)와, 한도에 셈하는 실제 저장량(옛 버전·휴지통 포함)·한도 */
     @Transactional(readOnly = true)
     public DriveDtos.UsageResponse usage(Long teamId, Long userId) {
         List<FolderNode> nodes;
+        StorageQuota.Scope scope;
         if (teamId != null) {
             accessPolicy.requireMember(teamId, userId);
             nodes = folders.findTeamNodes(teamId);
+            scope = StorageQuota.Scope.team(teamId);
         } else {
             nodes = folders.findPersonalNodes(userId);
+            scope = StorageQuota.Scope.personal(userId);
         }
-        if (nodes.isEmpty()) {
-            return new DriveDtos.UsageResponse(0, 0);
-        }
-        StorageUsage usage = files.usageOf(nodes.stream().map(FolderNode::id).toList());
-        return new DriveDtos.UsageResponse(usage.fileCount(), usage.totalBytes());
+        StorageUsage usage = nodes.isEmpty() ? new StorageUsage(0, 0) : files.usageOf(nodes.stream().map(FolderNode::id).toList());
+        return new DriveDtos.UsageResponse(usage.fileCount(), usage.totalBytes(), quota.usedBytes(scope), quota.limitBytes(scope));
     }
 
     FileEntity getActive(Long fileId) {
