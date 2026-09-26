@@ -150,7 +150,7 @@ export function ChatTab({ teamId, team }: { teamId: number; team: TeamDetail }) 
                 <div className={cn('flex max-w-[78%] flex-col', mine ? 'items-end' : 'items-start')}>
                   {!mine && !grouped && <span className="mb-1 text-xs font-medium text-slate-500">{m.sender.name}</span>}
                   <div className="flex items-end gap-1.5">
-                    {mine && <time className="text-[11px] text-slate-400">{formatTime(m.createdAt)}</time>}
+                    {mine && <time className="text-[11px] whitespace-nowrap text-slate-400">{formatTime(m.createdAt)}</time>}
                     {m.type === 'FILE_SHARE' && m.file ? (
                       <a
                         href={fileApi.downloadUrl(m.file.id)}
@@ -171,7 +171,7 @@ export function ChatTab({ teamId, team }: { teamId: number; team: TeamDetail }) 
                         {m.content}
                       </p>
                     )}
-                    {!mine && <time className="text-[11px] text-slate-400">{formatTime(m.createdAt)}</time>}
+                    {!mine && <time className="text-[11px] whitespace-nowrap text-slate-400">{formatTime(m.createdAt)}</time>}
                   </div>
                 </div>
               </div>

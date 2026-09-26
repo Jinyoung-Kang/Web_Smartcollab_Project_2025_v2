@@ -27,6 +27,7 @@ import { EmptyState, Spinner } from '@/components/ui/misc'
 import { useToast } from '@/components/ui/Toast'
 import { TeamPanel } from '@/features/team/TeamPanel'
 import { cn } from '@/lib/cn'
+import { useMediaQuery } from '@/lib/useMediaQuery'
 import { FileTable, itemKey } from './FileTable'
 import { useUploads } from './UploadProvider'
 import { MoveCopyDialog } from './dialogs/MoveCopyDialog'
@@ -75,6 +76,7 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
   const [menu, setMenu] = useState<{ item: Item; x: number; y: number } | null>(null)
   const [dragging, setDragging] = useState(false)
   const [panelOpen, setPanelOpen] = useState(false)
+  const wide = useMediaQuery('(min-width: 1280px)')
   const dragDepth = useRef(0)
   const fileInput = useRef<HTMLInputElement>(null)
 
@@ -264,8 +266,8 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
             {data && !permissions.canEdit && (
               <span className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">읽기 전용 — 편집 권한이 없습니다</span>
             )}
-            {teamId && (
-              <Button variant="ghost" className="ml-auto xl:hidden" onClick={() => setPanelOpen(true)}>
+            {teamId && !wide && (
+              <Button variant="ghost" className="ml-auto" onClick={() => setPanelOpen(true)}>
                 <PanelRightOpen className="size-4" /> 팀 채팅·멤버
               </Button>
             )}
@@ -310,21 +312,20 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
         </div>
       </section>
 
-      {teamId && (
-        <>
-          <aside className="hidden w-96 shrink-0 border-l border-slate-200 bg-white xl:flex">
-            <TeamPanel teamId={teamId} />
+      {teamId && (wide ? (
+        <aside className="flex w-96 shrink-0 border-l border-slate-200 bg-white">
+          <TeamPanel teamId={teamId} />
+        </aside>
+      ) : (
+        <div className={cn('fixed inset-0 z-40', panelOpen ? 'visible' : 'invisible')}>
+          <div className={cn('absolute inset-0 bg-slate-900/40 transition-opacity', panelOpen ? 'opacity-100' : 'opacity-0')}
+            onClick={() => setPanelOpen(false)} />
+          <aside className={cn('absolute inset-y-0 right-0 flex w-96 max-w-[90vw] bg-white shadow-xl transition-transform',
+            panelOpen ? 'translate-x-0' : 'translate-x-full')}>
+            <TeamPanel teamId={teamId} onClose={() => setPanelOpen(false)} />
           </aside>
-          <div className={cn('fixed inset-0 z-40 xl:hidden', panelOpen ? 'visible' : 'invisible')}>
-            <div className={cn('absolute inset-0 bg-slate-900/40 transition-opacity', panelOpen ? 'opacity-100' : 'opacity-0')}
-              onClick={() => setPanelOpen(false)} />
-            <aside className={cn('absolute inset-y-0 right-0 flex w-96 max-w-[90vw] bg-white shadow-xl transition-transform',
-              panelOpen ? 'translate-x-0' : 'translate-x-full')}>
-              <TeamPanel teamId={teamId} onClose={() => setPanelOpen(false)} />
-            </aside>
-          </div>
-        </>
-      )}
+        </div>
+      ))}
 
       {/* 행의 … 버튼 메뉴 */}
       {menu && (

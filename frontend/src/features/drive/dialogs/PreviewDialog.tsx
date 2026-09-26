@@ -66,7 +66,7 @@ export function PreviewDialog({ file, onClose }: { file: Item | null; onClose: (
           text.isPending ? <Spinner /> : text.error ? (
             <p className="text-sm text-red-600">{(text.error as Error).message}</p>
           ) : (
-            <pre className="h-[65vh] w-full overflow-auto rounded-lg bg-white p-5 font-mono text-sm leading-relaxed whitespace-pre-wrap text-slate-700">
+            <pre className="h-[65vh] w-full overflow-auto rounded-lg bg-white p-5 font-sans text-sm leading-relaxed whitespace-pre-wrap text-slate-700">
               {text.data?.content}
             </pre>
           )

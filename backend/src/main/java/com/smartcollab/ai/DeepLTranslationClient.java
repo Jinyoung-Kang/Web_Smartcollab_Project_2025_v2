@@ -18,7 +18,7 @@ import java.util.Map;
 /**
  * DeepL 번역 API 클라이언트.
  * <ul>
- *   <li>인증: {@code Authorization: DeepL-Auth-Key} 헤더 (v1 은 폐기 예정인 auth_key 폼 파라미터 사용)</li>
+ *   <li>인증: {@code Authorization: DeepL-Auth-Key} 헤더 (DeepL 문서의 권장 방식. v1 은 요청 본문에 auth_key 를 실어 보냄)</li>
  *   <li>키가 없으면 번역을 흉내 내지 않고 "설정되지 않음"(503)을 반환합니다. v1 은 "[MOCK]" 문자열을 번역 결과처럼 보여 줬습니다.</li>
  *   <li>긴 문서는 줄 단위로 나눠 여러 text 항목으로 한 번에 보내고, 응답을 줄바꿈으로 이어 붙여 서식을 보존합니다.</li>
  * </ul>

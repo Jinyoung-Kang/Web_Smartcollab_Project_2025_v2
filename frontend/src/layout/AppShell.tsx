@@ -6,10 +6,12 @@ import { UploadProvider } from '@/features/drive/UploadProvider'
 import { Header } from './Header'
 import { Sidebar } from './Sidebar'
 import { cn } from '@/lib/cn'
+import { useMediaQuery } from '@/lib/useMediaQuery'
 
 export function AppShell() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const location = useLocation()
+  const wide = useMediaQuery('(min-width: 1024px)')
 
   // 화면을 이동하면 모바일 메뉴를 닫습니다 (렌더 중 상태 조정 패턴 — effect 로 한 번 더 렌더하지 않음).
   const [lastPath, setLastPath] = useState(location.pathname)
@@ -25,10 +27,12 @@ export function AppShell() {
           <div className="flex h-dvh flex-col">
             <Header onOpenMenu={() => setDrawerOpen(true)} />
             <div className="flex min-h-0 flex-1">
-              <aside className="hidden w-64 shrink-0 border-r border-slate-200 bg-white lg:block">
-                <Sidebar />
-              </aside>
-              {/* 모바일: 왼쪽에서 열리는 메뉴 */}
+              {wide ? (
+                <aside className="w-64 shrink-0 border-r border-slate-200 bg-white">
+                  <Sidebar />
+                </aside>
+              ) : (
+              /* 좁은 화면: 왼쪽에서 열리는 메뉴 */
               <div
                 className={cn('fixed inset-0 z-40 lg:hidden', drawerOpen ? 'visible' : 'invisible')}
                 aria-hidden={!drawerOpen}
@@ -46,6 +50,7 @@ export function AppShell() {
                   <Sidebar />
                 </aside>
               </div>
+              )}
               <main className="min-w-0 flex-1 overflow-hidden">
                 <Outlet />
               </main>

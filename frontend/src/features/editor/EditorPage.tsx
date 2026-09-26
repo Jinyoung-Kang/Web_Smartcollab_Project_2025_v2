@@ -210,7 +210,7 @@ function Editor({ fileId, initial }: { fileId: number; initial: TextContent }) {
           onChange={(e) => setDraft(e.target.value)}
           spellCheck={false}
           aria-label="문서 내용"
-          className="min-w-0 flex-1 resize-none p-5 font-mono text-sm leading-7 text-slate-800 outline-none sm:px-10"
+          className="min-w-0 flex-1 resize-none p-5 text-[15px] leading-7 text-slate-800 outline-none sm:px-10"
         />
         {tool && (
           <aside className="flex w-full max-w-sm flex-col border-l border-slate-200 bg-slate-50 max-lg:absolute max-lg:inset-y-0 max-lg:right-0 max-lg:z-20 max-lg:shadow-xl">
