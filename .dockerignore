@@ -1,0 +1,11 @@
+**/node_modules
+**/dist
+**/build
+**/.gradle
+**/.idea
+**/.DS_Store
+.git
+.env
+e2e
+docs
+portfolio

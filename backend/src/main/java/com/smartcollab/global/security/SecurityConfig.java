@@ -17,6 +17,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.csrf.CsrfException;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.security.web.header.writers.StaticHeadersWriter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -85,8 +86,9 @@ public class SecurityConfig {
                         .authenticationEntryPoint((request, response, ex) -> writeProblem(response, mapper, ErrorCode.UNAUTHORIZED)))
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint((request, response, ex) -> writeProblem(response, mapper, ErrorCode.UNAUTHORIZED))
-                        .accessDeniedHandler((request, response, ex) -> writeProblem(response, mapper, ErrorCode.FORBIDDEN,
-                                "요청을 확인할 수 없습니다. 페이지를 새로고침한 뒤 다시 시도하세요.")))
+                        // 필터 단계의 접근 거부는 CSRF 토큰 문제뿐입니다 (경로 규칙은 로그인 여부만 봄).
+                        .accessDeniedHandler((request, response, ex) -> writeProblem(response, mapper,
+                                ex instanceof CsrfException ? ErrorCode.CSRF_INVALID : ErrorCode.FORBIDDEN)))
                 .headers(h -> h
                         .contentSecurityPolicy(csp -> csp.policyDirectives(CSP))
                         .referrerPolicy(r -> r.policy(ReferrerPolicy.SAME_ORIGIN))

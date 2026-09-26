@@ -56,7 +56,8 @@ public class FileContentService {
         if (active.getSize() > props.files().textEditMaxBytes()) {
             throw new ApiException(ErrorCode.PAYLOAD_TOO_LARGE, "편집기로 열 수 있는 크기를 넘었습니다. 내려받아 확인하세요.");
         }
-        return new TextContent(readUtf8(active.getStoredPath()), active.getId(), access.canEdit(), file.getUpdatedAt());
+        return new TextContent(file.getName(), file.getFolder().getId(), file.getFolder().teamId(),
+                readUtf8(active.getStoredPath()), active.getId(), access.canEdit(), file.getUpdatedAt());
     }
 
     /**
@@ -172,7 +173,8 @@ public class FileContentService {
         }
     }
 
-    public record TextContent(String content, Long versionId, boolean editable, Instant updatedAt) {
+    public record TextContent(String name, Long folderId, Long teamId, String content, Long versionId, boolean editable,
+                              Instant updatedAt) {
     }
 
     public record SaveResult(Long versionId, Instant updatedAt) {

@@ -10,6 +10,7 @@ public enum ErrorCode {
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."),
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "아이디 또는 비밀번호가 일치하지 않습니다."),
     FORBIDDEN(HttpStatus.FORBIDDEN, "이 작업을 할 권한이 없습니다."),
+    CSRF_INVALID(HttpStatus.FORBIDDEN, "보안 토큰이 없거나 만료되었습니다. 페이지를 새로고침한 뒤 다시 시도하세요."),
     NOT_FOUND(HttpStatus.NOT_FOUND, "대상을 찾을 수 없습니다."),
     CONFLICT(HttpStatus.CONFLICT, "현재 상태에서는 처리할 수 없는 요청입니다."),
     EDIT_CONFLICT(HttpStatus.CONFLICT, "다른 사용자가 먼저 저장했습니다. 최신 내용을 확인한 뒤 다시 저장하세요."),
