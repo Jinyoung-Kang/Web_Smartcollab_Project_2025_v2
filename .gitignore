@@ -16,6 +16,7 @@ backend/bin/
 frontend/node_modules/
 frontend/dist/
 frontend/coverage/
+*.tsbuildinfo
 e2e/node_modules/
 e2e/test-results/
 e2e/playwright-report/
