@@ -1,4 +1,4 @@
-import { useMemo, useState, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { ArrowDown, ArrowUp, MoreHorizontal } from 'lucide-react'
 import type { Item } from '@/api/types'
 import { Avatar } from '@/components/ui/misc'
@@ -8,6 +8,12 @@ import { cn } from '@/lib/cn'
 
 export type SortKey = 'name' | 'updatedAt' | 'ownerName' | 'size'
 export const itemKey = (item: Pick<Item, 'type' | 'id'>) => `${item.type}-${item.id}`
+
+/**
+ * 한 번에 그리는 행 수 [PERF-02]. 항목이 5,000개인 폴더는 전부 그리면 첫 표시 1.45초, 정렬·전체 선택이 0.2초씩 걸렸습니다(측정).
+ * 앞에서부터 이만큼씩 그리고 목록 끝이 보이면 이어서 그립니다. 선택·정렬은 그리지 않은 항목까지 포함한 전체 목록 기준입니다.
+ */
+export const RENDER_BATCH = 200
 
 interface FileTableProps {
   items: Item[]
@@ -53,6 +59,22 @@ export function FileTable({ items, selected, onSelectionChange, onOpen, onContex
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({ key: 'name', dir: 'asc' })
   const sorted = useMemo(() => sortItems(items, sort.key, sort.dir), [items, sort])
   const allSelected = sorted.length > 0 && sorted.every((i) => selected.has(itemKey(i)))
+  const [renderLimit, setRenderLimit] = useState(RENDER_BATCH)
+  const visible = sorted.length > renderLimit ? sorted.slice(0, renderLimit) : sorted
+  const remaining = sorted.length - visible.length
+  const showMore = () => setRenderLimit((n) => n + RENDER_BATCH)
+  const moreRef = useRef<HTMLTableRowElement>(null)
+
+  // 목록 끝(더 보기 줄)이 화면에 들어오면 다음 묶음을 그립니다. 버튼도 있어 키보드·보조기기로도 이어 볼 수 있습니다.
+  useEffect(() => {
+    const el = moreRef.current
+    if (!el || remaining === 0 || typeof IntersectionObserver === 'undefined') return
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) setRenderLimit((n) => n + RENDER_BATCH)
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [remaining, visible.length])
 
   const toggle = (item: Item, additive: boolean) => {
     const key = itemKey(item)
@@ -63,10 +85,17 @@ export function FileTable({ items, selected, onSelectionChange, onOpen, onContex
   }
 
   const onRowKey = (e: KeyboardEvent<HTMLTableRowElement>, item: Item, index: number) => {
-    const rows = e.currentTarget.parentElement?.querySelectorAll<HTMLTableRowElement>('tr[data-row]')
+    const tbody = e.currentTarget.parentElement
+    const focusRow = (i: number) => tbody?.querySelectorAll<HTMLTableRowElement>('tr[data-row]')[i]?.focus()
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault()
-      rows?.[index + (e.key === 'ArrowDown' ? 1 : -1)]?.focus()
+      const next = index + (e.key === 'ArrowDown' ? 1 : -1)
+      if (next >= visible.length && remaining > 0) {
+        showMore()
+        requestAnimationFrame(() => focusRow(next))
+      } else {
+        focusRow(next)
+      }
     } else if (e.key === 'Enter') {
       onOpen(item)
     } else if (e.key === ' ') {
@@ -109,7 +138,10 @@ export function FileTable({ items, selected, onSelectionChange, onOpen, onContex
               >
                 <button
                   className={cn('inline-flex items-center gap-1 hover:text-slate-900', active && 'text-slate-900')}
-                  onClick={() => setSort((s) => ({ key: col.key, dir: s.key === col.key && s.dir === 'asc' ? 'desc' : 'asc' }))}
+                  onClick={() => {
+                    setSort((s) => ({ key: col.key, dir: s.key === col.key && s.dir === 'asc' ? 'desc' : 'asc' }))
+                    setRenderLimit(RENDER_BATCH)
+                  }}
                 >
                   {col.label}
                   {active && (sort.dir === 'asc' ? <ArrowUp className="size-3.5" /> : <ArrowDown className="size-3.5" />)}
@@ -121,7 +153,7 @@ export function FileTable({ items, selected, onSelectionChange, onOpen, onContex
         </tr>
       </thead>
       <tbody>
-        {sorted.map((item, index) => {
+        {visible.map((item, index) => {
           const key = itemKey(item)
           const isSelected = selected.has(key)
           return (
@@ -190,6 +222,15 @@ export function FileTable({ items, selected, onSelectionChange, onOpen, onContex
             </tr>
           )
         })}
+        {remaining > 0 && (
+          <tr ref={moreRef}>
+            <td colSpan={COLUMNS.length + 2} className="py-3 text-center">
+              <button className="rounded-md px-3 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-50" onClick={showMore}>
+                나머지 {remaining.toLocaleString('ko-KR')}개 더 보기
+              </button>
+            </td>
+          </tr>
+        )}
       </tbody>
     </table>
   )

@@ -44,3 +44,43 @@ describe('FileTable', () => {
     expect(nameHeader).toHaveAttribute('aria-sort', 'descending')
   })
 })
+
+describe('FileTable — 항목이 많은 폴더 [PERF-02]', () => {
+  const many = Array.from({ length: 450 }, (_, i) => item({ id: i + 1, name: `파일-${String(i).padStart(3, '0')}.txt` }))
+  const rowCount = () => document.querySelectorAll('tbody tr[data-row]').length
+
+  it('처음에는 200개만 그리고, 더 보기로 200개씩 이어서 보여 준다', async () => {
+    render(<FileTable items={many} selected={new Set()} onSelectionChange={vi.fn()} onOpen={vi.fn()} onContextAction={vi.fn()} />)
+    expect(rowCount()).toBe(200)
+
+    await userEvent.click(screen.getByRole('button', { name: '나머지 250개 더 보기' }))
+    expect(rowCount()).toBe(400)
+    await userEvent.click(screen.getByRole('button', { name: '나머지 50개 더 보기' }))
+    expect(rowCount()).toBe(450)
+    expect(screen.queryByRole('button', { name: /더 보기/ })).not.toBeInTheDocument()
+  })
+
+  it('모두 선택은 아직 그리지 않은 항목까지 고른다', async () => {
+    const onChange = vi.fn()
+    render(<FileTable items={many} selected={new Set()} onSelectionChange={onChange} onOpen={vi.fn()} onContextAction={vi.fn()} />)
+    await userEvent.click(screen.getByLabelText('모두 선택'))
+    expect(onChange.mock.lastCall?.[0].size).toBe(450)
+  })
+
+  it('키보드로 마지막 행에서 아래로 가면 다음 묶음을 그리고 이어서 이동한다', async () => {
+    render(<FileTable items={many} selected={new Set()} onSelectionChange={vi.fn()} onOpen={vi.fn()} onContextAction={vi.fn()} />)
+    const rows = document.querySelectorAll<HTMLTableRowElement>('tbody tr[data-row]')
+    rows[199]!.focus()
+    await userEvent.keyboard('{ArrowDown}')
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    expect(rowCount()).toBe(400)
+    expect(document.activeElement).toBe(document.querySelectorAll('tbody tr[data-row]')[200])
+  })
+
+  it('정렬을 바꾸면 다시 처음 200개부터 그린다', async () => {
+    render(<FileTable items={many} selected={new Set()} onSelectionChange={vi.fn()} onOpen={vi.fn()} onContextAction={vi.fn()} />)
+    await userEvent.click(screen.getByRole('button', { name: '나머지 250개 더 보기' }))
+    await userEvent.click(screen.getByRole('button', { name: '크기' }))
+    expect(rowCount()).toBe(200)
+  })
+})
