@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
 import { FolderLock, History, MessagesSquare, ShieldCheck, Sparkles } from 'lucide-react'
 import { authApi } from '@/api/endpoints'
@@ -15,7 +15,7 @@ const FEATURES = [
 ]
 
 export function LoginPage({ initialMode = 'login' }: { initialMode?: 'login' | 'signup' }) {
-  const { me, setMe } = useAuth()
+  const { me, setMe, signingOut, completeSignOut } = useAuth()
   const config = usePublicConfig()
   const navigate = useNavigate()
   const location = useLocation()
@@ -25,8 +25,13 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: 'login' | '
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
 
+  // 로그아웃·탈퇴·세션 만료로 왔다면 여기서 이전 사용자의 정보를 지웁니다 [BUG-09].
+  useEffect(() => {
+    if (signingOut) completeSignOut()
+  }, [signingOut, completeSignOut])
+
   const from = (location.state as { from?: string } | null)?.from ?? '/drive'
-  if (me) return <Navigate to={from} replace />
+  if (me && !signingOut) return <Navigate to={from} replace />
 
   const update = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }))

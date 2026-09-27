@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
 import { ApiError, onUnauthorized } from '@/api/http'
@@ -10,13 +10,23 @@ interface AuthState {
   loading: boolean
   setMe: (me: Me | null) => void
   logout: () => Promise<void>
+  /** 로그인 상태를 끝내고 로그인 화면으로 보냅니다 (로그아웃·탈퇴·세션 만료 공통). */
+  endSession: () => void
+  /** 로그인 화면으로 가는 중 (아직 이전 사용자 정보를 지우지 않음) */
+  signingOut: boolean
+  /** 로그인 화면에 도착하면 호출: 사용자 정보를 비우고 이전 사용자의 데이터를 캐시에서 지웁니다. */
+  completeSignOut: () => void
 }
+
+/** 로그인과 무관해 로그아웃 뒤에도 남겨 두는 쿼리 */
+const SESSION_INDEPENDENT_QUERIES = new Set(['me', 'config'])
 
 const AuthContext = createContext<AuthState | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const [signingOut, setSigningOut] = useState(false)
 
   const meQuery = useQuery({
     queryKey: ['me'],
@@ -34,28 +44,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const setMe = (me: Me | null) => queryClient.setQueryData(['me'], me)
 
+  // [BUG-09] 사용자 정보는 로그인 화면에 도착한 뒤(completeSignOut) 비웁니다.
+  // - 먼저 비우면 로그인이 필요한 화면이 곧바로 사라져, 편집기의 "저장하지 않은 변경" 확인(useBlocker)을 거치지 못합니다.
+  // - 로그인 화면은 signingOut 동안 이전 사용자 정보로 되돌려 보내지 않습니다.
+  const endSession = useCallback(() => {
+    setSigningOut(true)
+    navigate('/login', { replace: true })
+  }, [navigate])
+
+  const completeSignOut = useCallback(() => {
+    // 'me' 쿼리는 지우지 않고 값만 바꿉니다. queryClient.clear() 로 지우면 이 컴포넌트가 구독하던 쿼리가 캐시에서 떨어져 나가,
+    // 데이터 라우터(주소가 바뀌어도 이 컴포넌트를 다시 그리지 않음)에서는 이전 사용자 정보가 계속 남았습니다.
+    queryClient.setQueryData(['me'], null)
+    queryClient.removeQueries({ predicate: (query) => !SESSION_INDEPENDENT_QUERIES.has(String(query.queryKey[0])) })
+    queryClient.getMutationCache().clear()
+    setSigningOut(false)
+  }, [queryClient])
+
   // 세션 만료(401)가 어느 요청에서든 감지되면 로그인 화면으로 보냅니다.
+  // 로그인하지 않은 상태의 401(로그인 실패 등)은 세션 만료가 아니므로 무시합니다.
   useEffect(() => {
     onUnauthorized(() => {
-      queryClient.clear()
-      queryClient.setQueryData(['me'], null)
-      navigate('/login', { replace: true })
+      if (queryClient.getQueryData(['me'])) endSession()
     })
     return () => onUnauthorized(null)
-  }, [queryClient, navigate])
+  }, [queryClient, endSession])
 
   const logout = async () => {
     try {
       await authApi.logout()
     } finally {
-      queryClient.clear()
-      queryClient.setQueryData(['me'], null)
-      navigate('/login', { replace: true })
+      endSession()
     }
   }
 
   return (
-    <AuthContext.Provider value={{ me: meQuery.data ?? null, loading: meQuery.isPending, setMe, logout }}>
+    <AuthContext.Provider
+      value={{ me: meQuery.data ?? null, loading: meQuery.isPending, setMe, logout, endSession, signingOut, completeSignOut }}
+    >
       {children}
     </AuthContext.Provider>
   )

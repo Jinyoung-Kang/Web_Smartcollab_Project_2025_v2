@@ -1,8 +1,7 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router'
-import { useQueryClient } from '@tanstack/react-query'
 import { authApi } from '@/api/endpoints'
 import { ApiError } from '@/api/http'
+import { useAuth } from '@/auth/AuthProvider'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { useToast } from '@/components/ui/Toast'
@@ -12,9 +11,8 @@ export function DeleteAccountDialog({ open, onClose }: { open: boolean; onClose:
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
-  const qc = useQueryClient()
+  const { endSession } = useAuth()
   const toast = useToast()
-  const navigate = useNavigate()
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -22,10 +20,8 @@ export function DeleteAccountDialog({ open, onClose }: { open: boolean; onClose:
     setError(null)
     try {
       await authApi.deleteAccount(password)
-      qc.clear()
-      qc.setQueryData(['me'], null)
       toast.success('탈퇴가 완료되었습니다. 이용해 주셔서 감사합니다.')
-      navigate('/login', { replace: true })
+      endSession()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : '탈퇴하지 못했습니다.')
     } finally {
