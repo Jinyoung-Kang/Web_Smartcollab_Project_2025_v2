@@ -55,7 +55,7 @@ export function Header({ onOpenMenu }: { onOpenMenu: () => void }) {
 
       <span
         title={connected ? '실시간 연결됨' : '실시간 연결 중…'}
-        className={cn('hidden items-center gap-1.5 text-xs md:inline-flex', connected ? 'text-emerald-600' : 'text-slate-400')}
+        className={cn('hidden items-center gap-1.5 text-xs md:inline-flex', connected ? 'text-emerald-700' : 'text-slate-500')}
       >
         <span className={cn('size-2 rounded-full', connected ? 'bg-emerald-500' : 'animate-pulse bg-slate-300')} />
         {connected ? '실시간' : '연결 중'}

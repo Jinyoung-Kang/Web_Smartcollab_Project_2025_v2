@@ -36,6 +36,8 @@ export function NotificationBell() {
 
   return (
     <Menu
+      role="dialog"
+      label="알림"
       width="w-[22rem] max-w-[calc(100vw-1.5rem)]"
       trigger={({ toggle, open }) => (
         <button
@@ -77,7 +79,7 @@ export function NotificationBell() {
                   <span className={cn('mt-1.5 size-2 shrink-0 rounded-full', n.read ? 'bg-transparent' : 'bg-brand-500')} />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm leading-snug text-slate-700">{n.content}</p>
-                    <p className="mt-1 text-xs text-slate-400">{formatRelative(n.createdAt)}</p>
+                    <p className="mt-1 text-xs text-slate-500">{formatRelative(n.createdAt)}</p>
                     {pendingInvite && (
                       <div className="mt-2 flex gap-2">
                         <Button size="sm" variant="primary" loading={respond.isPending}

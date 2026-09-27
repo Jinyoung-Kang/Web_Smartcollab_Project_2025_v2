@@ -185,14 +185,14 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
               const last = i === data.path.length - 1
               const to = teamId ? `/teams/${teamId}/folders/${crumb.id}` : `/drive/${crumb.id}`
               return (
-                <span key={crumb.id} className="flex min-w-0 items-center gap-1">
+                <div key={crumb.id} className="flex min-w-0 items-center gap-1">
                   {i > 0 && <ChevronRight aria-hidden className="size-4 shrink-0 text-slate-300" />}
                   {last ? (
-                    <span aria-current="page" className="truncate text-lg font-semibold text-slate-900">{crumb.name}</span>
+                    <h1 aria-current="page" className="truncate text-lg font-semibold text-slate-900">{crumb.name}</h1>
                   ) : (
                     <Link to={to} className="truncate rounded px-1 hover:bg-slate-100 hover:text-slate-900">{crumb.name}</Link>
                   )}
-                </span>
+                </div>
               )
             })}
             {!data && <span className="h-7 w-40 animate-pulse rounded bg-slate-100" />}
@@ -310,14 +310,14 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
       </section>
 
       {teamId && (wide ? (
-        <aside className="flex w-96 shrink-0 border-l border-slate-200 bg-white">
+        <aside aria-label="팀 패널" className="flex w-96 shrink-0 border-l border-slate-200 bg-white">
           <TeamPanel teamId={teamId} />
         </aside>
       ) : (
         <div className={cn('fixed inset-0 z-40', panelOpen ? 'visible' : 'invisible')}>
           <div className={cn('absolute inset-0 bg-slate-900/40 transition-opacity', panelOpen ? 'opacity-100' : 'opacity-0')}
             onClick={() => setPanelOpen(false)} />
-          <aside className={cn('absolute inset-y-0 right-0 flex w-96 max-w-[90vw] bg-white shadow-xl transition-transform',
+          <aside aria-label="팀 패널" className={cn('absolute inset-y-0 right-0 flex w-96 max-w-[90vw] bg-white shadow-xl transition-transform',
             panelOpen ? 'translate-x-0' : 'translate-x-full')}>
             <TeamPanel teamId={teamId} onClose={() => setPanelOpen(false)} />
           </aside>

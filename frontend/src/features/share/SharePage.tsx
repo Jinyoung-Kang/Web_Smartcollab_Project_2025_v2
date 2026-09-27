@@ -110,7 +110,7 @@ export default function SharePage() {
           </>
         )}
       </main>
-      <p className="mt-6 text-xs text-slate-400">공유받은 파일은 보낸 사람이 링크를 해제하면 더 이상 내려받을 수 없습니다.</p>
+      <p className="mt-6 text-xs text-slate-500">공유받은 파일은 보낸 사람이 링크를 해제하면 더 이상 내려받을 수 없습니다.</p>
     </div>
   )
 }

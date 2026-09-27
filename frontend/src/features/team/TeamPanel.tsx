@@ -186,7 +186,7 @@ function MembersTab({ team, online }: { team: TeamDetail; online: Set<string> })
             <div className="min-w-0 flex-1">
               <p className="flex items-center gap-1.5 truncate text-sm font-medium">
                 {m.name}
-                {m.username === me.username && <span className="text-xs text-slate-400">(나)</span>}
+                {m.username === me.username && <span className="text-xs text-slate-500">(나)</span>}
                 {m.leader && <Crown aria-label="팀장" className="size-3.5 text-amber-500" />}
               </p>
               <div className="mt-0.5 flex flex-wrap gap-1">

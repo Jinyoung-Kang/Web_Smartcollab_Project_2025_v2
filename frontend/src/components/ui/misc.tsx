@@ -82,11 +82,16 @@ export function Menu({
   children,
   align = 'right',
   width = 'w-48',
+  role = 'menu',
+  label,
 }: {
   trigger: (props: { open: boolean; toggle: () => void }) => ReactNode
   children: (close: () => void) => ReactNode
   align?: 'left' | 'right'
   width?: string
+  /** 메뉴 항목(menuitem)만 담으면 menu, 목록·버튼 등 다른 내용을 담으면 dialog [UX-01] */
+  role?: 'menu' | 'dialog'
+  label?: string
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -110,7 +115,8 @@ export function Menu({
       {trigger({ open, toggle: () => setOpen((v) => !v) })}
       {open && (
         <div
-          role="menu"
+          role={role}
+          aria-label={label}
           className={cn(
             'animate-slide-up absolute z-40 mt-1 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg',
             align === 'right' ? 'right-0' : 'left-0',
