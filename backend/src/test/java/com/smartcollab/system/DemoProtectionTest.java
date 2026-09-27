@@ -48,7 +48,7 @@ class DemoProtectionTest extends LimitedStorageIntegrationTest {
         long team = demoTeamId(leader);
         long demo2Member = memberId(leader, team, "demo2");
 
-        leader.deleteJson("/api/users/me", Map.of("password", DEMO_PASSWORD))
+        leader.postJson("/api/users/me/delete", Map.of("password", DEMO_PASSWORD))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.detail").value(containsString("체험 계정")));
         leader.delete("/api/teams/{t}", team).andExpect(status().isForbidden());

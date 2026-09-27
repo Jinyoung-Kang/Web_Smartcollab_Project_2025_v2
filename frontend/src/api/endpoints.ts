@@ -37,7 +37,7 @@ export const authApi = {
   signup: (body: { username: string; password: string; passwordConfirm: string; name: string; email?: string }) =>
     http.post<Me>('/api/auth/signup', body),
   logout: () => http.post<void>('/api/auth/logout'),
-  deleteAccount: (password: string) => http.del<void>('/api/users/me', { password }),
+  deleteAccount: (password: string) => http.post<void>('/api/users/me/delete', { password }),
 }
 
 export const configApi = {

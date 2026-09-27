@@ -36,8 +36,8 @@ class AccountDeletionTest extends IntegrationTest {
         long teamFile = leaving.uploadText(team[1], "팀에 남길 파일.txt", "keep");
         leaving.postJson("/api/teams/{t}/messages", Map.of("content", "안녕히 계세요"), team[0]);
 
-        leaving.deleteJson("/api/users/me", Map.of("password", "wrong")).andExpect(status().isForbidden());
-        leaving.deleteJson("/api/users/me", Map.of("password", Api.PASSWORD)).andExpect(status().isNoContent());
+        leaving.postJson("/api/users/me/delete", Map.of("password", "wrong")).andExpect(status().isForbidden());
+        leaving.postJson("/api/users/me/delete", Map.of("password", Api.PASSWORD)).andExpect(status().isNoContent());
 
         assertThat(jdbc.queryForObject("select count(*) from users where user_id = ?", Integer.class, leaving.userId)).isZero();
         assertThat(jdbc.queryForObject("select count(*) from files where file_id in (?, ?)", Integer.class, personal, trashed)).isZero();
@@ -54,7 +54,7 @@ class AccountDeletionTest extends IntegrationTest {
     void leaderMustDelegateFirst() throws Exception {
         Api.Session leader = api().signUp("stuck");
         leader.createTeam("내가 팀장");
-        leader.deleteJson("/api/users/me", Map.of("password", Api.PASSWORD))
+        leader.postJson("/api/users/me/delete", Map.of("password", Api.PASSWORD))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value(containsString("내가 팀장")));
     }

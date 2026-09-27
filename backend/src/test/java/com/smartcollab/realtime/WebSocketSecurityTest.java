@@ -167,7 +167,7 @@ class WebSocketSecurityTest extends IntegrationTest {
         StompSession memberWs = connect(member);
         BlockingQueue<Map<String, Object>> chat = subscribe(memberWs, "/topic/teams/" + team[0] + "/chat");
         Thread.sleep(300);
-        member.deleteJson("/api/users/me", Map.of("password", Api.PASSWORD)).andReturn();
+        member.postJson("/api/users/me/delete", Map.of("password", Api.PASSWORD)).andReturn();
         Thread.sleep(300);
 
         leader.postJson("/api/teams/{t}/messages", Map.of("content", "탈퇴 뒤"), team[0]);
