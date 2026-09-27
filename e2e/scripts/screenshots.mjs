@@ -73,9 +73,9 @@ await page.getByRole('button', { name: /핵심 문장/ }).click()
 await page.getByText('핵심 문장 (추출 요약)').waitFor()
 await shot(page, 'editor-summary')
 
-// 6) 기획 폴더 → 공유 링크 대화상자
-await page.goto(`${base}/teams/1`)
-await page.waitForURL(/\/folders\//)
+// 6) 기획 폴더 → 공유 링크 대화상자 (팀 번호는 DB 마다 다르므로 사이드바의 팀 링크로 이동)
+await page.getByRole('link', { name: /SmartCollab 데모 팀/ }).click()
+await page.waitForURL(/\/teams\/\d+\/folders\//)
 await page.getByRole('button', { name: '기획', exact: true }).click()
 await page.getByLabel('프로젝트 개요.md 선택').check()
 await page.getByRole('toolbar').getByRole('button', { name: '공유' }).click()
