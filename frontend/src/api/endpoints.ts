@@ -3,6 +3,7 @@ import type {
   AppNotification,
   ChatMessage,
   ChatPage,
+  DeleteItemsResult,
   FolderContents,
   Item,
   ItemRef,
@@ -48,12 +49,10 @@ export const folderApi = {
   tree: (teamId?: number) => http.get<{ roots: TreeNode[] }>(`/api/folders/tree${q({ teamId })}`),
   create: (parentId: number, name: string) => http.post<Item>('/api/folders', { parentId, name }),
   rename: (folderId: number, name: string) => http.patch<void>(`/api/folders/${folderId}`, { name }),
-  remove: (folderId: number) => http.del<void>(`/api/folders/${folderId}`),
 }
 
 export const fileApi = {
   rename: (fileId: number, name: string) => http.patch<void>(`/api/files/${fileId}`, { name }),
-  trash: (fileId: number) => http.del<void>(`/api/files/${fileId}`),
   content: (fileId: number) => http.get<TextContent>(`/api/files/${fileId}/content`),
   save: (fileId: number, content: string, baseVersionId: number) =>
     http.put<{ versionId: number; updatedAt: string }>(`/api/files/${fileId}/content`, { content, baseVersionId }),
@@ -71,6 +70,8 @@ export const fileApi = {
 
 export const itemApi = {
   move: (items: ItemRef[], targetFolderId: number) => http.post<void>('/api/items/move', { items, targetFolderId }),
+  /** 파일은 휴지통으로, 폴더는 안의 파일까지 영구 삭제. 하나라도 실패하면 아무것도 지우지 않습니다 [PERF-03] */
+  remove: (items: ItemRef[]) => http.post<DeleteItemsResult>('/api/items/delete', { items }),
   copy: (items: ItemRef[], targetFolderId: number) =>
     http.post<{ copiedFiles: number }>('/api/items/copy', { items, targetFolderId }),
 }

@@ -75,6 +75,19 @@ public final class DriveDtos {
             @NotNull(message = "대상 폴더를 선택하세요.") Long targetFolderId) {
     }
 
+    /** 여러 항목 삭제 [PERF-03] */
+    public record DeleteRequest(
+            @NotEmpty(message = "대상을 선택하세요.") @Size(max = 200, message = "한 번에 200개까지 처리할 수 있습니다.")
+            List<@Valid ItemRef> items) {
+    }
+
+    /**
+     * @param trashedFiles   휴지통으로 옮긴 파일 수
+     * @param deletedFolders 영구 삭제한 폴더 수 (안의 파일 포함)
+     */
+    public record DeleteResponse(int trashedFiles, int deletedFolders) {
+    }
+
     public record SearchResult(ItemResponse item, Long folderId, String path) {
     }
 

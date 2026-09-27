@@ -95,19 +95,14 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
     void qc.invalidateQueries({ queryKey: ['usage'] })
   }
 
+  // 선택한 항목을 한 요청으로 지웁니다. 하나라도 지울 수 없으면 아무것도 지우지 않습니다 [PERF-03].
   const remove = useMutation({
-    mutationFn: async (targets: Item[]) => {
-      const results = await Promise.allSettled(
-        targets.map((t) => (t.type === 'file' ? fileApi.trash(t.id) : folderApi.remove(t.id))),
-      )
-      const failed = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected')
-      if (failed.length > 0) throw failed[0]!.reason
-      return targets
-    },
-    onSuccess: (targets) => {
+    mutationFn: (targets: Item[]) => itemApi.remove(targets.map((t) => ({ type: t.type, id: t.id }))),
+    onSuccess: ({ trashedFiles, deletedFolders }) => {
       setSelected(new Set())
-      const files = targets.filter((t) => t.type === 'file').length
-      toast.success(files === targets.length ? `${files}개 파일을 휴지통으로 옮겼습니다.` : `${targets.length}개 항목을 삭제했습니다.`)
+      toast.success(deletedFolders === 0
+        ? `${trashedFiles}개 파일을 휴지통으로 옮겼습니다.`
+        : `${trashedFiles + deletedFolders}개 항목을 삭제했습니다.`)
     },
     onError: (e: Error) => toast.error(e.message),
     onSettled: refresh,

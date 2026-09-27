@@ -210,3 +210,9 @@ export interface Translation {
 }
 
 export type ItemRef = { type: 'file' | 'folder'; id: number }
+
+/** 여러 항목 삭제 결과 [PERF-03] */
+export interface DeleteItemsResult {
+  trashedFiles: number
+  deletedFolders: number
+}

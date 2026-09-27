@@ -14,13 +14,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
-@Tag(name = "Items", description = "파일·폴더 일괄 이동/복사")
+@Tag(name = "Items", description = "파일·폴더 일괄 이동/복사/삭제")
 @RestController
 @RequestMapping("/api/items")
 @RequiredArgsConstructor
 public class ItemController {
 
     private final ItemTransferService transferService;
+    private final ItemDeletionService deletionService;
 
     @Operation(summary = "이동", description = "같은 스토리지 안에서만 이동할 수 있습니다.")
     @PostMapping("/move")
@@ -33,5 +34,11 @@ public class ItemController {
     @PostMapping("/copy")
     public Map<String, Integer> copy(@Valid @RequestBody DriveDtos.TransferRequest request, @CurrentUser AuthUser user) {
         return Map.of("copiedFiles", transferService.copy(request, user.id()));
+    }
+
+    @Operation(summary = "삭제", description = "파일은 휴지통으로, 폴더는 안의 파일까지 영구 삭제합니다. 하나라도 지울 수 없으면 아무것도 지우지 않습니다.")
+    @PostMapping("/delete")
+    public DriveDtos.DeleteResponse delete(@Valid @RequestBody DriveDtos.DeleteRequest request, @CurrentUser AuthUser user) {
+        return deletionService.delete(request, user.id());
     }
 }
