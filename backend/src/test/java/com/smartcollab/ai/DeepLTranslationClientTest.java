@@ -5,6 +5,7 @@ import com.smartcollab.global.error.ApiException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
@@ -17,6 +18,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 class DeepLTranslationClientTest {
@@ -50,6 +52,18 @@ class DeepLTranslationClientTest {
         assertThat(t.text()).isEqualTo("Hello");
         assertThat(t.detectedSourceLanguage()).isEqualTo("KO");
         server.verify();
+    }
+
+    @Test
+    @DisplayName("[SEC-07] DeepL 의 월 사용 한도를 넘으면(456) 일반 오류가 아니라 한도 초과를 알린다")
+    void quotaExceeded() {
+        RestClient.Builder builder = RestClient.builder().baseUrl("https://deepl.test");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo("https://deepl.test/v2/translate")).andRespond(withStatus(HttpStatusCode.valueOf(456)));
+        DeepLTranslationClient client = new DeepLTranslationClient(props("secret-key"), builder.build());
+
+        assertThatThrownBy(() -> client.translate("안녕하세요", "EN-US")).isInstanceOf(ApiException.class)
+                .hasMessageContaining("사용 한도");
     }
 
     @Test

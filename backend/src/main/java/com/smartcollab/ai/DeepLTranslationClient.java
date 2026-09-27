@@ -9,6 +9,7 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -29,6 +30,8 @@ public class DeepLTranslationClient {
 
     static final int CHUNK_CHARS = 4_000;
     public static final int MAX_CHARS = 50_000;
+    /** DeepL 이 월 사용 한도를 넘었을 때 돌려주는 상태 코드 */
+    static final int QUOTA_EXCEEDED = 456;
 
     private final AppProperties.Deepl config;
     private final RestClient client;
@@ -76,6 +79,11 @@ public class DeepLTranslationClient {
             String joined = String.join("\n", res.translations().stream().map(DeepLResponse.Item::text).toList());
             return new Translation(joined, res.translations().getFirst().detectedSourceLanguage());
         } catch (RestClientException e) {
+            if (e instanceof RestClientResponseException res && res.getStatusCode().value() == QUOTA_EXCEEDED) {
+                log.warn("DeepL monthly character quota exceeded");
+                throw new ApiException(ErrorCode.UPSTREAM_ERROR,
+                        "번역 서비스의 이번 달 사용 한도를 모두 썼습니다. 다음 달에 다시 시도하거나 관리자에게 문의하세요.");
+            }
             log.warn("DeepL call failed: {}", e.getMessage());
             throw new ApiException(ErrorCode.UPSTREAM_ERROR, "번역 서비스 호출에 실패했습니다. 잠시 후 다시 시도하세요.");
         }

@@ -42,8 +42,9 @@ public record AppProperties(
     public record Files(long textEditMaxBytes, int trashRetentionDays) {
     }
 
+    /** @param translationCharsPerUserPerDay 한 사용자가 하루에 번역할 수 있는 글자 수 (DeepL 월 사용량 보호) [SEC-07] */
     public record RateLimit(int loginPerMinute, int loginPerAccountPer10Minutes, int sharePasswordPer10Minutes,
-                            int sharePasswordPerLinkPer10Minutes, int signupPerHour) {
+                            int sharePasswordPerLinkPer10Minutes, int signupPerHour, long translationCharsPerUserPerDay) {
     }
 
     /** 저장 공간 한도 (옛 버전·휴지통 포함 실제 저장량 기준) */

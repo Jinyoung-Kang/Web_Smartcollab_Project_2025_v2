@@ -2,7 +2,6 @@ package com.smartcollab.ai;
 
 import com.smartcollab.file.FileContentService;
 import com.smartcollab.global.config.AppProperties;
-import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.security.AuthUser;
 import com.smartcollab.global.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
@@ -14,19 +13,15 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 
 @Tag(name = "Document tools", description = "문서 요약(추출형)·번역(DeepL)")
 @RestController
 @RequiredArgsConstructor
 public class AiController {
 
-    private static final Map<String, String> TARGETS = Map.of("EN", "EN-US", "KO", "KO");
-
     private final FileContentService contentService;
     private final ExtractiveSummarizer summarizer;
-    private final DeepLTranslationClient translator;
+    private final TranslationService translationService;
     private final AppProperties props;
 
     @Operation(summary = "핵심 문장 추출 요약", description = "저장된 현재 버전에서 단어 빈도 기반으로 중요한 문장을 고릅니다 (생성형 AI 아님).")
@@ -37,17 +32,11 @@ public class AiController {
         return new SummaryResponse(summary.sentences(), summary.totalSentences(), "extractive-term-frequency");
     }
 
-    @Operation(summary = "번역", description = "target = EN 또는 KO. DEEPL_API_KEY 가 없으면 503.")
+    @Operation(summary = "번역", description = "target = EN 또는 KO. DEEPL_API_KEY 가 없으면 503, 하루 번역 분량을 넘으면 429.")
     @PostMapping("/api/files/{fileId}/translation")
     public TranslationResponse translate(@PathVariable Long fileId, @RequestParam String target,
                                          @CurrentUser AuthUser user) {
-        String deeplTarget = TARGETS.get(target.toUpperCase(Locale.ROOT));
-        if (deeplTarget == null) {
-            throw ApiException.badRequest("target 은 EN 또는 KO 입니다.");
-        }
-        String text = contentService.readUtf8Content(fileId, user.id(), props.files().textEditMaxBytes());
-        DeepLTranslationClient.Translation t = translator.translate(text, deeplTarget);
-        return new TranslationResponse(t.text(), deeplTarget, t.detectedSourceLanguage());
+        return translationService.translate(fileId, user.id(), target);
     }
 
     public record SummaryResponse(List<String> sentences, int totalSentences, String method) {
