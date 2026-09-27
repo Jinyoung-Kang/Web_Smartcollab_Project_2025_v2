@@ -40,7 +40,8 @@ public class SecurityConfig {
     static final String CSP = String.join("; ",
             "default-src 'self'",
             "script-src 'self'",
-            "style-src 'self' 'unsafe-inline'",
+            // 인라인 스타일도 막습니다 [SEC-12]. React 의 style 속성은 DOM API(CSSOM)로 적용되어 영향을 받지 않습니다.
+            "style-src 'self'",
             "img-src 'self' data: blob:",
             "font-src 'self' data:",
             "connect-src 'self'",
