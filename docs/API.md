@@ -8,7 +8,9 @@
 |---|---|
 | 인증 | 로그인·가입 시 HttpOnly 쿠키 `SC_AUTH`(JWT, 기본 8시간)가 설정됩니다. API 클라이언트는 `Authorization: Bearer <JWT>` 헤더도 쓸 수 있습니다. |
 | CSRF | 쿠키로 인증된 `POST/PUT/PATCH/DELETE` 는 `XSRF-TOKEN` 쿠키 값을 `X-XSRF-TOKEN` 헤더로 보내야 합니다. 토큰은 `GET /api/auth/csrf` 로 받습니다. |
-| 오류 형식 | RFC 9457 `application/problem+json` — `{ "status", "title", "detail", "code", "errors"? }` |
+| 오류 형식 | RFC 9457 `application/problem+json` — `{ "status", "title", "detail", "code", "requestId", "errors"? }` |
+| 요청 추적 | 모든 응답에 `X-Request-Id` 헤더. 오류 본문의 `requestId` 와 서버 로그의 추적 ID 가 같습니다 (프록시가 보낸 값은 `[A-Za-z0-9._-]{8,64}` 일 때만 이어 씀) |
+| 본문 크기 | 파일 업로드를 뺀 요청 본문은 6MB 까지 (넘으면 413 `PAYLOAD_TOO_LARGE`) |
 | 시각 | ISO-8601 UTC (`2026-09-27T02:40:00Z`) |
 | 권한 없음 | 읽을 수 없는 대상은 `404`(존재 여부 비공개), 읽을 수 있지만 권한이 부족하면 `403` |
 
@@ -22,9 +24,9 @@
 | `NOT_FOUND` | 404 | 대상 없음 또는 접근 불가 |
 | `CONFLICT` / `EDIT_CONFLICT` | 409 | 상태 충돌 / 다른 사람이 먼저 저장함 |
 | `LINK_EXPIRED` | 410 | 만료·소진·휴지통 파일의 공유 링크 |
-| `PAYLOAD_TOO_LARGE` | 413 | 업로드·편집 한도 초과 |
+| `PAYLOAD_TOO_LARGE` | 413 | 업로드·편집·요청 본문 한도 초과 |
 | `QUOTA_EXCEEDED` | 413 | 저장 공간 한도 초과 (개인 1GB·팀 5GB 기본, 옛 버전·휴지통 포함) |
-| `RATE_LIMITED` | 429 | 요청 제한 초과 |
+| `RATE_LIMITED` | 429 | 요청 제한 초과 (로그인·가입·공유 비밀번호 시도, 사용자별 하루 번역 분량) |
 | `FEATURE_DISABLED` | 503 | 서버에 설정되지 않은 기능 (번역 키 없음, 로컬 저장소에서 Office 미리보기 등) |
 
 ## 엔드포인트
@@ -71,7 +73,7 @@
 | Method | Path | 설명 |
 |---|---|---|
 | POST | `/api/files/{id}/summary` | 핵심 문장 추출 요약 (단어 빈도 기반, 생성형 아님) |
-| POST | `/api/files/{id}/translation?target=EN\|KO` | DeepL 번역 (키 없으면 503) |
+| POST | `/api/files/{id}/translation?target=EN\|KO` | DeepL 번역 (키 없으면 503, 하루 분량 초과 429) |
 
 ### 팀·채팅·알림
 
