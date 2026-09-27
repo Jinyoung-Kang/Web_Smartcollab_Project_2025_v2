@@ -122,5 +122,8 @@ app:
     max-body-size: ${MAX_REQUEST_BODY_SIZE:6MB}
 
 logging:
+  pattern:
+    # 모든 로그 줄에 요청 추적 ID 를 붙입니다 [ARC-02] (요청 밖의 로그는 빈 괄호)
+    correlation: "[%X{requestId:-}] "
   level:
     org.hibernate.SQL: ${SQL_LOG_LEVEL:warn}

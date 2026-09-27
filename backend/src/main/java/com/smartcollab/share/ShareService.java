@@ -7,6 +7,7 @@ import com.smartcollab.file.FileService;
 import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.error.ErrorCode;
+import com.smartcollab.global.security.SecurityEventLog;
 import com.smartcollab.global.security.SlidingWindowRateLimiter;
 import com.smartcollab.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -87,9 +88,11 @@ public class ShareService {
                 Duration.ofMinutes(10))
                 || !rateLimiter.tryAcquire("share-link:" + token, props.rateLimit().sharePasswordPerLinkPer10Minutes(),
                 Duration.ofMinutes(10))) {
+            SecurityEventLog.rateLimited("share-password", clientIp);
             throw new ApiException(ErrorCode.RATE_LIMITED, "비밀번호 입력 시도가 너무 많습니다. 10분 뒤 다시 시도하세요.");
         }
         if (!StringUtils.hasText(password) || !passwordEncoder.matches(password, link.getPasswordHash())) {
+            SecurityEventLog.sharePasswordFailed(link.getId(), clientIp);
             throw new ApiException(ErrorCode.FORBIDDEN, "비밀번호가 일치하지 않습니다.");
         }
         return grants.issue(token);

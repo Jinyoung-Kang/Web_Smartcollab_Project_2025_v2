@@ -9,6 +9,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
@@ -24,6 +25,9 @@ import java.util.Set;
  * 그래서 쿠키 인증은 이 필터가 따로 처리하고, Resource Server 는 Authorization 헤더(API 클라이언트)만 담당합니다.</p>
  */
 public class CookieAuthenticationFilter extends OncePerRequestFilter {
+
+    /** 인증된 사용자 ID. 요청 접근 기록(RequestTraceFilter)이 읽습니다. */
+    public static final String USER_ID_ATTRIBUTE = CookieAuthenticationFilter.class.getName() + ".userId";
 
     private static final Set<String> PUBLIC_API = Set.of(
             "/api/auth/login", "/api/auth/signup", "/api/auth/logout", "/api/auth/csrf");
@@ -53,7 +57,9 @@ public class CookieAuthenticationFilter extends OncePerRequestFilter {
         String token = readCookie(request);
         if (token != null) {
             try {
-                AbstractAuthenticationToken authentication = converter.convert(decoder.decode(token));
+                Jwt jwt = decoder.decode(token);
+                AbstractAuthenticationToken authentication = converter.convert(jwt);
+                request.setAttribute(USER_ID_ATTRIBUTE, jwt.getSubject());
                 SecurityContext context = SecurityContextHolder.createEmptyContext();
                 context.setAuthentication(authentication);
                 SecurityContextHolder.setContext(context);

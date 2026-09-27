@@ -6,6 +6,7 @@ import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.error.ErrorCode;
 import com.smartcollab.global.security.JwtTokenService;
+import com.smartcollab.global.security.SecurityEventLog;
 import com.smartcollab.global.security.SlidingWindowRateLimiter;
 import com.smartcollab.user.Role;
 import com.smartcollab.user.User;
@@ -38,6 +39,7 @@ public class AuthService {
     @Transactional
     public User signUp(AuthDtos.SignUpRequest req, String clientIp) {
         if (!rateLimiter.tryAcquire("signup:" + clientIp, props.rateLimit().signupPerHour(), Duration.ofHours(1))) {
+            SecurityEventLog.rateLimited("signup-ip", clientIp);
             throw new ApiException(ErrorCode.RATE_LIMITED, "가입 요청이 너무 많습니다. 잠시 후 다시 시도하세요.");
         }
         return signUp(req);
@@ -71,20 +73,24 @@ public class AuthService {
     @Transactional(readOnly = true)
     public User authenticate(String username, String password, String clientIp) {
         if (!rateLimiter.tryAcquire("login:" + clientIp, props.rateLimit().loginPerMinute(), Duration.ofMinutes(1))) {
+            SecurityEventLog.rateLimited("login-ip", clientIp);
             throw new ApiException(ErrorCode.RATE_LIMITED, "로그인 시도가 너무 많습니다. 1분 뒤 다시 시도하세요.");
         }
         // 아이디 비교는 DB 콜레이션(대소문자 구분 없음)과 같게 소문자로 묶습니다.
         String accountKey = "login-account:" + username.strip().toLowerCase(Locale.ROOT);
         if (!rateLimiter.tryAcquire(accountKey, props.rateLimit().loginPerAccountPer10Minutes(), Duration.ofMinutes(10))) {
+            SecurityEventLog.rateLimited("login-account", clientIp);
             throw new ApiException(ErrorCode.RATE_LIMITED, "이 계정의 로그인 시도가 너무 많습니다. 10분 뒤 다시 시도하세요.");
         }
         User user = users.findByUsername(username).orElse(null);
         String hash = user == null ? dummyHash() : user.getPassword();
         boolean matches = passwordEncoder.matches(password, hash);
         if (user == null || !matches || user.isSystem()) {
+            SecurityEventLog.loginFailed(clientIp);
             throw new ApiException(ErrorCode.INVALID_CREDENTIALS);
         }
         rateLimiter.reset(accountKey);
+        SecurityEventLog.loginSucceeded(user.getId(), clientIp);
         return user;
     }
 
