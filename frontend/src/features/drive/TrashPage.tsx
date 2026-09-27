@@ -10,6 +10,7 @@ import { EmptyState, Spinner } from '@/components/ui/misc'
 import { useToast } from '@/components/ui/Toast'
 import { ItemIcon } from '@/lib/fileIcons'
 import { formatBytes, formatDateTime, formatRelative } from '@/lib/format'
+import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { objectParticle } from '@/lib/josa'
 
 const RETENTION_DAYS = 30
@@ -62,6 +63,7 @@ export default function TrashPage() {
   // 남은 보관 일수 계산 기준 시각 (렌더마다 바뀌지 않도록 한 번만 읽음)
   const [now] = useState(() => Date.now())
   const title = teamId ? `${team.data?.name ?? '팀'} 휴지통` : '휴지통'
+  useDocumentTitle(title)
 
   return (
     <div className="flex h-full flex-col bg-white">

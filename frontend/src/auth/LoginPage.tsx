@@ -6,6 +6,7 @@ import { ApiError } from '@/api/http'
 import { Button } from '@/components/ui/Button'
 import { useAuth, usePublicConfig } from './AuthProvider'
 import { cn } from '@/lib/cn'
+import { useDocumentTitle } from '@/lib/useDocumentTitle'
 
 const FEATURES = [
   { icon: FolderLock, title: '팀별 권한 관리', text: '편집·삭제·초대 권한을 멤버마다 나눠 줍니다.' },
@@ -24,6 +25,7 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: 'login' | '
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
+  useDocumentTitle(mode === 'login' ? '로그인' : '회원가입')
 
   // 로그아웃·탈퇴·세션 만료로 왔다면 여기서 이전 사용자의 정보를 지웁니다 [BUG-09].
   useEffect(() => {

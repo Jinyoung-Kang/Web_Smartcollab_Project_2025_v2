@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useRouteError } from 'react-router'
 import { buttonStyles } from '@/components/ui/Button'
+import { useDocumentTitle } from '@/lib/useDocumentTitle'
 
 /** 새 배포로 이전 화면 조각(JS 파일)이 사라져 불러오지 못한 경우 (브라우저마다 문구가 다름) */
 export function isChunkLoadError(error: unknown): boolean {
@@ -16,6 +17,7 @@ export function isChunkLoadError(error: unknown): boolean {
 export function AppErrorPage() {
   const error = useRouteError()
   const outdated = isChunkLoadError(error)
+  useDocumentTitle('오류')
 
   useEffect(() => {
     console.error('화면 렌더링 오류', error)

@@ -35,6 +35,7 @@ import { NameDialog } from './dialogs/NameDialog'
 import { PreviewDialog } from './dialogs/PreviewDialog'
 import { ShareDialog } from './dialogs/ShareDialog'
 import { VersionHistoryDialog } from './dialogs/VersionHistoryDialog'
+import { useDocumentTitle } from '@/lib/useDocumentTitle'
 
 type DialogState =
   | { kind: 'none' }
@@ -81,6 +82,7 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
   const fileInput = useRef<HTMLInputElement>(null)
 
   const data = contents.data
+  useDocumentTitle(data?.folder.name)
   // 로딩 중에도 팀 패널이 깜박이지 않도록 주소의 팀 ID 를 먼저 씁니다.
   const teamId = data ? data.folder.teamId : routeTeamId
   const permissions = data?.permissions ?? { canEdit: false, canDelete: false, canInvite: false, leader: false }

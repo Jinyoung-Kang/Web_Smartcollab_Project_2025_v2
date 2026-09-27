@@ -12,6 +12,7 @@ import { EmptyState, Spinner } from '@/components/ui/misc'
 import { useToast } from '@/components/ui/Toast'
 import { VersionHistoryDialog } from '@/features/drive/dialogs/VersionHistoryDialog'
 import { formatRelative } from '@/lib/format'
+import { useDocumentTitle } from '@/lib/useDocumentTitle'
 
 /**
  * 충돌로 버려질 편집본을 보관합니다. 클립보드가 막혀 있으면(권한·비보안 연결) 텍스트 파일로 내려받습니다.
@@ -62,6 +63,7 @@ export default function EditorPage() {
 }
 
 function Editor({ fileId, initial }: { fileId: number; initial: TextContent }) {
+  useDocumentTitle(`${initial.name} 편집`)
   const navigate = useNavigate()
   const qc = useQueryClient()
   const toast = useToast()
