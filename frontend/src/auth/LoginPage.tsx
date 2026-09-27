@@ -15,7 +15,7 @@ const FEATURES = [
 ]
 
 export function LoginPage({ initialMode = 'login' }: { initialMode?: 'login' | 'signup' }) {
-  const { me, setMe, signingOut, completeSignOut } = useAuth()
+  const { me, setMe, signingOut, completeSignOut, sessionExpired } = useAuth()
   const config = usePublicConfig()
   const navigate = useNavigate()
   const location = useLocation()
@@ -119,6 +119,12 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: 'login' | '
               </button>
             ))}
           </div>
+
+          {sessionExpired && (
+            <p role="status" className="mt-6 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              로그인이 만료되었습니다. 다시 로그인해 주세요.
+            </p>
+          )}
 
           <form onSubmit={submit} className="mt-6 grid gap-4" noValidate>
             <Field label="아이디" error={fieldErrors.username}>

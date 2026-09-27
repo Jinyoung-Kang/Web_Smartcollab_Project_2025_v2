@@ -10,12 +10,15 @@ export class ApiError extends Error {
   readonly code: string
   /** 입력 검증 실패 시 필드별 메시지 */
   readonly fields: Record<string, string>
+  /** 서버 로그에서 이 요청을 찾는 추적 ID (응답 본문의 requestId) */
+  readonly requestId?: string
 
-  constructor(status: number, code: string, message: string, fields: Record<string, string> = {}) {
+  constructor(status: number, code: string, message: string, fields: Record<string, string> = {}, requestId?: string) {
     super(message)
     this.status = status
     this.code = code
     this.fields = fields
+    this.requestId = requestId
   }
 }
 
@@ -113,9 +116,15 @@ export async function request<T>(path: string, options: RequestOptions = {}, ret
 
 /** 서버의 ProblemDetail(JSON) 본문을 ApiError 로 바꿉니다. 본문이 없으면 상태 코드별 기본 문구를 씁니다. */
 export function toApiError(status: number, body: unknown, fallback?: string): ApiError {
-  const problem = (body && typeof body === 'object' ? body : {}) as { code?: string; detail?: string; errors?: Record<string, string> }
-  return new ApiError(status, problem.code ?? `HTTP_${status}`,
-    problem.detail ?? fallback ?? FALLBACK_MESSAGES[status] ?? `요청에 실패했습니다 (${status})`, problem.errors)
+  const problem = (body && typeof body === 'object' ? body : {}) as {
+    code?: string; detail?: string; errors?: Record<string, string>; requestId?: string
+  }
+  let message = problem.detail ?? fallback ?? FALLBACK_MESSAGES[status] ?? `요청에 실패했습니다 (${status})`
+  // 서버 오류는 사용자가 고칠 수 없으므로, 문의할 때 서버 로그를 바로 찾을 수 있도록 요청 번호를 붙입니다 [UX-05].
+  if (status >= 500 && problem.requestId) {
+    message += ` (요청 번호 ${problem.requestId.slice(0, 8)})`
+  }
+  return new ApiError(status, problem.code ?? `HTTP_${status}`, message, problem.errors, problem.requestId)
 }
 
 export const http = {

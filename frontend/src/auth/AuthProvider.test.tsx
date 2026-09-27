@@ -107,6 +107,25 @@ describe('로그인 상태가 끝날 때 [BUG-09]', () => {
     expect(client.getQueryData(['teams'])).toBeUndefined()
   })
 
+  it('[UX-03] 세션이 만료되어 로그인 화면으로 오면 이유를 알려 주고, 직접 로그아웃하면 알리지 않는다', async () => {
+    const user = userEvent.setup()
+    renderApp('/drive')
+    await screen.findByText('드라이브 화면')
+
+    act(() => notifyUnauthorized())
+    expect(await screen.findByRole('status')).toHaveTextContent('로그인이 만료되었습니다')
+
+    vi.spyOn(authApi, 'login').mockResolvedValue(me)
+    await user.type(screen.getByLabelText('아이디'), 'demo1')
+    await user.type(screen.getByLabelText('비밀번호'), 'pass1234')
+    await user.click(screen.getByRole('button', { name: '로그인' }))
+    await screen.findByText('드라이브 화면')
+    vi.spyOn(authApi, 'logout').mockResolvedValue(undefined)
+    await user.click(screen.getByRole('button', { name: '로그아웃' }))
+    await screen.findByLabelText('아이디')
+    expect(screen.queryByText(/로그인이 만료되었습니다/)).not.toBeInTheDocument()
+  })
+
   it('편집기에 저장하지 않은 변경이 있으면 세션이 만료돼도 먼저 확인하고, 취소하면 편집 내용이 남는다', async () => {
     const user = userEvent.setup()
     const doc: TextContent = {
