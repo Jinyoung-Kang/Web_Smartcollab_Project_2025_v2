@@ -2,12 +2,9 @@ package com.smartcollab.global.security;
 
 import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.global.error.ErrorCode;
-import com.smartcollab.global.error.GlobalExceptionHandler;
-import jakarta.servlet.http.HttpServletResponse;
+import com.smartcollab.global.error.ProblemWriter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.MediaType;
-import org.springframework.http.ProblemDetail;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -25,7 +22,6 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import tools.jackson.databind.ObjectMapper;
 
-import java.io.IOException;
 import java.util.List;
 
 /**
@@ -85,11 +81,11 @@ public class SecurityConfig {
                 // API 클라이언트·Swagger: Authorization: Bearer 헤더 → Resource Server (헤더 인증은 CSRF 대상 아님)
                 .oauth2ResourceServer(oauth -> oauth
                         .jwt(jwt -> jwt.decoder(tokens.decoder()).jwtAuthenticationConverter(converter))
-                        .authenticationEntryPoint((request, response, ex) -> writeProblem(response, mapper, ErrorCode.UNAUTHORIZED)))
+                        .authenticationEntryPoint((request, response, ex) -> ProblemWriter.write(response, mapper, ErrorCode.UNAUTHORIZED)))
                 .exceptionHandling(e -> e
-                        .authenticationEntryPoint((request, response, ex) -> writeProblem(response, mapper, ErrorCode.UNAUTHORIZED))
+                        .authenticationEntryPoint((request, response, ex) -> ProblemWriter.write(response, mapper, ErrorCode.UNAUTHORIZED))
                         // 필터 단계의 접근 거부는 CSRF 토큰 문제뿐입니다 (경로 규칙은 로그인 여부만 봄).
-                        .accessDeniedHandler((request, response, ex) -> writeProblem(response, mapper,
+                        .accessDeniedHandler((request, response, ex) -> ProblemWriter.write(response, mapper,
                                 ex instanceof CsrfException ? ErrorCode.CSRF_INVALID : ErrorCode.FORBIDDEN)))
                 .headers(h -> h
                         .contentSecurityPolicy(csp -> csp.policyDirectives(CSP))
@@ -119,18 +115,5 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", config);
         return source;
-    }
-
-    private static void writeProblem(HttpServletResponse response, ObjectMapper mapper, ErrorCode code) throws IOException {
-        writeProblem(response, mapper, code, code.defaultMessage());
-    }
-
-    private static void writeProblem(HttpServletResponse response, ObjectMapper mapper, ErrorCode code, String message)
-            throws IOException {
-        ProblemDetail body = GlobalExceptionHandler.body(code, message);
-        response.setStatus(code.status().value());
-        response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
-        response.setCharacterEncoding("UTF-8");
-        mapper.writeValue(response.getOutputStream(), body);
     }
 }

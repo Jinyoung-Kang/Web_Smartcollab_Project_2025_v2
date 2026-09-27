@@ -7,6 +7,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
@@ -95,6 +96,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .findFirst()
                 .orElse(ErrorCode.INVALID_REQUEST.defaultMessage());
         return ResponseEntity.status(ErrorCode.INVALID_REQUEST.status()).body(body(ErrorCode.INVALID_REQUEST, message));
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException ex, HttpHeaders headers,
+                                                                  HttpStatusCode status, WebRequest request) {
+        // 길이를 알리지 않은 본문이 읽는 도중 한도를 넘은 경우 [SEC-10]
+        if (RequestBodyTooLargeException.isCauseOf(ex)) {
+            return ResponseEntity.status(ErrorCode.PAYLOAD_TOO_LARGE.status())
+                    .body(body(ErrorCode.PAYLOAD_TOO_LARGE, RequestBodyTooLargeException.MESSAGE));
+        }
+        return super.handleHttpMessageNotReadable(ex, headers, status, request);
     }
 
     @Override

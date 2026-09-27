@@ -20,7 +20,8 @@ public record AppProperties(
         RateLimit rateLimit,
         Quota quota,
         Deepl deepl,
-        Demo demo
+        Demo demo,
+        Http http
 ) {
 
     public record Jwt(String secret, Duration ttl) {
@@ -57,5 +58,9 @@ public record AppProperties(
 
     /** @param quota 체험 계정의 개인 저장소와 체험 계정이 팀장인 팀에 적용하는 한도 */
     public record Demo(boolean enabled, String password, DataSize quota) {
+    }
+
+    /** @param maxBodySize 파일 업로드를 뺀 요청 본문(JSON 등)의 최대 크기 [SEC-10] */
+    public record Http(DataSize maxBodySize) {
     }
 }

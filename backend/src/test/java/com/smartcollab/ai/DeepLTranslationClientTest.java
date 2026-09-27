@@ -22,7 +22,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 class DeepLTranslationClientTest {
 
     private static AppProperties props(String key) {
-        return new AppProperties(null, null, null, null, null, null, null, new AppProperties.Deepl(key, "https://deepl.test"), null);
+        return new AppProperties(null, null, null, null, null, null, null, new AppProperties.Deepl(key, "https://deepl.test"), null, null);
     }
 
     @Test

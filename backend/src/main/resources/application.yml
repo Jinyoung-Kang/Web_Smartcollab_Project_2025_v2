@@ -114,6 +114,10 @@ app:
     # 체험 데이터 초기화 시각 [SEC-06]
     reset-cron: ${DEMO_RESET_CRON:0 0 5 * * *}
     reset-zone: ${DEMO_RESET_ZONE:Asia/Seoul}
+  http:
+    # 파일 업로드를 뺀 요청 본문(JSON 등)의 최대 크기 [SEC-10]. 텍스트 편집 저장(TEXT_EDIT_MAX_BYTES, 2MB)이
+    # JSON 으로 이스케이프되면 커질 수 있으므로 그 2배 이상으로 둡니다.
+    max-body-size: ${MAX_REQUEST_BODY_SIZE:6MB}
 
 logging:
   level:
