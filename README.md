@@ -23,7 +23,7 @@ v2 를 완성한 뒤에는 실무 코드 리뷰 기준으로 한 번 더 점검�
 |---|---|---|
 | **보안** | 인증 없이 남의 파일을 열 수 있던 경로를 포함해 권한 결함 **14건** 수정 (IDOR, WebSocket 도청·사칭, 소스에 박힌 시스템 계정 비밀번호 등) | [REFACTORING_REPORT §1](docs/REFACTORING_REPORT.md#1-보안) |
 | **버그** | 폴더·계정 삭제 실패, 복사본 다운로드 불가, 순환 이동 무한 재귀, 공유 링크 9시간 조기 만료, 동시 편집 덮어쓰기 등 **22건** 수정 | [REFACTORING_REPORT §2](docs/REFACTORING_REPORT.md#2-기능-결함) |
-| **성능** | 폴더 62개 기준 트리 조회 SQL **63 → 1회**, 검색 **125 → 2회** · 32MB 다운로드 힙 할당 **100.7MB → 17KB** · 첫 화면 JS **1,156KB → 151KB**, 스크립트 실행 **578 → 35ms** | [PERFORMANCE](docs/PERFORMANCE.md) |
+| **성능** | 폴더 62개 기준 트리 조회 SQL **63 → 1회**, 검색 **125 → 2회** · 32MB 다운로드 힙 할당 **100.7MB → 17KB** · 첫 화면 JS **1,156KB → 153KB**, 스크립트 실행 **540 → 35ms** | [PERFORMANCE](docs/PERFORMANCE.md) |
 | **아키텍처** | 도메인별 패키지, 권한 판단 단일화(AccessPolicy), 저장소 전략 패턴 + 트랜잭션 연동, Flyway, 커밋 후 실시간 이벤트 | [ARCHITECTURE](docs/ARCHITECTURE.md) · [ADR](docs/adr/README.md) |
 | **UI/UX** | URL 라우팅, 여러 파일 드래그 업로드·진행률, 휴지통·버전 서명·공유 링크 관리 화면, 편집 충돌 해결, 실시간 접속 표시, 반응형, 접근성 WCAG 2.1 AA 자동 검사 위반 0 | [REFACTORING_REPORT §4](docs/REFACTORING_REPORT.md#4-uiux) |
 | **2차 점검** | **18건** 해결 — 비로그인 대용량 요청 차단(본문 6MB), 사용자별 번역 분량, 요청 추적 ID·보안 이벤트 로그, CSP 인라인 스타일 금지, 5,000개 폴더 첫 표시 **1.45초 → 0.2초**, 여러 항목 삭제 요청 N → 1, 알림 조회 인덱스(2.2ms → 0.1ms), 접근성 위반 0, 오류 안내 화면 | [REVIEW_2026-09-28](docs/REVIEW_2026-09-28.md) |
