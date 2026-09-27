@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { Item } from '@/api/types'
 import { FileTable, sortItems } from './FileTable'
@@ -49,15 +49,17 @@ describe('FileTable — 항목이 많은 폴더 [PERF-02]', () => {
   const many = Array.from({ length: 450 }, (_, i) => item({ id: i + 1, name: `파일-${String(i).padStart(3, '0')}.txt` }))
   const rowCount = () => document.querySelectorAll('tbody tr[data-row]').length
 
-  it('처음에는 200개만 그리고, 더 보기로 200개씩 이어서 보여 준다', async () => {
+  // 행이 수백 개면 getByRole(접근성 트리 계산)과 userEvent 가 jsdom 에서 수 초씩 걸려, 글자로 찾고 fireEvent 로 누릅니다.
+  const button = (text: string) => screen.getByText(text, { selector: 'button' })
+  it('처음에는 200개만 그리고, 더 보기로 200개씩 이어서 보여 준다', () => {
     render(<FileTable items={many} selected={new Set()} onSelectionChange={vi.fn()} onOpen={vi.fn()} onContextAction={vi.fn()} />)
     expect(rowCount()).toBe(200)
 
-    await userEvent.click(screen.getByRole('button', { name: '나머지 250개 더 보기' }))
+    fireEvent.click(button('나머지 250개 더 보기'))
     expect(rowCount()).toBe(400)
-    await userEvent.click(screen.getByRole('button', { name: '나머지 50개 더 보기' }))
+    fireEvent.click(button('나머지 50개 더 보기'))
     expect(rowCount()).toBe(450)
-    expect(screen.queryByRole('button', { name: /더 보기/ })).not.toBeInTheDocument()
+    expect(screen.queryByText(/더 보기/)).not.toBeInTheDocument()
   })
 
   it('모두 선택은 아직 그리지 않은 항목까지 고른다', async () => {
@@ -77,10 +79,11 @@ describe('FileTable — 항목이 많은 폴더 [PERF-02]', () => {
     expect(document.activeElement).toBe(document.querySelectorAll('tbody tr[data-row]')[200])
   })
 
-  it('정렬을 바꾸면 다시 처음 200개부터 그린다', async () => {
+  it('정렬을 바꾸면 다시 처음 200개부터 그린다', () => {
     render(<FileTable items={many} selected={new Set()} onSelectionChange={vi.fn()} onOpen={vi.fn()} onContextAction={vi.fn()} />)
-    await userEvent.click(screen.getByRole('button', { name: '나머지 250개 더 보기' }))
-    await userEvent.click(screen.getByRole('button', { name: '크기' }))
+    fireEvent.click(button('나머지 250개 더 보기'))
+    expect(rowCount()).toBe(400)
+    fireEvent.click(button('크기'))
     expect(rowCount()).toBe(200)
   })
 })
