@@ -10,6 +10,7 @@ import { EmptyState, Spinner } from '@/components/ui/misc'
 import { useToast } from '@/components/ui/Toast'
 import { ItemIcon } from '@/lib/fileIcons'
 import { formatBytes, formatDateTime, formatRelative } from '@/lib/format'
+import { objectParticle } from '@/lib/josa'
 
 const RETENTION_DAYS = 30
 
@@ -33,7 +34,7 @@ export default function TrashPage() {
 
   const restore = useMutation({
     mutationFn: (item: TrashItem) => trashApi.restore(item.id),
-    onSuccess: (_, item) => { refresh(); toast.success(`'${item.name}'을(를) 원래 폴더로 복원했습니다.`) },
+    onSuccess: (_, item) => { refresh(); toast.success(`'${item.name}'${objectParticle(item.name)} 원래 폴더로 복원했습니다.`) },
     onError: (e: Error) => toast.error(e.message),
   })
   const purge = useMutation({
