@@ -1,34 +1,21 @@
-import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
+import { useMemo, useRef, useState, type DragEvent } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  ChevronRight,
-  Copy,
-  Download,
-  FolderInput,
-  FolderPlus,
-  FolderX,
-  History,
-  PanelRightOpen,
-  PencilLine,
-  Share2,
-  Trash2,
-  Upload,
-  UploadCloud,
-  X,
-} from 'lucide-react'
+import { FolderX, UploadCloud } from 'lucide-react'
 import { fileApi, folderApi, itemApi, teamApi } from '@/api/endpoints'
 import { ApiError } from '@/api/http'
 import type { Item, ItemRef } from '@/api/types'
 import { useMe } from '@/auth/AuthProvider'
-import { Button, IconButton, buttonStyles } from '@/components/ui/Button'
+import { buttonStyles } from '@/components/ui/Button'
 import { useConfirm } from '@/components/ui/Confirm'
 import { EmptyState, Spinner } from '@/components/ui/misc'
 import { useToast } from '@/components/ui/Toast'
 import { TeamPanel } from '@/features/team/TeamPanel'
 import { cn } from '@/lib/cn'
 import { useMediaQuery } from '@/lib/useMediaQuery'
+import { DriveActions, DriveBreadcrumb, SelectionToolbar } from './DriveHeader'
 import { FileTable, itemKey } from './FileTable'
+import { RowMenu } from './RowMenu'
 import { useUploads } from './UploadProvider'
 import { MoveCopyDialog } from './dialogs/MoveCopyDialog'
 import { NameDialog } from './dialogs/NameDialog'
@@ -79,7 +66,6 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
   const [panelOpen, setPanelOpen] = useState(false)
   const wide = useMediaQuery('(min-width: 1280px)')
   const dragDepth = useRef(0)
-  const fileInput = useRef<HTMLInputElement>(null)
 
   const data = contents.data
   useDocumentTitle(data?.folder.name)
@@ -89,7 +75,6 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
   const items = useMemo(() => data?.items ?? [], [data])
   const selectedItems = useMemo(() => items.filter((i) => selected.has(itemKey(i))), [items, selected])
   const single = selectedItems.length === 1 ? selectedItems[0] : undefined
-  const singleFile = single?.type === 'file' ? single : undefined
 
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: ['folder', folderId] })
@@ -180,95 +165,29 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
       >
         {/* 머리글: 경로 + 주요 작업 */}
         <div className="border-b border-slate-200 bg-white px-4 pt-4 pb-3 sm:px-6">
-          <nav aria-label="현재 위치" className="flex min-w-0 items-center gap-1 text-sm text-slate-500">
-            {data?.path.map((crumb, i) => {
-              const last = i === data.path.length - 1
-              const to = teamId ? `/teams/${teamId}/folders/${crumb.id}` : `/drive/${crumb.id}`
-              return (
-                <div key={crumb.id} className="flex min-w-0 items-center gap-1">
-                  {i > 0 && <ChevronRight aria-hidden className="size-4 shrink-0 text-slate-300" />}
-                  {last ? (
-                    <h1 aria-current="page" className="truncate text-lg font-semibold text-slate-900">{crumb.name}</h1>
-                  ) : (
-                    <Link to={to} className="truncate rounded px-1 hover:bg-slate-100 hover:text-slate-900">{crumb.name}</Link>
-                  )}
-                </div>
-              )
-            })}
-            {!data && <span className="h-7 w-40 animate-pulse rounded bg-slate-100" />}
-          </nav>
+          <DriveBreadcrumb path={data?.path} teamId={teamId} />
           {selectedItems.length > 0 ? (
-            <div role="toolbar" aria-label="선택한 항목 작업"
-              className="animate-slide-up mt-3 flex min-h-10 flex-wrap items-center gap-1 rounded-lg bg-brand-50 px-2 py-1">
-              <IconButton label="선택 해제" onClick={() => setSelected(new Set())}>
-                <X className="size-4" />
-              </IconButton>
-              <span className="mr-2 text-sm font-medium text-brand-800">{selectedItems.length}개 선택</span>
-              {singleFile && (
-                <a href={fileApi.downloadUrl(singleFile.id)} download className={buttonStyles('ghost', 'sm')}>
-                  <Download className="size-4" /> 내려받기
-                </a>
-              )}
-              {single && permissions.canEdit && (
-                <Button size="sm" variant="ghost" onClick={() => setDialog({ kind: 'rename', item: single })}>
-                  <PencilLine className="size-4" /> 이름 바꾸기
-                </Button>
-              )}
-              {permissions.canEdit && (
-                <Button size="sm" variant="ghost" onClick={() => setDialog({ kind: 'move' })}>
-                  <FolderInput className="size-4" /> 이동
-                </Button>
-              )}
-              <Button size="sm" variant="ghost" onClick={() => setDialog({ kind: 'copy' })}>
-                <Copy className="size-4" /> 복사
-              </Button>
-              {singleFile && (
-                <>
-                  <Button size="sm" variant="ghost" onClick={() => setDialog({ kind: 'share', item: singleFile })}>
-                    <Share2 className="size-4" /> 공유
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setDialog({ kind: 'versions', item: singleFile })}>
-                    <History className="size-4" /> 버전 기록
-                  </Button>
-                </>
-              )}
-              <Button size="sm" variant="ghost" className="text-red-600 hover:bg-red-50" onClick={() => askDelete(selectedItems)}
-                loading={remove.isPending}>
-                <Trash2 className="size-4" /> 삭제
-              </Button>
-            </div>
+            <SelectionToolbar
+              selected={selectedItems}
+              canEdit={permissions.canEdit}
+              deleting={remove.isPending}
+              onClear={() => setSelected(new Set())}
+              onRename={(item) => setDialog({ kind: 'rename', item })}
+              onMove={() => setDialog({ kind: 'move' })}
+              onCopy={() => setDialog({ kind: 'copy' })}
+              onShare={(file) => setDialog({ kind: 'share', item: file })}
+              onVersions={(file) => setDialog({ kind: 'versions', item: file })}
+              onDelete={() => askDelete(selectedItems)}
+            />
           ) : (
-            <div className="mt-3 flex min-h-10 flex-wrap items-center gap-2">
-            {permissions.canEdit && (
-              <>
-                <Button variant="primary" onClick={() => fileInput.current?.click()}>
-                  <Upload className="size-4" /> 업로드
-                </Button>
-                <Button onClick={() => setDialog({ kind: 'newFolder' })}>
-                  <FolderPlus className="size-4" /> 새 폴더
-                </Button>
-                <input
-                  ref={fileInput}
-                  type="file"
-                  multiple
-                  hidden
-                  onChange={(e) => {
-                    const files = Array.from(e.target.files ?? [])
-                    if (files.length) uploads.enqueue(folderId, files)
-                    e.target.value = ''
-                  }}
-                />
-              </>
-            )}
-            {data && !permissions.canEdit && (
-              <span className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">읽기 전용 — 편집 권한이 없습니다</span>
-            )}
-            {teamId && !wide && (
-              <Button variant="ghost" className="ml-auto" onClick={() => setPanelOpen(true)}>
-                <PanelRightOpen className="size-4" /> 팀 채팅·멤버
-              </Button>
-            )}
-          </div>
+            <DriveActions
+              canEdit={permissions.canEdit}
+              readOnly={!!data && !permissions.canEdit}
+              showPanelButton={!!teamId && !wide}
+              onUpload={(files) => uploads.enqueue(folderId, files)}
+              onNewFolder={() => setDialog({ kind: 'newFolder' })}
+              onOpenPanel={() => setPanelOpen(true)}
+            />
           )}
         </div>
 
@@ -399,54 +318,6 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
         onClose={() => setDialog({ kind: 'none' })}
       />
       <PreviewDialog file={dialog.kind === 'preview' ? dialog.item : null} onClose={() => setDialog({ kind: 'none' })} />
-    </div>
-  )
-}
-
-type RowAction = 'open' | 'rename' | 'move' | 'copy' | 'share' | 'versions' | 'delete'
-
-function RowMenu({ x, y, item, canEdit, onClose, onAction }: {
-  x: number
-  y: number
-  item: Item
-  canEdit: boolean
-  onClose: () => void
-  onAction: (a: RowAction) => void
-}) {
-  const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    ref.current?.querySelector<HTMLButtonElement>('button')?.focus()
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    const onDown = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && onClose()
-    document.addEventListener('keydown', onKey)
-    document.addEventListener('mousedown', onDown)
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.removeEventListener('mousedown', onDown)
-    }
-  }, [onClose])
-
-  const entries: { action: RowAction; label: string; show: boolean; danger?: boolean }[] = [
-    { action: 'open', label: item.type === 'folder' ? '열기' : '미리보기', show: true },
-    { action: 'rename', label: '이름 바꾸기', show: canEdit },
-    { action: 'move', label: '이동', show: canEdit },
-    { action: 'copy', label: '복사', show: true },
-    { action: 'share', label: '공유 링크', show: item.type === 'file' },
-    { action: 'versions', label: '버전 기록', show: item.type === 'file' },
-    { action: 'delete', label: '삭제', show: true, danger: true },
-  ]
-  const left = Math.min(x - 180, window.innerWidth - 196)
-  const top = Math.min(y + 4, window.innerHeight - 300)
-
-  return (
-    <div ref={ref} role="menu" style={{ left, top }}
-      className="animate-slide-up fixed z-50 w-44 rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
-      {entries.filter((e) => e.show).map((e) => (
-        <button key={e.action} role="menuitem" onClick={() => onAction(e.action)}
-          className={cn('block w-full px-3 py-2 text-left text-sm', e.danger ? 'text-red-600 hover:bg-red-50' : 'hover:bg-slate-50')}>
-          {e.label}
-        </button>
-      ))}
     </div>
   )
 }
