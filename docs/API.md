@@ -40,7 +40,7 @@
 | POST | `/api/auth/login` | 로그인 (IP 당 분당 10회 제한) |
 | POST | `/api/auth/logout` | 쿠키 삭제 |
 | GET | `/api/auth/me` | 내 정보 + 개인 루트 폴더 ID |
-| DELETE | `/api/users/me` | 회원 탈퇴 (`{password}` 재확인) |
+| POST | `/api/users/me/delete` | 회원 탈퇴 (`{password}` 재확인). 본문이 필요해 DELETE 대신 POST |
 
 ### 폴더·파일
 
@@ -64,6 +64,7 @@
 | GET | `/api/files/search?q=&teamId=` | 이름 검색 (최대 100건, 경로 포함) |
 | GET | `/api/files/usage?teamId=` | 파일 수·크기(휴지통 제외), 실제 저장량 `storedBytes`(옛 버전·휴지통 포함)·한도 `quotaBytes` |
 | POST | `/api/items/move` · `/api/items/copy` | `{items:[{type,id}], targetFolderId}` |
+| POST | `/api/items/delete` | `{items:[{type,id}]}` — 파일은 휴지통, 폴더는 안의 파일까지 영구 삭제. 한 트랜잭션(하나라도 실패하면 아무것도 지우지 않음), 최대 200개. 응답 `{trashedFiles, deletedFolders}` |
 | GET / DELETE | `/api/trash?teamId=` | 휴지통 목록 / 비우기 |
 | POST | `/api/trash/{fileId}/restore` | 복원 |
 | DELETE | `/api/trash/{fileId}` | 영구 삭제 |
