@@ -3,6 +3,7 @@ package com.smartcollab.file;
 import com.smartcollab.access.AccessPolicy;
 import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.global.error.ApiException;
+import com.smartcollab.global.tx.TransactionRunner;
 import com.smartcollab.realtime.RealtimeEvents;
 import com.smartcollab.team.TeamMember;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,10 @@ public class TrashService {
     private final DriveCleanupService cleanup;
     private final AppProperties props;
     private final ApplicationEventPublisher events;
+    private final TransactionRunner tx;
+
+    /** 자동 비우기에서 한 트랜잭션으로 지우는 파일 수 [PERF-05] */
+    static final int PURGE_BATCH = 500;
 
     @Transactional(readOnly = true)
     public List<DriveDtos.TrashItem> list(Long teamId, Long userId) {
@@ -76,16 +81,26 @@ public class TrashService {
     /**
      * 보관 기간이 지난 파일을 매일 영구 삭제합니다 (기본: Asia/Seoul 새벽 4시).
      * 시간대를 지정하지 않으면 서버 시간대를 따라, UTC 컨테이너에서는 한국 시각 오후 1시에 실행됐습니다 [BUG-05].
+     * <p>{@value #PURGE_BATCH}개씩 따로 커밋합니다 [PERF-05]. 한 트랜잭션으로 모두 지우면 대상이 많을 때 잠금을 오래 쥐고,
+     * 하나만 실패해도 전부 되돌아갑니다. 실패한 배치는 다음 날 다시 대상이 됩니다.</p>
      */
     @Scheduled(cron = "${app.files.trash-purge-cron}", zone = "${app.files.trash-purge-zone}")
-    @Transactional
     public void purgeExpired() {
         Instant cutoff = Instant.now().minus(Duration.ofDays(props.files().trashRetentionDays()));
         List<Long> ids = files.findTrashedBefore(cutoff);
-        if (!ids.isEmpty()) {
-            cleanup.purgeFiles(ids);
-            log.info("Purged {} trashed files older than {}", ids.size(), cutoff);
+        if (ids.isEmpty()) return;
+        int purged = 0;
+        int batches = 0;
+        for (int from = 0; from < ids.size(); from += PURGE_BATCH) {
+            List<Long> batch = ids.subList(from, Math.min(from + PURGE_BATCH, ids.size()));
+            try {
+                purged += tx.write(() -> cleanup.purgeFiles(batch));
+                batches++;
+            } catch (RuntimeException e) {
+                log.error("Trash purge batch failed ({} files); will retry at the next run", batch.size(), e);
+            }
         }
+        log.info("Purged {} trashed files older than {} in {} batches", purged, cutoff, batches);
     }
 
     private void requireTeamTrashAccess(Long teamId, Long userId) {
