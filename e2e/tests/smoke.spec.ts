@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { login, newUserPage, openDemoTeam } from './helpers'
+import { DEMO_PASSWORD, login, newUserPage, openDemoTeam } from './helpers'
 
 test('보안 헤더: CSP 로 외부 스크립트·eval 을 막는다', async ({ request }) => {
   const res = await request.get('/login')
@@ -103,4 +103,27 @@ test('[BUG-02] 검색 화면은 주소로 직접 열거나 새로고침해도 �
   await expect(page.getByText('할 일.txt')).toBeVisible()
   await page.reload()
   await expect(page.getByRole('heading', { name: '‘할 일’ 검색 결과' })).toBeVisible()
+})
+
+test('[BUG-09] 로그아웃하면 로그인 화면이 보이고, 로그인이 필요한 화면으로 되돌아가지 않는다', async ({ page }) => {
+  await login(page, 'demo1')
+  await page.getByRole('button', { name: '내 계정' }).click()
+  await page.getByRole('menuitem', { name: '로그아웃' }).click()
+  await expect(page).toHaveURL(/\/login$/)
+  await expect(page.getByLabel('아이디')).toBeVisible()
+  await page.goto('/drive')
+  await expect(page).toHaveURL(/\/login$/)
+  await expect(page.getByLabel('아이디')).toBeVisible()
+})
+
+test('[BUG-09] 비밀번호를 한 번 틀려도 올바른 비밀번호로 로그인된다', async ({ page }) => {
+  await page.goto('/login')
+  await page.getByLabel('아이디').fill('demo1')
+  await page.getByLabel('비밀번호', { exact: true }).fill('wrong-pass-1')
+  await page.getByRole('button', { name: '로그인', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText('일치하지 않습니다')
+  await page.getByLabel('비밀번호', { exact: true }).fill(DEMO_PASSWORD)
+  await page.getByRole('button', { name: '로그인', exact: true }).click()
+  await expect(page).toHaveURL(/\/drive/)
+  await expect(page.getByRole('button', { name: '내 계정' })).toBeVisible()
 })
