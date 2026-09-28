@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react'
 import { Button } from './Button'
 import { Dialog } from './Dialog'
+import { objectParticle } from '@/lib/josa'
 
 interface ConfirmOptions {
   title: string
@@ -60,7 +61,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
         {options?.requireText !== undefined && (
           <label className="mt-4 block">
             <span className="label">
-              확인을 위해 <b className="text-slate-900">{options.requireText}</b> 을(를) 입력하세요
+              확인을 위해 <b className="text-slate-900">{options.requireText}</b>{objectParticle(options.requireText)} 입력하세요
             </span>
             <input className="input" value={typed} onChange={(e) => setTyped(e.target.value)} autoFocus />
           </label>

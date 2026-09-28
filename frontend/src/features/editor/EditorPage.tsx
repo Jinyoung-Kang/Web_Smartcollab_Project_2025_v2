@@ -12,6 +12,7 @@ import { EmptyState, Spinner } from '@/components/ui/misc'
 import { useToast } from '@/components/ui/Toast'
 import { VersionHistoryDialog } from '@/features/drive/dialogs/VersionHistoryDialog'
 import { formatRelative } from '@/lib/format'
+import { useDocumentTitle } from '@/lib/useDocumentTitle'
 
 /**
  * 충돌로 버려질 편집본을 보관합니다. 클립보드가 막혀 있으면(권한·비보안 연결) 텍스트 파일로 내려받습니다.
@@ -62,6 +63,7 @@ export default function EditorPage() {
 }
 
 function Editor({ fileId, initial }: { fileId: number; initial: TextContent }) {
+  useDocumentTitle(`${initial.name} 편집`)
   const navigate = useNavigate()
   const qc = useQueryClient()
   const toast = useToast()
@@ -254,7 +256,7 @@ function Editor({ fileId, initial }: { fileId: number; initial: TextContent }) {
           className="min-w-0 flex-1 resize-none p-5 text-[15px] leading-7 text-slate-800 outline-none sm:px-10"
         />
         {tool && (
-          <aside className="flex w-full max-w-sm flex-col border-l border-slate-200 bg-slate-50 max-lg:absolute max-lg:inset-y-0 max-lg:right-0 max-lg:z-20 max-lg:shadow-xl">
+          <aside aria-label="핵심 문장·번역" className="flex w-full max-w-sm flex-col border-l border-slate-200 bg-slate-50 max-lg:absolute max-lg:inset-y-0 max-lg:right-0 max-lg:z-20 max-lg:shadow-xl">
             <div className="flex items-center gap-2 border-b border-slate-200 px-4 py-3">
               <p className="flex-1 text-sm font-semibold">
                 {tool.kind === 'summary' ? '핵심 문장 (추출 요약)' : tool.kind === 'translation' ? `번역 결과 (${tool.target})` : '문서 도구'}

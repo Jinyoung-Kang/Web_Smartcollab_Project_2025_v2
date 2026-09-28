@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/misc'
 import { ItemIcon } from '@/lib/fileIcons'
 import { formatBytes, formatDateTime } from '@/lib/format'
+import { useDocumentTitle } from '@/lib/useDocumentTitle'
 
 /**
  * 공유 링크 페이지 (로그인 불필요).
@@ -17,6 +18,7 @@ import { formatBytes, formatDateTime } from '@/lib/format'
 export default function SharePage() {
   const token = useParams().token ?? ''
   const info = useQuery({ queryKey: ['share', token], queryFn: () => shareApi.publicInfo(token), retry: false })
+  useDocumentTitle(info.data?.fileName ?? (info.isError ? '링크를 사용할 수 없음' : undefined))
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
@@ -108,7 +110,7 @@ export default function SharePage() {
           </>
         )}
       </main>
-      <p className="mt-6 text-xs text-slate-400">공유받은 파일은 보낸 사람이 링크를 해제하면 더 이상 내려받을 수 없습니다.</p>
+      <p className="mt-6 text-xs text-slate-500">공유받은 파일은 보낸 사람이 링크를 해제하면 더 이상 내려받을 수 없습니다.</p>
     </div>
   )
 }

@@ -149,7 +149,9 @@ export function FileTable({ items, selected, onSelectionChange, onOpen, onContex
               </th>
             )
           })}
-          <th className="w-12 border-b border-slate-200" aria-label="작업" />
+          <th className="w-12 border-b border-slate-200">
+            <span className="sr-only">작업</span>
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -201,10 +203,10 @@ export function FileTable({ items, selected, onSelectionChange, onOpen, onContex
                   <span className="truncate">{item.ownerName}</span>
                 </span>
               </td>
-              <td className="hidden border-b border-slate-100 px-3 py-2 text-slate-500 sm:table-cell" title={formatDateTime(item.updatedAt)}>
+              <td className="hidden border-b border-slate-100 px-3 py-2 text-slate-600 sm:table-cell" title={formatDateTime(item.updatedAt)}>
                 {formatRelative(item.updatedAt)}
               </td>
-              <td className="hidden border-b border-slate-100 px-3 py-2 text-right text-slate-500 tabular-nums lg:table-cell">
+              <td className="hidden border-b border-slate-100 px-3 py-2 text-right text-slate-600 tabular-nums lg:table-cell">
                 {item.type === 'folder' ? '—' : formatBytes(item.size)}
               </td>
               <td className="border-b border-slate-100 pr-3 text-right">

@@ -1,23 +1,23 @@
 {
   "runs": 5,
-  "measuredAt": "2026-09-26T19:17:42.053Z",
+  "measuredAt": "2026-09-27T18:53:07.745Z",
   "v1": {
     "requests": 20,
-    "totalKb": 1289,
+    "totalKb": 1288,
     "jsKb": 1156,
     "cssKb": 0,
     "fontKb": 0,
-    "scriptMs": 578,
-    "elapsedMs": 1087
+    "scriptMs": 540,
+    "elapsedMs": 1059
   },
   "v2": {
     "requests": 21,
-    "totalKb": 513,
-    "jsKb": 151,
+    "totalKb": 516,
+    "jsKb": 153,
     "cssKb": 23,
     "fontKb": 334,
     "scriptMs": 35,
-    "elapsedMs": 173
+    "elapsedMs": 150
   },
   "raw": {
     "v1": [
@@ -27,8 +27,8 @@
         "jsKb": 1156,
         "cssKb": 0,
         "fontKb": 0,
-        "scriptMs": 697,
-        "elapsedMs": 1173
+        "scriptMs": 548,
+        "elapsedMs": 1059
       },
       {
         "requests": 20,
@@ -36,17 +36,8 @@
         "jsKb": 1156,
         "cssKb": 0,
         "fontKb": 0,
-        "scriptMs": 578,
-        "elapsedMs": 1087
-      },
-      {
-        "requests": 20,
-        "totalKb": 1289,
-        "jsKb": 1156,
-        "cssKb": 0,
-        "fontKb": 0,
-        "scriptMs": 604,
-        "elapsedMs": 1133
+        "scriptMs": 529,
+        "elapsedMs": 1039
       },
       {
         "requests": 20,
@@ -54,8 +45,8 @@
         "jsKb": 1156,
         "cssKb": 0,
         "fontKb": 0,
-        "scriptMs": 560,
-        "elapsedMs": 1028
+        "scriptMs": 542,
+        "elapsedMs": 1000
       },
       {
         "requests": 20,
@@ -63,55 +54,64 @@
         "jsKb": 1157,
         "cssKb": 0,
         "fontKb": 0,
-        "scriptMs": 530,
-        "elapsedMs": 1007
+        "scriptMs": 540,
+        "elapsedMs": 1114
+      },
+      {
+        "requests": 20,
+        "totalKb": 1288,
+        "jsKb": 1156,
+        "cssKb": 0,
+        "fontKb": 0,
+        "scriptMs": 532,
+        "elapsedMs": 1142
       }
     ],
     "v2": [
       {
         "requests": 21,
-        "totalKb": 513,
-        "jsKb": 151,
+        "totalKb": 516,
+        "jsKb": 153,
         "cssKb": 23,
         "fontKb": 334,
-        "scriptMs": 34,
-        "elapsedMs": 173
+        "scriptMs": 42,
+        "elapsedMs": 192
       },
       {
         "requests": 21,
-        "totalKb": 513,
-        "jsKb": 151,
+        "totalKb": 516,
+        "jsKb": 153,
         "cssKb": 23,
         "fontKb": 334,
-        "scriptMs": 38,
-        "elapsedMs": 224
+        "scriptMs": 35,
+        "elapsedMs": 149
       },
       {
         "requests": 21,
-        "totalKb": 513,
-        "jsKb": 151,
+        "totalKb": 516,
+        "jsKb": 153,
         "cssKb": 23,
         "fontKb": 334,
         "scriptMs": 36,
-        "elapsedMs": 196
+        "elapsedMs": 148
       },
       {
         "requests": 21,
-        "totalKb": 513,
-        "jsKb": 151,
+        "totalKb": 516,
+        "jsKb": 153,
         "cssKb": 23,
         "fontKb": 334,
-        "scriptMs": 32,
+        "scriptMs": 34,
         "elapsedMs": 151
       },
       {
         "requests": 21,
-        "totalKb": 513,
-        "jsKb": 151,
+        "totalKb": 516,
+        "jsKb": 153,
         "cssKb": 23,
         "fontKb": 334,
-        "scriptMs": 35,
-        "elapsedMs": 162
+        "scriptMs": 34,
+        "elapsedMs": 150
       }
     ]
   }

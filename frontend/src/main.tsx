@@ -7,6 +7,7 @@ import { ApiError } from '@/api/http'
 import { ToastProvider } from '@/components/ui/Toast'
 import { ConfirmProvider } from '@/components/ui/Confirm'
 import { AuthProvider } from '@/auth/AuthProvider'
+import { AppErrorPage } from '@/layout/AppErrorPage'
 import { App } from './App'
 import './index.css'
 
@@ -36,8 +37,8 @@ function Root() {
 }
 
 // 화면 경로는 App 의 <Routes> 가 정합니다. 데이터 라우터로 감싸는 이유는 편집기의 이동 차단(useBlocker)이
-// 데이터 라우터에서만 동작하기 때문입니다 [BUG-04].
-const router = createBrowserRouter([{ path: '*', element: <Root /> }])
+// 데이터 라우터에서만 동작하기 때문입니다 [BUG-04]. 그리다 오류가 나면 빈 화면 대신 안내 화면을 보여 줍니다 [ARC-04].
+const router = createBrowserRouter([{ path: '*', element: <Root />, errorElement: <AppErrorPage /> }])
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

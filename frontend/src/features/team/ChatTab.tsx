@@ -139,7 +139,7 @@ export function ChatTab({ teamId, team }: { teamId: number; team: TeamDetail }) 
           return (
             <Fragment key={m.id}>
               {newDay && (
-                <div className="my-4 flex items-center gap-3 text-xs text-slate-400">
+                <div className="my-4 flex items-center gap-3 text-xs text-slate-500">
                   <span className="h-px flex-1 bg-slate-200" />
                   {formatDay(m.createdAt)}
                   <span className="h-px flex-1 bg-slate-200" />
@@ -150,7 +150,7 @@ export function ChatTab({ teamId, team }: { teamId: number; team: TeamDetail }) 
                 <div className={cn('flex max-w-[78%] flex-col', mine ? 'items-end' : 'items-start')}>
                   {!mine && !grouped && <span className="mb-1 text-xs font-medium text-slate-500">{m.sender.name}</span>}
                   <div className="flex items-end gap-1.5">
-                    {mine && <time className="text-[11px] whitespace-nowrap text-slate-400">{formatTime(m.createdAt)}</time>}
+                    {mine && <time className="text-[11px] whitespace-nowrap text-slate-500">{formatTime(m.createdAt)}</time>}
                     {m.type === 'FILE_SHARE' && m.file ? (
                       <a
                         href={fileApi.downloadUrl(m.file.id)}
@@ -171,7 +171,7 @@ export function ChatTab({ teamId, team }: { teamId: number; team: TeamDetail }) 
                         {m.content}
                       </p>
                     )}
-                    {!mine && <time className="text-[11px] whitespace-nowrap text-slate-400">{formatTime(m.createdAt)}</time>}
+                    {!mine && <time className="text-[11px] whitespace-nowrap text-slate-500">{formatTime(m.createdAt)}</time>}
                   </div>
                 </div>
               </div>

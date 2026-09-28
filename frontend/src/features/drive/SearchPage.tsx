@@ -8,11 +8,13 @@ import { EmptyState, Spinner } from '@/components/ui/misc'
 import { ItemIcon } from '@/lib/fileIcons'
 import { formatBytes, formatRelative } from '@/lib/format'
 import { PreviewDialog } from './dialogs/PreviewDialog'
+import { useDocumentTitle } from '@/lib/useDocumentTitle'
 
 /** 검색 결과. 하위 폴더까지 이름으로 찾고 파일이 있는 경로를 보여 줍니다. */
 export default function SearchPage() {
   const [params] = useSearchParams()
   const q = params.get('q') ?? ''
+  useDocumentTitle(q ? `‘${q}’ 검색` : '검색')
   const teamId = params.get('teamId') ? Number(params.get('teamId')) : undefined
   const [preview, setPreview] = useState<Item | null>(null)
   const team = useQuery({ queryKey: ['team', teamId], queryFn: () => teamApi.detail(teamId!), enabled: !!teamId })

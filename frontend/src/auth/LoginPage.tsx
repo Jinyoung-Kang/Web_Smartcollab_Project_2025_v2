@@ -6,6 +6,7 @@ import { ApiError } from '@/api/http'
 import { Button } from '@/components/ui/Button'
 import { useAuth, usePublicConfig } from './AuthProvider'
 import { cn } from '@/lib/cn'
+import { useDocumentTitle } from '@/lib/useDocumentTitle'
 
 const FEATURES = [
   { icon: FolderLock, title: '팀별 권한 관리', text: '편집·삭제·초대 권한을 멤버마다 나눠 줍니다.' },
@@ -15,7 +16,7 @@ const FEATURES = [
 ]
 
 export function LoginPage({ initialMode = 'login' }: { initialMode?: 'login' | 'signup' }) {
-  const { me, setMe, signingOut, completeSignOut } = useAuth()
+  const { me, setMe, signingOut, completeSignOut, sessionExpired } = useAuth()
   const config = usePublicConfig()
   const navigate = useNavigate()
   const location = useLocation()
@@ -24,6 +25,7 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: 'login' | '
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
+  useDocumentTitle(mode === 'login' ? '로그인' : '회원가입')
 
   // 로그아웃·탈퇴·세션 만료로 왔다면 여기서 이전 사용자의 정보를 지웁니다 [BUG-09].
   useEffect(() => {
@@ -67,7 +69,7 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: 'login' | '
   }
 
   return (
-    <div className="grid min-h-dvh lg:grid-cols-[1.1fr_1fr]">
+    <main className="grid min-h-dvh lg:grid-cols-[1.1fr_1fr]">
       <section className="relative hidden overflow-hidden bg-gradient-to-br from-brand-800 via-brand-700 to-sky-500 px-14 py-12 text-white lg:flex lg:flex-col">
         <div className="flex items-center gap-2.5 text-lg font-bold">
           <img src="/favicon.svg" alt="" className="size-8 rounded-lg ring-2 ring-white/30" />
@@ -75,10 +77,10 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: 'login' | '
         </div>
         <div className="my-auto max-w-lg">
           <p className="mb-3 text-sm font-semibold tracking-wide text-sky-100">팀을 위한 클라우드 파일 협업 공간</p>
-          <h1 className="text-4xl leading-tight font-bold">
+          <h2 className="text-4xl leading-tight font-bold">
             흩어진 파일과 대화를
             <br />한 곳에서.
-          </h1>
+          </h2>
           <ul className="mt-10 grid gap-5">
             {FEATURES.map(({ icon: Icon, title, text }) => (
               <li key={title} className="flex gap-4">
@@ -101,7 +103,7 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: 'login' | '
             <img src="/favicon.svg" alt="" className="size-8 rounded-lg" />
             SmartCollab
           </div>
-          <h2 className="text-2xl font-bold text-slate-900">{mode === 'login' ? '다시 오신 것을 환영해요' : '계정 만들기'}</h2>
+          <h1 className="text-2xl font-bold text-slate-900">{mode === 'login' ? '다시 오신 것을 환영해요' : '계정 만들기'}</h1>
           <p className="mt-1 text-sm text-slate-500">
             {mode === 'login' ? '아이디와 비밀번호로 로그인하세요.' : '가입하면 바로 내 드라이브를 쓸 수 있어요.'}
           </p>
@@ -113,12 +115,18 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: 'login' | '
                 role="tab"
                 aria-selected={mode === m}
                 onClick={() => switchMode(m)}
-                className={cn('rounded-md py-1.5', mode === m ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500')}
+                className={cn('rounded-md py-1.5', mode === m ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600')}
               >
                 {m === 'login' ? '로그인' : '회원가입'}
               </button>
             ))}
           </div>
+
+          {sessionExpired && (
+            <p role="status" className="mt-6 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              로그인이 만료되었습니다. 다시 로그인해 주세요.
+            </p>
+          )}
 
           <form onSubmit={submit} className="mt-6 grid gap-4" noValidate>
             <Field label="아이디" error={fieldErrors.username}>
@@ -184,7 +192,7 @@ export function LoginPage({ initialMode = 'login' }: { initialMode?: 'login' | '
           )}
         </div>
       </section>
-    </div>
+    </main>
   )
 }
 

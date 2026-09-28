@@ -52,7 +52,7 @@ export function Sidebar() {
             {unread.has(team.id) ? (
               <span className="size-2 rounded-full bg-red-500" aria-label="새 채팅 메시지" />
             ) : (
-              <span className="text-xs text-slate-400">{team.memberCount}명</span>
+              <span className="text-xs text-slate-600">{team.memberCount}명</span>
             )}
           </NavLink>
         ))}
@@ -73,7 +73,7 @@ export function Sidebar() {
             파일 {usage.data.fileCount.toLocaleString()}개 · {formatBytes(usage.data.totalBytes)}
           </p>
           <StorageMeter storedBytes={usage.data.storedBytes} quotaBytes={usage.data.quotaBytes} />
-          <p className="mt-0.5 text-[11px] text-slate-400">옛 버전·휴지통 포함</p>
+          <p className="mt-0.5 text-[11px] text-slate-500">옛 버전·휴지통 포함</p>
         </div>
       )}
       <NewTeamDialog open={creating} onClose={() => setCreating(false)} />

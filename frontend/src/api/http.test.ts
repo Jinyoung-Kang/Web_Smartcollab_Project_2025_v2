@@ -30,6 +30,19 @@ describe('request', () => {
     expect(err.fields.username).toBeDefined()
   })
 
+  it('[UX-05] 서버 오류(5xx)는 요청 번호를 함께 알려 문의·로그 추적에 쓸 수 있게 한다', async () => {
+    mockFetch([
+      { status: 500, body: { code: 'INTERNAL_ERROR', detail: '서버 내부 오류가 발생했습니다.', requestId: '56364498b10944a1a929081b3e966343' } },
+      { status: 400, body: { code: 'INVALID_REQUEST', detail: '이름을 입력하세요.', requestId: 'aaaaaaaabbbbbbbb' } },
+    ])
+    const server = (await request('/api/x').catch((e: unknown) => e)) as ApiError
+    const client = (await request('/api/x').catch((e: unknown) => e)) as ApiError
+
+    expect(server.requestId).toBe('56364498b10944a1a929081b3e966343')
+    expect(server.message).toBe('서버 내부 오류가 발생했습니다. (요청 번호 56364498)')
+    expect(client.message).toBe('이름을 입력하세요.')   // 사용자가 고칠 수 있는 오류에는 붙이지 않음
+  })
+
   it('변경 요청에는 XSRF 쿠키 값을 헤더로 보낸다', async () => {
     document.cookie = 'XSRF-TOKEN=abc123'
     const { calls } = mockFetch([{ status: 204 }])

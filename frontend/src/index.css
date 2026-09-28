@@ -57,3 +57,15 @@ dialog::backdrop {
 .animate-slide-up {
   animation: slide-up 160ms ease-out;
 }
+
+/* 운영체제에서 '동작 줄이기'를 켠 사용자에게는 움직임 효과를 끕니다 [UX-01] */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

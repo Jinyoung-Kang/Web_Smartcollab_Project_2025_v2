@@ -77,10 +77,10 @@ export function VersionHistoryDialog({ file, permissions, onClose }: {
               <Avatar name={v.editorName} size="sm" />
               <span className="text-sm font-medium">{v.editorName}</span>
               <span className="text-xs text-slate-500">{formatDateTime(v.createdAt)}</span>
-              <span className="text-xs text-slate-400">v{(versions.data?.length ?? 0) - i}</span>
+              <span className="text-xs text-slate-600">v{(versions.data?.length ?? 0) - i}</span>
               {v.active && <Badge tone="brand">현재 버전</Badge>}
               <span className="ml-auto flex items-center gap-2">
-                <code className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-500" title={`SHA-256 ${v.sha256}`}>
+                <code className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-600" title={`SHA-256 ${v.sha256}`}>
                   {v.sha256.slice(0, 10)}
                 </code>
                 <span className="text-xs text-slate-500">{formatBytes(v.size)}</span>
@@ -96,7 +96,7 @@ export function VersionHistoryDialog({ file, permissions, onClose }: {
                 {v.signatures.map((s) => (
                   <li
                     key={s.signerName + s.signedAt}
-                    className={s.valid ? 'inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700' : 'inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500 line-through'}
+                    className={s.valid ? 'inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700' : 'inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 line-through'}
                     title={s.valid ? '유효한 서명' : '이후 내용이 바뀌어 무효가 된 서명'}
                   >
                     {s.valid ? <BadgeCheck aria-hidden className="size-3.5" /> : <ShieldAlert aria-hidden className="size-3.5" />}
