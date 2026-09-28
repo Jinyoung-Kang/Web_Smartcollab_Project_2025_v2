@@ -31,17 +31,26 @@ public interface FileRepository extends JpaRepository<FileEntity, Long> {
 
     @Query("""
             select f from FileEntity f join fetch f.folder fo left join fetch f.deletedBy
-            where f.deleted = true and f.owner.id = :userId and fo.team is null
+            where f.deleted = true and f.owner.id = :userId and fo.team is null and fo.trashRootId is null
             order by f.deletedAt desc
             """)
     List<FileEntity> findPersonalTrash(@Param("userId") Long userId);
 
     @Query("""
             select f from FileEntity f join fetch f.folder fo left join fetch f.deletedBy
-            where f.deleted = true and fo.team.id = :teamId
+            where f.deleted = true and fo.team.id = :teamId and fo.trashRootId is null
             order by f.deletedAt desc
             """)
     List<FileEntity> findTeamTrash(@Param("teamId") Long teamId);
+
+    /** 휴지통에 있는 폴더 트리별 파일 수·크기 (개별로 휴지통에 넣은 파일은 빼고) [UX-06] */
+    @Query("""
+            select new com.smartcollab.file.TrashedTreeSize(fo.trashRootId, count(f), coalesce(sum(f.size), 0))
+            from FileEntity f join f.folder fo
+            where fo.trashRootId in :rootIds and f.deleted = false
+            group by fo.trashRootId
+            """)
+    List<TrashedTreeSize> sizeOfTrashedTrees(@Param("rootIds") Collection<Long> rootIds);
 
     @Query("select f.id from FileEntity f where f.deleted = true and f.deletedAt < :cutoff")
     List<Long> findTrashedBefore(@Param("cutoff") Instant cutoff);

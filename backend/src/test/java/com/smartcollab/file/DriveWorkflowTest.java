@@ -79,7 +79,7 @@ class DriveWorkflowTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("[v1 버그] 휴지통 파일·서명된 파일이 들어 있는 폴더도 삭제된다 (v1: FK 오류)")
+    @DisplayName("[v1 버그] 휴지통 파일·서명된 파일이 들어 있는 폴더도 영구 삭제된다 (v1: FK 오류) — 휴지통을 거쳐")
     void deleteFolderWithTrashedAndSignedFiles() throws Exception {
         Api.Session s = api().signUp("folderdel");
         long folder = s.createFolder(s.rootFolderId, "보관함");
@@ -90,7 +90,8 @@ class DriveWorkflowTest extends IntegrationTest {
         s.post("/api/files/{id}/signatures", signed).andExpect(status().isCreated());
         s.postJson("/api/files/{id}/share-links", Map.of(), signed).andExpect(status().isCreated());
 
-        s.delete("/api/folders/{id}", folder).andExpect(status().isNoContent());
+        s.delete("/api/folders/{id}", folder).andExpect(status().isNoContent());   // 휴지통으로 [UX-06]
+        s.delete("/api/trash/folders/{id}", folder).andExpect(status().isNoContent());
 
         assertThat(jdbc.queryForObject("select count(*) from folders where folder_id in (?, ?)", Integer.class, folder, sub)).isZero();
         assertThat(jdbc.queryForObject("select count(*) from files where file_id in (?, ?)", Integer.class, trashed, signed)).isZero();

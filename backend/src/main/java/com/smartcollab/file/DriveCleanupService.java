@@ -69,6 +69,9 @@ public class DriveCleanupService {
             fileIds.addAll(files.findIdsInFolders(chunk));
         }
         purgeFiles(fileIds);
+        for (List<Long> chunk : chunks(folderIds)) {
+            folders.clearTrashMarks(chunk);   // 휴지통 폴더의 자기 참조(trash_root_id)를 먼저 끊음 [UX-06]
+        }
 
         // 자식 → 부모 순서(깊이 역순)로 지워 parent FK 를 위반하지 않게 합니다.
         Map<Integer, List<Long>> byDepth = new TreeMap<>(Comparator.reverseOrder());

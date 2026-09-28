@@ -2,7 +2,7 @@ package com.smartcollab.folder;
 
 import com.smartcollab.access.Access;
 import com.smartcollab.access.AccessPolicy;
-import com.smartcollab.file.DriveCleanupService;
+import com.smartcollab.file.TrashService;
 import com.smartcollab.file.DriveDtos;
 import com.smartcollab.file.FileEntity;
 import com.smartcollab.file.FileRepository;
@@ -28,7 +28,7 @@ public class FolderService {
     private final FileRepository files;
     private final UserRepository users;
     private final AccessPolicy accessPolicy;
-    private final DriveCleanupService cleanup;
+    private final TrashService trash;
     private final ApplicationEventPublisher events;
 
     @Transactional(readOnly = true)
@@ -76,7 +76,7 @@ public class FolderService {
         publishChanged(folder.getParent());
     }
 
-    /** 폴더는 휴지통을 거치지 않고 하위 항목까지 영구 삭제됩니다. */
+    /** 폴더를 하위 폴더·파일과 함께 휴지통으로 옮깁니다(30일 뒤 자동 영구 삭제) [UX-06]. 이전에는 즉시 영구 삭제였습니다. */
     @Transactional
     public void delete(Long folderId, Long userId) {
         Folder folder = get(folderId);
@@ -84,10 +84,9 @@ public class FolderService {
         if (folder.isRoot()) {
             throw ApiException.badRequest("최상위 폴더는 삭제할 수 없습니다.");
         }
-        Folder parent = folder.getParent();
         Long teamId = folder.teamId();
-        Long parentId = parent.getId();
-        cleanup.deleteFolderTree(folderId);
+        Long parentId = folder.getParent().getId();
+        trash.moveFolderToTrash(folder, userId);
         if (teamId != null) {
             events.publishEvent(new RealtimeEvents.FolderChanged(teamId, parentId));
         }

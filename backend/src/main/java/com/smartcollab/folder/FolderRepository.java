@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -30,22 +31,23 @@ public interface FolderRepository extends JpaRepository<Folder, Long> {
     @Query("select new com.smartcollab.folder.TeamRoot(f.team.id, f.id) from Folder f where f.team.id in :teamIds and f.parent is null")
     List<TeamRoot> findTeamRootIds(@Param("teamIds") Collection<Long> teamIds);
 
-    @Query("select f from Folder f join fetch f.owner where f.parent.id = :parentId")
+    /** 휴지통에 있는 하위 폴더는 빼고 */
+    @Query("select f from Folder f join fetch f.owner where f.parent.id = :parentId and f.trashRootId is null")
     List<Folder> findChildren(@Param("parentId") Long parentId);
 
-    /** 개인 스토리지 전체 폴더 (트리·검색용, 쿼리 1회) */
+    /** 개인 스토리지 전체 폴더 (트리·검색·사용량용, 쿼리 1회). 휴지통에 있는 폴더 트리는 빼고 */
     @Query("""
             select new com.smartcollab.folder.FolderNode(f.id, f.name, p.id)
             from Folder f left join f.parent p
-            where f.owner.id = :ownerId and f.team is null
+            where f.owner.id = :ownerId and f.team is null and f.trashRootId is null
             """)
     List<FolderNode> findPersonalNodes(@Param("ownerId") Long ownerId);
 
-    /** 팀 스토리지 전체 폴더 (트리·검색용, 쿼리 1회) */
+    /** 팀 스토리지 전체 폴더 (트리·검색·사용량용, 쿼리 1회). 휴지통에 있는 폴더 트리는 빼고 */
     @Query("""
             select new com.smartcollab.folder.FolderNode(f.id, f.name, p.id)
             from Folder f left join f.parent p
-            where f.team.id = :teamId
+            where f.team.id = :teamId and f.trashRootId is null
             """)
     List<FolderNode> findTeamNodes(@Param("teamId") Long teamId);
 
@@ -80,6 +82,43 @@ public interface FolderRepository extends JpaRepository<Folder, Long> {
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("delete from Folder f where f.id in :ids")
     int deleteAllByIds(@Param("ids") Collection<Long> ids);
+
+    /**
+     * 폴더 트리를 휴지통에 넣습니다 [UX-06]. 이미 휴지통에 있던 하위 트리(따로 지운 폴더)는 그대로 두어,
+     * 휴지통 목록에 따로 남고 따로 복원할 수 있게 합니다.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update Folder f set f.trashRootId = :rootId where f.id in :ids and f.trashRootId is null")
+    int markInTrash(@Param("ids") Collection<Long> ids, @Param("rootId") Long rootId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update Folder f set f.deletedAt = :at, f.deletedBy = :by where f.id = :rootId")
+    int stampTrashRoot(@Param("rootId") Long rootId, @Param("at") Instant at, @Param("by") User by);
+
+    /**
+     * 영구 삭제 전에 휴지통 표시를 지웁니다. 휴지통의 맨 위 폴더는 자기 자신을 가리키는데(자기 참조 FK),
+     * InnoDB 는 자기 자신을 참조하는 행을 지우지 못하게 막기 때문입니다.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update Folder f set f.trashRootId = null where f.id in :ids and f.trashRootId is not null")
+    int clearTrashMarks(@Param("ids") Collection<Long> ids);
+
+    /** 이 폴더를 맨 위로 휴지통에 들어간 트리를 꺼냅니다 (따로 지운 하위 트리는 휴지통에 남음) */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update Folder f set f.trashRootId = null, f.deletedAt = null, f.deletedBy = null where f.trashRootId = :rootId")
+    int restoreFromTrash(@Param("rootId") Long rootId);
+
+    @Query("""
+            select f from Folder f left join fetch f.deletedBy
+            where f.trashRootId = f.id and f.team is null and f.owner.id = :userId
+            """)
+    List<Folder> findPersonalTrashRoots(@Param("userId") Long userId);
+
+    @Query("select f from Folder f left join fetch f.deletedBy where f.trashRootId = f.id and f.team.id = :teamId")
+    List<Folder> findTeamTrashRoots(@Param("teamId") Long teamId);
+
+    @Query("select f.id from Folder f where f.trashRootId = f.id and f.deletedAt < :cutoff")
+    List<Long> findTrashRootsBefore(@Param("cutoff") Instant cutoff);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""

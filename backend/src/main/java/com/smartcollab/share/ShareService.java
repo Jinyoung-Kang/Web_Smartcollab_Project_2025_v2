@@ -118,7 +118,7 @@ public class ShareService {
     /** 존재하고, 만료·소진되지 않았고, 파일이 휴지통에 있지 않은 링크만 사용할 수 있습니다. */
     private ShareLink usable(String token) {
         ShareLink link = links.findByToken(token).orElseThrow(() -> ApiException.notFound("공유 링크"));
-        if (link.isExpired(Instant.now()) || link.isExhausted() || link.getFile().isDeleted()) {
+        if (link.isExpired(Instant.now()) || link.isExhausted() || link.getFile().isInTrash()) {
             throw new ApiException(ErrorCode.LINK_EXPIRED);
         }
         return link;
@@ -126,7 +126,7 @@ public class ShareService {
 
     private FileEntity activeFile(Long fileId) {
         FileEntity file = files.findWithFolder(fileId).orElseThrow(() -> ApiException.notFound("파일"));
-        if (file.isDeleted()) {
+        if (file.isInTrash()) {
             throw ApiException.notFound("파일");
         }
         return file;

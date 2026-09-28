@@ -53,6 +53,21 @@ public class Folder {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    /**
+     * 휴지통에 들어간 폴더 트리의 맨 위 폴더 ID. 휴지통 밖이면 null 이고, 맨 위 폴더는 자기 자신을 가리킵니다 [UX-06].
+     * 하위 폴더까지 같은 값을 가지므로 한 열로 "휴지통 안에 있는가"를 판단합니다. 값은 리포지토리의 일괄 UPDATE 로만 바꿉니다.
+     */
+    @Column(name = "trash_root_id")
+    private Long trashRootId;
+
+    /** 휴지통으로 옮긴 시각 (맨 위 폴더에만) */
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "deleted_by")
+    private User deletedBy;
+
     private Folder(String name, User owner, Team team, Folder parent) {
         this.name = name;
         this.owner = owner;
@@ -76,6 +91,16 @@ public class Folder {
 
     public boolean isRoot() {
         return parent == null;
+    }
+
+    /** 자신이나 상위 폴더가 휴지통에 있으면 true */
+    public boolean isInTrash() {
+        return trashRootId != null;
+    }
+
+    /** 휴지통 목록에 보이는 맨 위 폴더인지 */
+    public boolean isTrashRoot() {
+        return id != null && id.equals(trashRootId);
     }
 
     public Long teamId() {

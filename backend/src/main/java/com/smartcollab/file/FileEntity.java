@@ -109,6 +109,11 @@ public class FileEntity {
         this.deletedBy = null;
     }
 
+    /** 개별로 휴지통에 있거나, 휴지통에 있는 폴더 안에 있으면 true [UX-06] */
+    public boolean isInTrash() {
+        return deleted || folder.isInTrash();
+    }
+
     public boolean isOwnedBy(Long userId) {
         return owner.getId().equals(userId);
     }
