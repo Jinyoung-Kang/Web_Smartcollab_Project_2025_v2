@@ -50,7 +50,7 @@
 | GET | `/api/folders/tree?teamId=` | 폴더 트리 (쿼리 1회) |
 | POST | `/api/folders` | 폴더 만들기 `{parentId, name}` |
 | PATCH | `/api/folders/{id}` | 이름 바꾸기 |
-| DELETE | `/api/folders/{id}` | 하위까지 영구 삭제 |
+| DELETE | `/api/folders/{id}` | 안의 폴더·파일과 함께 휴지통으로 (30일 뒤 자동 영구 삭제) |
 | POST | `/api/files/upload?folderId=` | 업로드 (multipart `file`) |
 | GET | `/api/files/{id}/download` | 다운로드 (스트리밍) |
 | GET | `/api/files/{id}/view` | 미리보기 (이미지·PDF·텍스트만 inline) |
@@ -64,10 +64,12 @@
 | GET | `/api/files/search?q=&teamId=` | 이름 검색 (최대 100건, 경로 포함) |
 | GET | `/api/files/usage?teamId=` | 파일 수·크기(휴지통 제외), 실제 저장량 `storedBytes`(옛 버전·휴지통 포함)·한도 `quotaBytes` |
 | POST | `/api/items/move` · `/api/items/copy` | `{items:[{type,id}], targetFolderId}` |
-| POST | `/api/items/delete` | `{items:[{type,id}]}` — 파일은 휴지통, 폴더는 안의 파일까지 영구 삭제. 한 트랜잭션(하나라도 실패하면 아무것도 지우지 않음), 최대 200개. 응답 `{trashedFiles, deletedFolders}` |
-| GET / DELETE | `/api/trash?teamId=` | 휴지통 목록 / 비우기 |
-| POST | `/api/trash/{fileId}/restore` | 복원 |
-| DELETE | `/api/trash/{fileId}` | 영구 삭제 |
+| POST | `/api/items/delete` | `{items:[{type,id}]}` — 파일·폴더를 휴지통으로(폴더는 안의 폴더·파일과 함께). 한 트랜잭션(하나라도 실패하면 아무것도 지우지 않음), 최대 200개. 응답 `{trashedFiles, trashedFolders}` |
+| GET / DELETE | `/api/trash?teamId=` | 휴지통 목록(파일·폴더, `type`·폴더는 `fileCount`) / 비우기 |
+| POST | `/api/trash/{fileId}/restore` | 파일 복원 |
+| DELETE | `/api/trash/{fileId}` | 파일 영구 삭제 |
+| POST | `/api/trash/folders/{id}/restore` | 폴더 복원(안의 폴더·파일 함께). 원래 상위 폴더가 휴지통에 있으면 최상위 폴더로 — 응답 `{folderId, relocated}` |
+| DELETE | `/api/trash/folders/{id}` | 폴더 영구 삭제(안의 폴더·파일까지) |
 
 ### 문서 도구
 

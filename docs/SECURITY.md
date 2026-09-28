@@ -16,6 +16,7 @@
 | 공개 체험 계정 훼손 (데모 모드) | 체험 계정은 탈퇴·팀 삭제·팀장 위임·팀 나가기·체험 계정 내보내기 불가, 체험 한도 50MB, 매일 05:00(Asia/Seoul) 체험 데이터 초기화. 체험 비밀번호는 공개 설정 API 로 안내되므로 데모 모드는 체험 전용 배포에서만 켜세요 | `DemoAccounts`, `DemoDataSeeder.reset` |
 | 요청 제한 우회(IP 위조) | 클라이언트 IP 는 Tomcat RemoteIpValve 가 X-Forwarded-For 를 **오른쪽부터** 읽어 신뢰할 프록시를 건너뛴 첫 주소로 정하고, 포트는 뗍니다. 클라이언트가 헤더 앞쪽에 넣은 값은 쓰이지 않습니다 | `server.forward-headers-strategy: native`, `ClientIp` |
 | 계정 존재 여부 추측 (타이밍) | 없는 아이디도 BCrypt 비교를 수행 | `AuthService.authenticate` |
+| 휴지통에 넣은 자료의 노출 | 휴지통에 있는 폴더와 그 안의 폴더·파일은 `AccessPolicy` 가 404 로 막아 다운로드·미리보기·편집·공유 링크(410)·채팅 공유·검색·트리에서 모두 사라짐. 복원·영구 삭제는 그 스토리지의 삭제 권한 필요 | `AccessPolicy`, `TrashService` |
 | 저장형 XSS (업로드한 HTML·SVG) | 이미지·PDF·텍스트만 inline, 텍스트는 `text/plain` 고정, 나머지는 `attachment` + `nosniff` | `FileResponses` |
 | 경로 조작 | 저장소 키는 서버가 만든 UUID 만 사용, 로컬 저장소는 루트 밖 경로 거부 | `LocalBlobStorage.resolve` |
 | 공유 비밀번호 노출 | 비밀번호는 본문으로 확인 → 5분짜리 HMAC 허가 발급, URL 에 비밀번호를 싣지 않음 | `DownloadGrantSigner` |
