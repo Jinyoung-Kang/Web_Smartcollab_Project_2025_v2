@@ -45,6 +45,12 @@ public class FileController {
         return ResponseEntity.status(HttpStatus.CREATED).body(fileService.upload(folderId, file, user.id()));
     }
 
+    @Operation(summary = "파일 정보", description = "이름·크기·미리보기 종류. 채팅에 공유된 파일처럼 폴더 목록 없이 미리 볼 때 씁니다.")
+    @GetMapping("/{fileId}")
+    public DriveDtos.ItemResponse get(@PathVariable Long fileId, @CurrentUser AuthUser user) {
+        return fileService.get(fileId, user.id());
+    }
+
     @Operation(summary = "다운로드(스트리밍)")
     @GetMapping("/{fileId}/download")
     public ResponseEntity<Resource> download(@PathVariable Long fileId, @CurrentUser AuthUser user) {

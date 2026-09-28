@@ -53,6 +53,8 @@ export const folderApi = {
 }
 
 export const fileApi = {
+  /** 파일 한 개의 지금 정보 (채팅에 공유된 파일 미리보기) */
+  get: (fileId: number) => http.get<Item>(`/api/files/${fileId}`),
   rename: (fileId: number, name: string) => http.patch<void>(`/api/files/${fileId}`, { name }),
   content: (fileId: number) => http.get<TextContent>(`/api/files/${fileId}/content`),
   save: (fileId: number, content: string, baseVersionId: number) =>
@@ -71,7 +73,7 @@ export const fileApi = {
 
 export const itemApi = {
   move: (items: ItemRef[], targetFolderId: number) => http.post<void>('/api/items/move', { items, targetFolderId }),
-  /** 파일은 휴지통으로, 폴더는 안의 파일까지 영구 삭제. 하나라도 실패하면 아무것도 지우지 않습니다 [PERF-03] */
+  /** 파일·폴더를 휴지통으로(폴더는 안의 파일과 함께). 하나라도 실패하면 아무것도 지우지 않습니다 [PERF-03·UX-06] */
   remove: (items: ItemRef[]) => http.post<DeleteItemsResult>('/api/items/delete', { items }),
   copy: (items: ItemRef[], targetFolderId: number) =>
     http.post<{ copiedFiles: number }>('/api/items/copy', { items, targetFolderId }),

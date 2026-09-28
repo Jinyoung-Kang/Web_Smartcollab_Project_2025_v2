@@ -39,14 +39,15 @@ class AccessControlTest extends IntegrationTest {
     @Test
     @DisplayName("[v1: 인증 없이도 가능] 로그인하지 않은 사용자는 파일을 볼 수 없다 (/api/files/view 는 v1 에서 permitAll)")
     void anonymousCannotViewFile() throws Exception {
+        api().perform(MockMvcRequestBuilders.get("/api/files/{id}", fileId)).andExpect(status().isUnauthorized());
         api().perform(MockMvcRequestBuilders.get("/api/files/{id}/view", fileId)).andExpect(status().isUnauthorized());
         api().perform(MockMvcRequestBuilders.get("/api/files/{id}/download", fileId)).andExpect(status().isUnauthorized());
     }
 
     @Test
-    @DisplayName("[v1 IDOR] 다른 사람의 파일 다운로드·미리보기·내용·버전·Office URL 은 404")
+    @DisplayName("[v1 IDOR] 다른 사람의 파일 정보·다운로드·미리보기·내용·버전·Office URL 은 404")
     void strangerCannotReadOthersFile() throws Exception {
-        for (String url : List.of("/api/files/{id}/download", "/api/files/{id}/view", "/api/files/{id}/content",
+        for (String url : List.of("/api/files/{id}", "/api/files/{id}/download", "/api/files/{id}/view", "/api/files/{id}/content",
                 "/api/files/{id}/versions", "/api/files/{id}/office-preview-url", "/api/files/{id}/share-links")) {
             stranger.get(url, fileId).andExpect(status().isNotFound());
         }

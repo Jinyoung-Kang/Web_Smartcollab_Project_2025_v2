@@ -96,6 +96,17 @@ public class FileService {
         return folders.findById(folderId).orElseThrow(() -> ApiException.notFound("폴더"));
     }
 
+    /**
+     * 파일 한 개의 정보(이름·크기·미리보기 종류). 채팅에 공유된 파일처럼 폴더 목록 없이 파일만 알 때 미리보기에 씁니다.
+     * 공유한 뒤 이름이 바뀌거나 지워졌을 수 있어 메시지에 담긴 값 대신 지금 상태를 돌려주고, 휴지통에 있거나 읽을 수 없으면 404.
+     */
+    @Transactional(readOnly = true)
+    public DriveDtos.ItemResponse get(Long fileId, Long userId) {
+        FileEntity file = getActive(fileId);
+        accessPolicy.requireFileRead(file, userId);
+        return DriveDtos.ItemResponse.of(file);
+    }
+
     /** 다운로드 대상 정보(트랜잭션 안에서 권한 확인). 실제 바이트 스트림은 트랜잭션 밖에서 엽니다. */
     @Transactional(readOnly = true)
     public DownloadTarget downloadTarget(Long fileId, Long userId) {

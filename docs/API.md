@@ -52,6 +52,7 @@
 | PATCH | `/api/folders/{id}` | 이름 바꾸기 |
 | DELETE | `/api/folders/{id}` | 안의 폴더·파일과 함께 휴지통으로 (30일 뒤 자동 영구 삭제) |
 | POST | `/api/files/upload?folderId=` | 업로드 (multipart `file`) |
+| GET | `/api/files/{id}` | 파일 정보(이름·크기·미리보기 종류) — 채팅에 공유된 파일 미리보기용, 휴지통에 있거나 읽을 수 없으면 404 |
 | GET | `/api/files/{id}/download` | 다운로드 (스트리밍) |
 | GET | `/api/files/{id}/view` | 미리보기 (이미지·PDF·텍스트만 inline) |
 | GET | `/api/files/{id}/office-preview-url` | Office 미리보기용 10분 SAS URL (Azure 저장소일 때) |

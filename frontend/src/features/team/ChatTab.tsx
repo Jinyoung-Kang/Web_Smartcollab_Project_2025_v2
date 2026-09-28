@@ -2,13 +2,15 @@ import { Fragment, useEffect, useLayoutEffect, useRef, useState, type FormEvent,
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Eraser, MessagesSquare, Paperclip, SendHorizontal } from 'lucide-react'
 import { chatApi, fileApi } from '@/api/endpoints'
+import { ApiError } from '@/api/http'
 import { uploadFile } from '@/api/upload'
-import type { ChatMessage, TeamDetail } from '@/api/types'
+import type { ChatMessage, Item, TeamDetail } from '@/api/types'
 import { useMe } from '@/auth/AuthProvider'
 import { Button, IconButton } from '@/components/ui/Button'
 import { useConfirm } from '@/components/ui/Confirm'
 import { Avatar, EmptyState, Spinner } from '@/components/ui/misc'
 import { useToast } from '@/components/ui/Toast'
+import { PreviewDialog } from '@/features/drive/dialogs/PreviewDialog'
 import { useRealtime } from '@/realtime/RealtimeProvider'
 import { appendChatMessage, useTeamActivity } from '@/realtime/TeamActivity'
 import { ItemIcon } from '@/lib/fileIcons'
@@ -18,6 +20,7 @@ import { cn } from '@/lib/cn'
 /**
  * 팀 채팅. 최근 30개부터 보여 주고 위로 스크롤하면 이전 메시지를 커서 기반으로 더 불러옵니다.
  * 보낸 사람은 서버가 인증 정보로 결정합니다 (v1: 클라이언트가 보낸 sender 를 그대로 신뢰).
+ * 공유된 파일은 눌러서 드라이브와 같은 미리보기로 열고, 옆의 아이콘으로 바로 내려받습니다.
  */
 export function ChatTab({ teamId, team }: { teamId: number; team: TeamDetail }) {
   const me = useMe()
@@ -28,6 +31,9 @@ export function ChatTab({ teamId, team }: { teamId: number; team: TeamDetail }) 
   const { setActiveChat } = useTeamActivity()
   const [text, setText] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [preview, setPreview] = useState<Item | null>(null)
+  const [opening, setOpening] = useState<number | null>(null)
+  const latestPreview = useRef<number | null>(null)
   const scroller = useRef<HTMLDivElement>(null)
   const fileInput = useRef<HTMLInputElement>(null)
   const stickToBottom = useRef(true)
@@ -112,6 +118,22 @@ export function ChatTab({ teamId, team }: { teamId: number; team: TeamDetail }) 
     }
   }
 
+  // 공유한 뒤 이름이 바뀌거나 지워졌을 수 있어, 메시지에 담긴 값 대신 지금 파일 정보로 드라이브와 같은 미리보기를 엽니다.
+  const openPreview = async (fileId: number) => {
+    latestPreview.current = fileId
+    setOpening(fileId)
+    try {
+      const file = await fileApi.get(fileId)
+      if (latestPreview.current === fileId) setPreview(file)
+    } catch (e) {
+      toast.error(e instanceof ApiError && e.status === 404
+        ? '파일을 찾을 수 없습니다. 삭제되었거나 휴지통에 있을 수 있습니다.'
+        : (e as Error).message)
+    } finally {
+      setOpening((current) => (current === fileId ? null : current))
+    }
+  }
+
   const clear = async () => {
     const ok = await confirm({ title: '채팅 기록을 모두 지울까요?', message: '모든 멤버의 화면에서 대화가 사라지며 되돌릴 수 없습니다.', confirmLabel: '모두 지우기', danger: true })
     if (!ok) return
@@ -152,19 +174,32 @@ export function ChatTab({ teamId, team }: { teamId: number; team: TeamDetail }) 
                   <div className="flex items-end gap-1.5">
                     {mine && <time className="text-[11px] whitespace-nowrap text-slate-500">{formatTime(m.createdAt)}</time>}
                     {m.type === 'FILE_SHARE' && m.file ? (
-                      <a
-                        href={fileApi.downloadUrl(m.file.id)}
-                        download
-                        className={cn('flex items-center gap-3 rounded-2xl border px-3 py-2.5 text-sm hover:shadow-sm',
-                          mine ? 'border-brand-200 bg-brand-50' : 'border-slate-200 bg-white')}
-                      >
-                        <ItemIcon type="file" name={m.file.name} className="size-8" />
-                        <span className="min-w-0">
-                          <span className="block max-w-[12rem] truncate font-medium">{m.file.name}</span>
-                          <span className="text-xs text-slate-500">{formatBytes(m.file.size)}</span>
-                        </span>
-                        <Download aria-hidden className="size-4 text-slate-400" />
-                      </a>
+                      <div className={cn('flex items-center rounded-2xl border text-sm hover:shadow-sm',
+                        mine ? 'border-brand-200 bg-brand-50' : 'border-slate-200 bg-white')}>
+                        <button
+                          type="button"
+                          onClick={() => void openPreview(m.file!.id)}
+                          aria-label={`${m.file.name} 미리보기`}
+                          aria-busy={opening === m.file.id}
+                          className={cn('flex min-w-0 items-center gap-3 rounded-l-2xl py-2.5 pr-1 pl-3 text-left',
+                            opening === m.file.id && 'cursor-wait opacity-70')}
+                        >
+                          <ItemIcon type="file" name={m.file.name} className="size-8" />
+                          <span className="min-w-0">
+                            <span className="block max-w-[12rem] truncate font-medium">{m.file.name}</span>
+                            <span className={cn('text-xs', mine ? 'text-slate-600' : 'text-slate-500')}>{formatBytes(m.file.size)}</span>
+                          </span>
+                        </button>
+                        <a
+                          href={fileApi.downloadUrl(m.file.id)}
+                          download
+                          aria-label={`${m.file.name} 내려받기`}
+                          title="내려받기"
+                          className="mr-1.5 rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                        >
+                          <Download aria-hidden className="size-4" />
+                        </a>
+                      </div>
                     ) : (
                       <p className={cn('rounded-2xl px-3.5 py-2 text-sm leading-relaxed whitespace-pre-wrap break-words',
                         mine ? 'rounded-br-md bg-brand-600 text-white' : 'rounded-bl-md bg-slate-100 text-slate-800')}>
@@ -210,6 +245,7 @@ export function ChatTab({ teamId, team }: { teamId: number; team: TeamDetail }) 
           </Button>
         )}
       </form>
+      <PreviewDialog file={preview} onClose={() => setPreview(null)} />
     </div>
   )
 }
