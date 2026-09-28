@@ -64,14 +64,26 @@ export interface Usage {
   quotaBytes: number
 }
 
+/** 휴지통 항목 — 파일 또는 폴더 트리 [UX-06] */
 export interface TrashItem {
+  type: 'file' | 'folder'
   id: number
   name: string
+  /** 파일 크기, 폴더면 안에 든 파일 크기의 합 */
   size?: number
   extension?: string
   deletedAt: string
   deletedByName?: string
+  /** 원래 있던 상위 폴더 */
   folderId: number
+  /** 폴더일 때 안에 든 파일 수 */
+  fileCount?: number
+}
+
+/** 폴더 복원 결과: 원래 상위 폴더가 휴지통에 있으면 최상위 폴더로 복원(relocated) */
+export interface RestoreResult {
+  folderId: number
+  relocated: boolean
 }
 
 export interface TextContent {
@@ -214,5 +226,5 @@ export type ItemRef = { type: 'file' | 'folder'; id: number }
 /** 여러 항목 삭제 결과 [PERF-03] */
 export interface DeleteItemsResult {
   trashedFiles: number
-  deletedFolders: number
+  trashedFolders: number
 }
