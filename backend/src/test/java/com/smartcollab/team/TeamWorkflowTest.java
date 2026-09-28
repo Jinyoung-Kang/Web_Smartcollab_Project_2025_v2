@@ -148,4 +148,33 @@ class TeamWorkflowTest extends IntegrationTest {
         leader.delete("/api/teams/{t}/messages", team[0]).andExpect(status().isNoContent());
         member.get("/api/teams/{t}/messages", team[0]).andExpect(jsonPath("$.messages", hasSize(0)));
     }
+
+    @Test
+    @DisplayName("채팅에 공유된 팀 파일은 팀원이 파일 정보(미리보기 종류)를 받아 미리 볼 수 있고, 휴지통에 넣으면 404")
+    void chatSharedFilePreview() throws Exception {
+        Api.Session leader = api().signUp("chatpv");
+        Api.Session member = api().signUp("chatpvm");
+        long[] team = leader.createTeam("미리보기 팀");
+        join(leader, member, team[0]);
+        byte[] png = {(byte) 0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'};
+        long image = Api.id(leader.upload(team[1], "화면 스케치.png", png));
+        long memo = leader.uploadText(team[1], "회의 메모.md", "# 메모");
+        leader.postJson("/api/teams/{t}/messages", Map.of("fileId", image), team[0])
+                .andExpect(jsonPath("$.file.id").value(image));
+
+        member.get("/api/files/{id}", image)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.type").value("file"))
+                .andExpect(jsonPath("$.name").value("화면 스케치.png"))
+                .andExpect(jsonPath("$.size").value(png.length))
+                .andExpect(jsonPath("$.previewKind").value("IMAGE"))
+                .andExpect(jsonPath("$.textEditable").value(false));
+        member.get("/api/files/{id}/view", image).andExpect(status().isOk());
+        member.get("/api/files/{id}", memo)
+                .andExpect(jsonPath("$.previewKind").value("TEXT"))
+                .andExpect(jsonPath("$.textEditable").value(true));
+
+        leader.delete("/api/files/{id}", image).andExpect(status().isNoContent());
+        member.get("/api/files/{id}", image).andExpect(status().isNotFound());
+    }
 }

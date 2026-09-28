@@ -53,6 +53,7 @@ class FolderTrashTest extends IntegrationTest {
         t.s().get("/api/folders/{id}", t.b()).andExpect(status().isNotFound());
         t.s().get("/api/files/{id}/download", t.f()).andExpect(status().isNotFound());
         t.s().get("/api/files/{id}/content", t.g()).andExpect(status().isNotFound());
+        t.s().get("/api/files/{id}", t.g()).andExpect(status().isNotFound());
         t.s().get("/api/files/search?q={q}", "문서").andExpect(jsonPath("$", hasSize(0)));
         t.s().get("/api/folders/tree").andExpect(jsonPath("$.roots[0].children", hasSize(0)));
         t.s().get("/api/files/usage").andExpect(jsonPath("$.fileCount").value(0));
