@@ -85,7 +85,7 @@ class FolderTrashTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("[v1 버그 유지] 휴지통에서 영구 삭제하면 휴지통·서명 파일이 든 하위까지 지워지고, 저장 공간도 돌아온다")
+    @DisplayName("휴지통에서 폴더를 영구 삭제하면 따로 휴지통에 넣은 파일·서명된 파일이 든 하위까지 지워지고, 저장 공간도 돌아온다")
     void purgesTreePermanently() throws Exception {
         Tree t = tree("fpurge");
         t.s().delete("/api/files/{id}", t.f()).andExpect(status().isNoContent());          // 폴더 안의 개별 휴지통 파일
