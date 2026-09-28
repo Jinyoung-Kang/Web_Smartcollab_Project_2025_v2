@@ -3,8 +3,8 @@
 | 층 | 도구 | 개수 | 실행 |
 |---|---|---:|---|
 | 백엔드 단위·통합 | JUnit 5 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** | 135 | `cd backend && ./gradlew test` |
-| 프론트엔드 단위·컴포넌트 | Vitest · Testing Library · jsdom | 28 | `cd frontend && npm test` |
-| E2E (전체 스택) | Playwright · Docker Compose | 6 시나리오 | `docker compose up -d --wait && cd e2e && npx playwright test` |
+| 프론트엔드 단위·컴포넌트 | Vitest · Testing Library · jsdom | 33 | `cd frontend && npm test` |
+| E2E (전체 스택) | Playwright · Docker Compose | 8 시나리오 | `docker compose up -d --wait && cd e2e && npx playwright test` |
 
 백엔드 라인 커버리지 **89.0%**, 분기 커버리지 **75.7%** (JaCoCo, `backend/build/reports/jacoco/test/html`).
 
@@ -36,8 +36,11 @@
 | `TrashPurgeScheduleTest` · `CorsProfileTest` · `GlobalExceptionHandlerTest` | 스케줄 시간대, 프로필별 CORS 출처, 로그에 입력값을 남기지 않는지 |
 | `AzureBlobStorageTest` | Azure 구현을 에뮬레이터(Azurite)로 검증 — 업로드·서버 측 복사·SAS URL·삭제 |
 | `SlidingWindowRateLimiterTest` 외 단위 테스트 | 요청 제한(동시성·만료 정리), 트리 구성(깊이 5,000), 요약 알고리즘, grant 서명, 파일명 검증, DeepL 호출 형식 |
-| E2E `smoke.spec.ts` | CSP 헤더, 문서 편집·버전, 업로드·이름 변경·휴지통 복원, **두 사용자 실시간 채팅·폴더 반영**, 비로그인 공유 다운로드, 검색 화면 새로고침 |
+| E2E `smoke.spec.ts` | CSP 헤더, 문서 편집·버전, 업로드·이름 변경·휴지통 복원, **두 사용자 실시간 채팅·폴더 반영**, 비로그인 공유 다운로드, 검색 화면 새로고침, 로그아웃·비밀번호 오류 뒤 로그인 (BUG-09) |
 | 프론트 `upload.test` · `EditorPage.test` | 대기 중 업로드 취소, 업로드의 401·CSRF 처리, 편집기 앱 내 이동 차단, 충돌 해결 시 편집본 보관 |
+| 프론트 `AuthProvider.test` | 실제 App·데이터 라우터로 로그아웃·세션 만료(401)·탈퇴 뒤 로그인 화면에 머무는지, 이전 사용자 캐시 삭제, 편집 중 세션 만료 시 확인, 비밀번호 오류 뒤 로그인 (BUG-09) |
+
+`.env` 의 `APP_PORT` 를 바꿨다면 E2E 에 주소를 알려 주세요: `E2E_BASE_URL=http://localhost:8081 npx playwright test`.
 
 로컬에서 E2E 를 1분 안에 여러 번 돌리면, 모든 요청이 한 IP 로 묶여 로그인 요청 제한(분당 10회)에 걸립니다. 반복 실행할 때는 `.env` 에 `LOGIN_RATE_PER_MINUTE=200`, `LOGIN_ACCOUNT_RATE=200` 을 넣고 `docker compose up -d --wait` 로 다시 띄우세요(CI 의 E2E 작업도 같은 값을 씁니다).
 
