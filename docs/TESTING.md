@@ -2,16 +2,16 @@
 
 | 층 | 도구 | 개수 | 실행 |
 |---|---|---:|---|
-| 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 172 | `cd backend && ./gradlew test` |
-| 프론트엔드 단위·컴포넌트 | Vitest · Testing Library · jsdom | 48 | `cd frontend && npm test` |
-| E2E (전체 스택) | Playwright · Docker Compose · axe-core | 11 (시나리오 9 + 접근성·탭 제목 2) | `docker compose up -d --wait && cd e2e && npx playwright test` |
+| 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 173 | `cd backend && ./gradlew test` |
+| 프론트엔드 단위·컴포넌트 | Vitest · Testing Library · jsdom | 51 | `cd frontend && npm test` |
+| E2E (전체 스택) | Playwright · Docker Compose · axe-core | 12 (시나리오 10 + 접근성·탭 제목 2) | `docker compose up -d --wait && cd e2e && npx playwright test` |
 
 백엔드 라인 커버리지 **90.0%**, 분기 커버리지 **77.6%** (JaCoCo, `backend/build/reports/jacoco/test/html`).
 
 ## 원칙
 
 - **H2 대신 실제 MySQL** 로 통합 테스트합니다. 재귀 CTE·`ON DELETE SET NULL`·조건부 UPDATE 처럼 DB 동작에 기대는 로직이 많아, 운영과 다른 DB 로 테스트하면 통과해도 믿을 수 없기 때문입니다.
-- 테스트마다 무작위 사용자 이름을 써서 데이터를 분리하고, 컨테이너와 Spring 컨텍스트는 한 번만 띄웁니다(전체 172건 약 1분 40초). 테스트 JVM 은 운영 컨테이너·CI 와 같은 UTC 로 실행합니다.
+- 테스트마다 무작위 사용자 이름을 써서 데이터를 분리하고, 컨테이너와 Spring 컨텍스트는 한 번만 띄웁니다(전체 173건 약 1분 40초). 테스트 JVM 은 운영 컨테이너·CI 와 같은 UTC 로 실행합니다.
 - v1 에서 찾은 결함마다 이름에 `[v1 …]` 을, 2026-09 코드 리뷰 항목에는 `[SEC-01]`·`[BUG-02]` 처럼 항목 ID 를 붙인 회귀 테스트가 있습니다 → [REFACTORING_REPORT.md](REFACTORING_REPORT.md), [REVIEW_2026-09.md](REVIEW_2026-09.md)
 - 인증은 실제 브라우저처럼 HttpOnly 쿠키 + CSRF 토큰으로 요청합니다(`support/Api`).
 
@@ -23,7 +23,7 @@
 | `WebSocketSecurityTest` | 실제 서버(랜덤 포트)에 WebSocket 으로 접속 — 비로그인 거부, 사칭 불가, 비멤버 구독 차단, 알림 푸시, 접속자 갱신 |
 | `DriveWorkflowTest` | 업로드·다운로드 파일명, 안전한 inline 미리보기, 휴지통 수명주기(커밋 후 저장소 삭제), 폴더 삭제(휴지통·서명 포함), 복사본 다운로드, 순환 이동 차단, 검색 |
 | `TextEditingTest` | 낙관적 잠금(409), 버전 복원, 현재 버전 서명·무효화, 추출 요약, 번역 키 없음 처리 |
-| `TeamWorkflowTest` | 초대·수락·중복 방지, 권한 적용, 팀장 위임, 팀 삭제 정리, 채팅 커서 페이지 |
+| `TeamWorkflowTest` | 초대·수락·중복 방지, 권한 적용, 팀장 위임, 팀 삭제 정리, 채팅 커서 페이지, 채팅에 공유된 파일의 정보(미리보기 종류)·휴지통이면 404 |
 | `ShareLinkTest` | 비밀번호·grant 흐름, **동시 다운로드 12건 중 정확히 3건만 성공**, 만료·해제·휴지통 |
 | `AccountDeletionTest` | 복잡한 이력이 있는 사용자의 탈퇴와 팀 자료 이관 |
 | `QueryCountBenchmarkTest` · `DownloadMemoryBenchmarkTest` · `StorageConnectionBenchmarkTest` | 성능 측정값 산출 ([PERFORMANCE.md](PERFORMANCE.md)). 마지막은 저장소 입출력 중 DB 커넥션 점유가 0 인지 검증 |
@@ -43,10 +43,11 @@
 | `ArchitectureTest` | 계층·의존 방향 규칙 5개 — 컨트롤러→리포지토리 금지, 서비스의 서블릿 의존 금지, 엔티티 응답 금지, global·storage 의 도메인 의존 금지 (ARC-05) |
 | `AzureBlobStorageTest` | Azure 구현을 에뮬레이터(Azurite)로 검증 — 업로드·서버 측 복사·SAS URL·삭제 |
 | `SlidingWindowRateLimiterTest` 외 단위 테스트 | 요청 제한(동시성·만료 정리), 트리 구성(깊이 5,000), 요약 알고리즘, grant 서명, 파일명 검증, DeepL 호출 형식 |
-| E2E `smoke.spec.ts` | 모든 화면의 CSP 위반 감시(`fixtures.ts`, 하나라도 있으면 실패), CSP 헤더, 문서 편집·버전, 업로드·이름 변경·휴지통 복원, **두 사용자 실시간 채팅·폴더 반영**, 비로그인 공유 다운로드, 검색 화면 새로고침, 로그아웃·비밀번호 오류 뒤 로그인 (BUG-09), 폴더를 휴지통에 넣고 복원 (UX-06) |
+| E2E `smoke.spec.ts` | 모든 화면의 CSP 위반 감시(`fixtures.ts`, 하나라도 있으면 실패), CSP 헤더, 문서 편집·버전, 업로드·이름 변경·휴지통 복원, **두 사용자 실시간 채팅·폴더 반영**, 비로그인 공유 다운로드, 검색 화면 새로고침, 로그아웃·비밀번호 오류 뒤 로그인 (BUG-09), 폴더를 휴지통에 넣고 복원 (UX-06), 팀 채팅에 올린 파일 미리보기(이미지가 실제로 그려지는지) |
 | 프론트 `upload.test` · `EditorPage.test` | 대기 중 업로드 취소, 업로드의 401·CSRF 처리, 편집기 앱 내 이동 차단, 충돌 해결 시 편집본 보관 |
-| E2E `a11y.spec.ts` | 로그인·드라이브·팀·선택 작업 바·버전 기록·알림·휴지통을 axe(WCAG 2.1 AA·모범 사례)로 검사 — 위반이 하나라도 있으면 실패, 화면별 탭 제목 (UX-01·02) |
+| E2E `a11y.spec.ts` | 로그인·드라이브·팀(내가 보낸 채팅 파일 카드 포함)·선택 작업 바·버전 기록·알림·휴지통을 axe(WCAG 2.1 AA·모범 사례)로 검사 — 위반이 하나라도 있으면 실패, 화면별 탭 제목 (UX-01·02) |
 | 프론트 `AppErrorPage.test` · `useDocumentTitle.test` · `josa.test`, 백엔드 `ApiExceptionTest` | 렌더링 오류·새 배포 안내 (ARC-04), 탭 제목 (UX-02), 받침에 맞는 조사 (UX-04) |
+| 프론트 `ChatTab.test` | 채팅에 공유된 파일을 누르면 지금 파일 정보로 드라이브와 같은 미리보기, 내려받기 링크 분리, 지워진 파일 안내 |
 | 프론트 `TrashPage.test` | 휴지통의 폴더(파일 수)·파일 구분, 폴더 복원(최상위로 옮겨진 경우 안내), 폴더 영구 삭제 확인 (UX-06) |
 | 프론트 `FileTable.test` | 큰 폴더를 200개씩 그리기·더 보기, 전체 선택은 전부, 키보드로 다음 묶음 이동, 정렬 시 처음부터 (PERF-02) |
 | 프론트 `AuthProvider.test` | 실제 App·데이터 라우터로 로그아웃·세션 만료(401)·탈퇴 뒤 로그인 화면에 머무는지, 이전 사용자 캐시 삭제, 편집 중 세션 만료 시 확인, 비밀번호 오류 뒤 로그인 (BUG-09), 세션 만료 안내 (UX-03) |
