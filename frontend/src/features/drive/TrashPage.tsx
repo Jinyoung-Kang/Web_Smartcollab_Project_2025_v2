@@ -30,32 +30,44 @@ export default function TrashPage() {
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: ['trash'] })
     void qc.invalidateQueries({ queryKey: ['folder'] })
+    void qc.invalidateQueries({ queryKey: ['tree'] })
     void qc.invalidateQueries({ queryKey: ['usage'] })
   }
 
+  // 폴더는 안의 폴더·파일과 함께 복원됩니다. 원래 상위 폴더가 휴지통에 있으면 최상위 폴더로 갑니다 [UX-06].
   const restore = useMutation({
-    mutationFn: (item: TrashItem) => trashApi.restore(item.id),
-    onSuccess: (_, item) => { refresh(); toast.success(`'${item.name}'${objectParticle(item.name)} 원래 폴더로 복원했습니다.`) },
+    mutationFn: async (item: TrashItem) =>
+      item.type === 'folder' ? (await trashApi.restoreFolder(item.id)).relocated : (await trashApi.restore(item.id), false),
+    onSuccess: (relocated, item) => {
+      refresh()
+      const name = `'${item.name}'${objectParticle(item.name)}`
+      toast.success(relocated
+        ? `${name} 최상위 폴더로 복원했습니다. 원래 상위 폴더가 휴지통에 있습니다.`
+        : `${name} 원래 폴더로 복원했습니다.`)
+    },
     onError: (e: Error) => toast.error(e.message),
   })
   const purge = useMutation({
-    mutationFn: (item: TrashItem) => trashApi.purge(item.id),
+    mutationFn: (item: TrashItem) => (item.type === 'folder' ? trashApi.purgeFolder(item.id) : trashApi.purge(item.id)),
     onSuccess: () => { refresh(); toast.success('영구 삭제했습니다.') },
     onError: (e: Error) => toast.error(e.message),
   })
   const empty = useMutation({
     mutationFn: () => trashApi.empty(teamId),
-    onSuccess: (r) => { refresh(); toast.success(`${r.deleted}개 파일을 영구 삭제했습니다.`) },
+    onSuccess: (r) => { refresh(); toast.success(`${r.deleted}개 항목을 영구 삭제했습니다.`) },
     onError: (e: Error) => toast.error(e.message),
   })
 
   const askPurge = async (item: TrashItem) => {
-    if (await confirm({ title: '영구 삭제할까요?', message: `'${item.name}'과(와) 모든 버전 기록이 삭제되며 되돌릴 수 없습니다.`, confirmLabel: '영구 삭제', danger: true })) {
+    const message = item.type === 'folder'
+      ? `'${item.name}' 폴더와 안의 파일 ${item.fileCount ?? 0}개까지 모두 삭제되며 되돌릴 수 없습니다.`
+      : `'${item.name}'과(와) 모든 버전 기록이 삭제되며 되돌릴 수 없습니다.`
+    if (await confirm({ title: '영구 삭제할까요?', message, confirmLabel: '영구 삭제', danger: true })) {
       purge.mutate(item)
     }
   }
   const askEmpty = async () => {
-    if (await confirm({ title: '휴지통을 비울까요?', message: `${trash.data?.length ?? 0}개 파일이 영구 삭제됩니다.`, confirmLabel: '비우기', danger: true })) {
+    if (await confirm({ title: '휴지통을 비울까요?', message: `${trash.data?.length ?? 0}개 항목이 영구 삭제됩니다.`, confirmLabel: '비우기', danger: true })) {
       empty.mutate()
     }
   }
@@ -70,7 +82,7 @@ export default function TrashPage() {
       <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 px-4 py-4 sm:px-6">
         <div className="min-w-0 flex-1">
           <h1 className="text-lg font-semibold">{title}</h1>
-          <p className="text-sm text-slate-500">삭제한 파일은 {RETENTION_DAYS}일 동안 보관된 뒤 자동으로 영구 삭제됩니다.</p>
+          <p className="text-sm text-slate-500">삭제한 파일과 폴더는 {RETENTION_DAYS}일 동안 보관된 뒤 자동으로 영구 삭제됩니다.</p>
         </div>
         <Button variant="danger" disabled={!trash.data?.length} loading={empty.isPending} onClick={askEmpty}>
           <Trash2 className="size-4" /> 휴지통 비우기
@@ -84,11 +96,12 @@ export default function TrashPage() {
           {trash.data?.map((item) => {
             const left = RETENTION_DAYS - Math.floor((now - new Date(item.deletedAt).getTime()) / 86_400_000)
             return (
-              <li key={item.id} className="flex items-center gap-3 border-b border-slate-100 px-4 py-3 sm:px-6">
-                <ItemIcon type="file" name={item.name} className="size-5" />
+              <li key={`${item.type}-${item.id}`} className="flex items-center gap-3 border-b border-slate-100 px-4 py-3 sm:px-6">
+                <ItemIcon type={item.type} name={item.name} className="size-5" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{item.name}</p>
                   <p className="text-xs text-slate-500" title={formatDateTime(item.deletedAt)}>
+                    {item.type === 'folder' && `폴더 · 파일 ${item.fileCount ?? 0}개 · `}
                     {item.deletedByName ?? '알 수 없음'}님이 {formatRelative(item.deletedAt)} 삭제 · {formatBytes(item.size)} ·{' '}
                     <span className={left <= 3 ? 'text-red-600' : ''}>{Math.max(left, 0)}일 후 영구 삭제</span>
                   </p>

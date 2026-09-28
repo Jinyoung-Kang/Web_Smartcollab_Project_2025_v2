@@ -188,7 +188,7 @@ public class FileService {
 
     FileEntity getActive(Long fileId) {
         FileEntity file = files.findWithFolder(fileId).orElseThrow(() -> ApiException.notFound("파일"));
-        if (file.isDeleted()) {
+        if (file.isInTrash()) {
             throw ApiException.notFound("파일");
         }
         return file;

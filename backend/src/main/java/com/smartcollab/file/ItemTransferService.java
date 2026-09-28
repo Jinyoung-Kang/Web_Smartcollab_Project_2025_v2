@@ -69,6 +69,7 @@ public class ItemTransferService {
                 if (folder.isRoot()) {
                     throw ApiException.badRequest("최상위 폴더는 이동할 수 없습니다.");
                 }
+                accessPolicy.requireRead(folder, userId);   // 휴지통의 폴더는 없는 것처럼 [UX-06]
                 accessPolicy.requireEdit(folder.getParent(), userId);
                 requireSameScope(folder, target);
                 boolean cycle = folders.findSubtree(folder.getId()).stream().anyMatch(r -> r.getId().equals(target.getId()));
@@ -159,12 +160,15 @@ public class ItemTransferService {
         List<Long> subtreeIds = folders.findSubtree(sourceRoot.getId()).stream()
                 .map(FolderRepository.SubtreeRow::getId).toList();
         Map<Long, List<Folder>> childrenOf = new HashMap<>();
+        List<Long> copiedFolderIds = new ArrayList<>();
         for (Folder f : folders.findAllById(subtreeIds)) {
+            if (f.isInTrash()) continue;   // 따로 휴지통에 넣은 하위 폴더(와 그 아래)는 복사하지 않음 [UX-06]
+            copiedFolderIds.add(f.getId());
             if (!f.getId().equals(sourceRoot.getId())) {
                 childrenOf.computeIfAbsent(f.getParent().getId(), k -> new ArrayList<>()).add(f);
             }
         }
-        List<FileEntity> sourceFiles = files.findActiveWithVersionInFolders(subtreeIds);
+        List<FileEntity> sourceFiles = files.findActiveWithVersionInFolders(copiedFolderIds);
         if (sourceFiles.size() > MAX_COPY_FILES) {
             throw ApiException.badRequest("한 번에 복사할 수 있는 파일은 " + MAX_COPY_FILES + "개까지입니다.");
         }

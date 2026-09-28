@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.Map;
 
-@Tag(name = "Trash", description = "휴지통 (개인/팀)")
+@Tag(name = "Trash", description = "휴지통 (개인/팀, 파일·폴더)")
 @RestController
 @RequestMapping("/api/trash")
 @RequiredArgsConstructor
@@ -39,6 +39,19 @@ public class TrashController {
     @DeleteMapping("/{fileId}")
     public ResponseEntity<Void> deletePermanently(@PathVariable Long fileId, @CurrentUser AuthUser user) {
         trashService.deletePermanently(fileId, user.id());
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "폴더 복원", description = "하위 폴더·파일과 함께 복원합니다. 원래 상위 폴더가 휴지통에 있으면 최상위 폴더로 복원합니다.")
+    @PostMapping("/folders/{folderId}/restore")
+    public DriveDtos.RestoreResponse restoreFolder(@PathVariable Long folderId, @CurrentUser AuthUser user) {
+        return trashService.restoreFolder(folderId, user.id());
+    }
+
+    @Operation(summary = "폴더 영구 삭제", description = "하위 폴더·파일까지 되돌릴 수 없게 지웁니다.")
+    @DeleteMapping("/folders/{folderId}")
+    public ResponseEntity<Void> deleteFolderPermanently(@PathVariable Long folderId, @CurrentUser AuthUser user) {
+        trashService.deleteFolderPermanently(folderId, user.id());
         return ResponseEntity.noContent().build();
     }
 

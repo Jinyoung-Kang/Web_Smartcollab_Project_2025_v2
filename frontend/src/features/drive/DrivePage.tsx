@@ -85,11 +85,11 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
   // 선택한 항목을 한 요청으로 지웁니다. 하나라도 지울 수 없으면 아무것도 지우지 않습니다 [PERF-03].
   const remove = useMutation({
     mutationFn: (targets: Item[]) => itemApi.remove(targets.map((t) => ({ type: t.type, id: t.id }))),
-    onSuccess: ({ trashedFiles, deletedFolders }) => {
+    onSuccess: ({ trashedFiles, trashedFolders }) => {
       setSelected(new Set())
-      toast.success(deletedFolders === 0
+      toast.success(trashedFolders === 0
         ? `${trashedFiles}개 파일을 휴지통으로 옮겼습니다.`
-        : `${trashedFiles + deletedFolders}개 항목을 삭제했습니다.`)
+        : `${trashedFiles + trashedFolders}개 항목을 휴지통으로 옮겼습니다.`)
     },
     onError: (e: Error) => toast.error(e.message),
     onSettled: refresh,
@@ -101,7 +101,7 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
     const ok = await confirm({
       title: `${targets.length}개 항목을 삭제할까요?`,
       message: folders > 0
-        ? '파일은 휴지통으로 옮겨지지만, 폴더는 안에 든 파일까지 즉시 영구 삭제됩니다.'
+        ? '폴더는 안의 폴더·파일과 함께 휴지통으로 옮겨지며, 30일 안에 복원할 수 있습니다.'
         : '휴지통으로 옮겨지며 30일 안에 복원할 수 있습니다.',
       confirmLabel: '삭제',
       danger: true,

@@ -85,7 +85,8 @@ erDiagram
     users ||--o{ notifications : ""
 ```
 
-- 스키마는 Flyway(`db/migration/V1__init_schema.sql`, `V2__notifications_recent_index.sql`)로 관리하고 JPA 는 `validate` 만 합니다.
+- 스키마는 Flyway(`db/migration/V1__init_schema.sql`, `V2__notifications_recent_index.sql`, `V3__folder_trash.sql`)로 관리하고 JPA 는 `validate` 만 합니다.
+- **휴지통**: 파일은 `files.is_deleted`, 폴더는 `folders.trash_root_id`(휴지통에 들어간 트리의 맨 위 폴더, 맨 위 폴더는 자기 자신)로 표시합니다. 폴더를 지우면 하위 폴더까지 같은 값을 넣고 안의 파일은 그대로 두어, "휴지통 안에 있는가"를 상위를 거슬러 올라가지 않고 한 열로 판단합니다. 휴지통 안의 폴더·파일은 `AccessPolicy` 가 없는 것처럼 404 로 막아, 다운로드·편집·업로드·이동·공유 링크 등 모든 경로가 한 곳에서 막힙니다. 복원은 그 트리의 표시만 지우고(따로 지운 하위 트리는 남음), 원래 상위 폴더도 휴지통에 있으면 최상위 폴더로 옮깁니다.
 - 모든 시각은 UTC(`DATETIME(6)`, `Instant`)로 저장하고 화면에서 사용자 시간대로 표시합니다.
 - 인덱스는 조회 경로 기준: `files(folder_id, is_deleted)`, `chat_messages(team_id, message_id)`, `notifications(user_id, is_read, created_at)`(읽지 않은 수)·`(user_id, created_at, notification_id)`(최신순 목록), `team_members(team_id, user_id) UNIQUE` 등.
 - `files ↔ file_versions` 는 서로를 참조하므로(현재 버전 포인터) 삭제 시 포인터를 먼저 끊습니다.

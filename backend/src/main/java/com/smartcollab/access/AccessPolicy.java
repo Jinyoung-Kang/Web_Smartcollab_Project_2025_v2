@@ -15,6 +15,9 @@ import org.springframework.stereotype.Component;
  * <ul>
  *   <li>읽을 수 없는 대상은 존재 여부를 숨기기 위해 404 로 응답합니다 (ID 추측 공격 방지).</li>
  *   <li>읽을 수는 있지만 권한이 부족하면 403 으로 응답합니다.</li>
+ *   <li>휴지통에 있는 폴더와 그 안의 폴더·파일은 없는 것처럼 404 입니다 [UX-06]. 휴지통에서 복원·영구 삭제할 때만
+ *       {@link #requireTrashedFolderManage} 로 따로 확인합니다. 모든 폴더·파일 작업이 이 클래스를 거치므로
+ *       휴지통 안의 항목을 여는 경로(다운로드·편집·업로드·이동·공유 …)가 한 곳에서 막힙니다.</li>
  * </ul>
  */
 @Component
@@ -34,7 +37,7 @@ public class AccessPolicy {
 
     public Access requireRead(Folder folder, Long userId) {
         Access access = accessTo(folder, userId);
-        if (!access.canRead()) {
+        if (!access.canRead() || folder.isInTrash()) {
             throw ApiException.notFound("폴더");
         }
         return access;
@@ -56,9 +59,10 @@ public class AccessPolicy {
         return access;
     }
 
+    /** 파일이 개별로 휴지통에 있는지는 호출하는 쪽이 판단합니다(휴지통 복원·영구 삭제도 이 검사를 씀). */
     public Access requireFileRead(FileEntity file, Long userId) {
         Access access = accessTo(file.getFolder(), userId);
-        if (!access.canRead()) {
+        if (!access.canRead() || file.getFolder().isInTrash()) {
             throw ApiException.notFound("파일");
         }
         return access;
@@ -86,6 +90,18 @@ public class AccessPolicy {
         Access access = requireFileRead(file, userId);
         if (!file.isOwnedBy(userId) && !access.leader()) {
             throw ApiException.forbidden("파일을 올린 사람 또는 팀장만 공유 링크를 만들 수 있습니다.");
+        }
+        return access;
+    }
+
+    /** 휴지통의 폴더를 복원·영구 삭제하려면 그 스토리지에서 삭제 권한이 있어야 합니다 [UX-06]. */
+    public Access requireTrashedFolderManage(Folder folder, Long userId) {
+        Access access = accessTo(folder, userId);
+        if (!access.canRead() || !folder.isTrashRoot()) {
+            throw ApiException.notFound("휴지통의 폴더");
+        }
+        if (!access.canDelete()) {
+            throw ApiException.forbidden("삭제 권한이 있어야 휴지통의 폴더를 복원하거나 영구 삭제할 수 있습니다.");
         }
         return access;
     }

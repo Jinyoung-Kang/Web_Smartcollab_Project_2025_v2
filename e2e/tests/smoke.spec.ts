@@ -59,6 +59,36 @@ test('파일을 올리고 이름을 바꾼 뒤 휴지통으로 보냈다가 복�
   await expect(page.getByText(`'${renamed}'을(를) 원래 폴더로 복원했습니다.`)).toBeVisible()
 })
 
+test('[UX-06] 폴더를 지우면 안의 파일과 함께 휴지통으로 가고, 복원하면 돌아온다', async ({ page }) => {
+  await login(page, 'demo1')
+  const folder = `e2e-폴더-${Date.now()}`
+  await page.getByRole('button', { name: '새 폴더' }).click()
+  await page.getByRole('dialog').getByRole('textbox').fill(folder)
+  await page.getByRole('dialog').getByRole('button', { name: '만들기' }).click()
+  await page.getByRole('button', { name: folder, exact: true }).click()
+  // 폴더 화면으로 바뀐 뒤에 올려야 그 폴더에 들어갑니다 (바뀌기 전이면 보이던 화면의 폴더에 올라감)
+  await expect(page.getByRole('heading', { level: 1, name: folder })).toBeVisible()
+  await page.locator('input[type=file][multiple]').setInputFiles({ name: 'inside.txt', mimeType: 'text/plain', buffer: Buffer.from('x') })
+  await expect(page.getByRole('region', { name: '업로드 진행 상황' })).toContainText('업로드 완료')
+  await page.getByRole('navigation', { name: '주 메뉴' }).getByRole('link', { name: '내 드라이브' }).click()
+
+  await page.getByLabel(`${folder} 선택`).check()
+  await page.getByRole('toolbar').getByRole('button', { name: '삭제' }).click()
+  await expect(page.getByRole('dialog')).toContainText('휴지통으로 옮겨지며')
+  await page.getByRole('dialog').getByRole('button', { name: '삭제' }).click()
+  await expect(page.getByRole('button', { name: folder, exact: true })).toBeHidden()
+
+  await page.getByRole('link', { name: '휴지통' }).click()
+  const row = page.getByRole('listitem').filter({ hasText: folder })
+  await expect(row).toContainText('폴더 · 파일 1개')
+  await row.getByRole('button', { name: '복원' }).click()
+  await expect(page.getByText(`원래 폴더로 복원했습니다.`)).toBeVisible()
+  await page.getByRole('navigation', { name: '주 메뉴' }).getByRole('link', { name: '내 드라이브' }).click()
+  await page.getByRole('button', { name: folder, exact: true }).click()
+  await expect(page.getByRole('heading', { level: 1, name: folder })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'inside.txt', exact: true })).toBeVisible()
+})
+
 test('두 사용자가 실시간으로 채팅하고, 폴더 변경이 새로고침 없이 반영된다', async ({ browser, page }) => {
   await login(page, 'demo1')
   await openDemoTeam(page)

@@ -83,9 +83,9 @@ public final class DriveDtos {
 
     /**
      * @param trashedFiles   휴지통으로 옮긴 파일 수
-     * @param deletedFolders 영구 삭제한 폴더 수 (안의 파일 포함)
+     * @param trashedFolders 휴지통으로 옮긴 폴더 수 (안의 폴더·파일과 함께) [UX-06]
      */
-    public record DeleteResponse(int trashedFiles, int deletedFolders) {
+    public record DeleteResponse(int trashedFiles, int trashedFolders) {
     }
 
     public record SearchResult(ItemResponse item, Long folderId, String path) {
@@ -100,11 +100,31 @@ public final class DriveDtos {
     public record UsageResponse(long fileCount, long totalBytes, long storedBytes, long quotaBytes) {
     }
 
-    public record TrashItem(Long id, String name, Long size, String extension, Instant deletedAt, String deletedByName,
-                            Long folderId) {
+    /**
+     * 휴지통 항목 (파일 또는 폴더 트리) [UX-06].
+     * @param folderId  원래 있던 상위 폴더
+     * @param fileCount 폴더일 때 안에 든 파일 수 (따로 휴지통에 넣은 파일·하위 폴더는 빼고), 파일이면 null
+     * @param size      파일 크기, 폴더면 안에 든 파일 크기의 합
+     */
+    public record TrashItem(String type, Long id, String name, Long size, String extension, Instant deletedAt,
+                            String deletedByName, Long folderId, Long fileCount) {
         public static TrashItem of(FileEntity f) {
-            return new TrashItem(f.getId(), f.getName(), f.getSize(), FileNames.extension(f.getName()), f.getDeletedAt(),
-                    f.getDeletedBy() == null ? null : f.getDeletedBy().getName(), f.getFolder().getId());
+            return new TrashItem("file", f.getId(), f.getName(), f.getSize(), FileNames.extension(f.getName()), f.getDeletedAt(),
+                    f.getDeletedBy() == null ? null : f.getDeletedBy().getName(), f.getFolder().getId(), null);
         }
+
+        public static TrashItem of(Folder folder, TrashedTreeSize size) {
+            return new TrashItem("folder", folder.getId(), folder.getName(), size == null ? 0 : size.totalBytes(), null,
+                    folder.getDeletedAt(), folder.getDeletedBy() == null ? null : folder.getDeletedBy().getName(),
+                    folder.getParent().getId(), size == null ? 0 : size.fileCount());
+        }
+    }
+
+    /**
+     * 휴지통에서 폴더를 복원한 결과 [UX-06].
+     * @param folderId  복원된 위치(상위 폴더)
+     * @param relocated 원래 상위 폴더가 휴지통에 있어 최상위 폴더로 복원했으면 true
+     */
+    public record RestoreResponse(Long folderId, boolean relocated) {
     }
 }

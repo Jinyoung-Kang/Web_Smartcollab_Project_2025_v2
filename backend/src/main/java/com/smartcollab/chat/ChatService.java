@@ -52,7 +52,7 @@ public class ChatService {
         ChatMessage message;
         if (req.fileId() != null) {
             FileEntity file = files.findWithFolder(req.fileId())
-                    .filter(f -> !f.isDeleted() && Objects.equals(f.getFolder().teamId(), teamId))
+                    .filter(f -> !f.isInTrash() && Objects.equals(f.getFolder().teamId(), teamId))
                     .orElseThrow(() -> ApiException.notFound("이 팀의 파일"));
             message = ChatMessage.fileShare(member.getTeam(), member.getUser(), file.getId(), file.getName(), file.getSize());
         } else {

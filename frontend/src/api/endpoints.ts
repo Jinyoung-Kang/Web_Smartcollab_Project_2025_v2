@@ -11,6 +11,7 @@ import type {
   NotificationList,
   PublicConfig,
   PublicShareInfo,
+  RestoreResult,
   SearchResult,
   ShareLink,
   Summary,
@@ -80,6 +81,8 @@ export const trashApi = {
   list: (teamId?: number) => http.get<TrashItem[]>(`/api/trash${q({ teamId })}`),
   restore: (fileId: number) => http.post<void>(`/api/trash/${fileId}/restore`),
   purge: (fileId: number) => http.del<void>(`/api/trash/${fileId}`),
+  restoreFolder: (folderId: number) => http.post<RestoreResult>(`/api/trash/folders/${folderId}/restore`),
+  purgeFolder: (folderId: number) => http.del<void>(`/api/trash/folders/${folderId}`),
   empty: (teamId?: number) => http.del<{ deleted: number }>(`/api/trash${q({ teamId })}`),
 }
 

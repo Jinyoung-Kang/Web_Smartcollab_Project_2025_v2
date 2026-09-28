@@ -29,7 +29,7 @@ class ItemDeletionTest extends IntegrationTest {
     ApplicationEvents events;
 
     @Test
-    @DisplayName("파일과 폴더를 한 요청으로 지운다 — 파일은 휴지통으로, 폴더는 안의 파일까지 영구 삭제")
+    @DisplayName("파일과 폴더를 한 요청으로 휴지통으로 옮긴다 (폴더는 안의 파일과 함께)")
     void deletesFilesAndFoldersInOneRequest() throws Exception {
         Api.Session s = api().signUp("bulkdel");
         long a = s.uploadText(s.rootFolderId, "a.txt", "a");
@@ -40,10 +40,10 @@ class ItemDeletionTest extends IntegrationTest {
         s.postJson("/api/items/delete", Map.of("items", List.of(ref("file", a), ref("file", b), ref("folder", folder))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.trashedFiles").value(2))
-                .andExpect(jsonPath("$.deletedFolders").value(1));
+                .andExpect(jsonPath("$.trashedFolders").value(1));
 
         s.get("/api/folders/{id}", s.rootFolderId).andExpect(jsonPath("$.items", hasSize(0)));
-        s.get("/api/trash").andExpect(jsonPath("$", hasSize(2)));
+        s.get("/api/trash").andExpect(jsonPath("$", hasSize(3)));
         s.get("/api/folders/{id}", folder).andExpect(status().isNotFound());
     }
 
