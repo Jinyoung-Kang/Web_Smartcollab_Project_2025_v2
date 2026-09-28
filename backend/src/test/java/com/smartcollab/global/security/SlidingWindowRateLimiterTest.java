@@ -50,6 +50,21 @@ class SlidingWindowRateLimiterTest {
     }
 
     @Test
+    @DisplayName("[SEC-07] 요청마다 무게(글자 수 등)를 매겨, 창 안의 합계가 한도를 넘지 않을 때만 허용한다")
+    void weightedBudget() {
+        MutableClock clock = new MutableClock();
+        SlidingWindowRateLimiter limiter = new SlidingWindowRateLimiter(clock);
+        Duration day = Duration.ofDays(1);
+        assertThat(limiter.tryAcquire("t", 60, 100, day)).isTrue();
+        assertThat(limiter.tryAcquire("t", 50, 100, day)).isFalse();   // 합계 110: 거절하고 기록하지 않음
+        assertThat(limiter.tryAcquire("t", 40, 100, day)).isTrue();    // 합계 100
+        assertThat(limiter.tryAcquire("t", 1, 100, day)).isFalse();
+        assertThat(limiter.tryAcquire("other", 100, 100, day)).isTrue();
+        clock.now = clock.now.plus(day).plusSeconds(1);
+        assertThat(limiter.tryAcquire("t", 100, 100, day)).isTrue();
+    }
+
+    @Test
     @DisplayName("동시 요청에서도 한도를 정확히 지킨다")
     void concurrent() throws Exception {
         SlidingWindowRateLimiter limiter = new SlidingWindowRateLimiter();

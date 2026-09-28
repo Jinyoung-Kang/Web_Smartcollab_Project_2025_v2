@@ -66,6 +66,8 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testImplementation("org.testcontainers:testcontainers-mysql")
+    // 계층·의존 방향 규칙을 테스트로 고정합니다 [ARC-05] (JUnit 엔진 연동 없이 코어만 사용)
+    testImplementation("com.tngtech.archunit:archunit:1.5.1")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     mockitoAgent(platform(org.springframework.boot.gradle.plugin.SpringBootPlugin.BOM_COORDINATES))
     mockitoAgent("org.mockito:mockito-core") { isTransitive = false }

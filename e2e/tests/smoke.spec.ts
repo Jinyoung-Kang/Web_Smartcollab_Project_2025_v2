@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, watchCsp } from './fixtures'
 import { DEMO_PASSWORD, login, newUserPage, openDemoTeam } from './helpers'
 
 test('보안 헤더: CSP 로 외부 스크립트·eval 을 막는다', async ({ request }) => {
@@ -7,6 +7,7 @@ test('보안 헤더: CSP 로 외부 스크립트·eval 을 막는다', async ({ 
   const csp = res.headers()['content-security-policy']
   expect(csp).toContain("script-src 'self'")
   expect(csp).not.toContain('unsafe-eval')
+  expect(csp).not.toContain("'unsafe-inline'")
   expect((await request.get('/api/auth/me')).status()).toBe(401)
 })
 
@@ -89,6 +90,7 @@ test('공유 링크로 로그인 없이 내려받는다', async ({ page, browser
   expect(path).toContain('/share/')
 
   const anonymous = await (await browser.newContext()).newPage()
+  watchCsp(anonymous)
   await anonymous.goto(path!.trim())
   await expect(anonymous.getByText('프로젝트 개요.md')).toBeVisible()
   const download = anonymous.waitForEvent('download')

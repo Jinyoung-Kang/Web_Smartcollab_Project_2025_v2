@@ -2,11 +2,13 @@ package com.smartcollab.global.error;
 
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.exception.ConstraintViolationException;
+import org.slf4j.MDC;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
@@ -29,6 +31,9 @@ import java.util.Map;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
+
+    /** 요청 추적 ID 의 MDC 키이자 오류 본문 속성 이름 [ARC-02] */
+    public static final String REQUEST_ID = "requestId";
 
     @ExceptionHandler(ApiException.class)
     ResponseEntity<ProblemDetail> handleApi(ApiException e) {
@@ -98,6 +103,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     @Override
+    protected ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException ex, HttpHeaders headers,
+                                                                  HttpStatusCode status, WebRequest request) {
+        // 길이를 알리지 않은 본문이 읽는 도중 한도를 넘은 경우 [SEC-10]
+        if (RequestBodyTooLargeException.isCauseOf(ex)) {
+            return ResponseEntity.status(ErrorCode.PAYLOAD_TOO_LARGE.status())
+                    .body(body(ErrorCode.PAYLOAD_TOO_LARGE, RequestBodyTooLargeException.MESSAGE));
+        }
+        return super.handleHttpMessageNotReadable(ex, headers, status, request);
+    }
+
+    @Override
     protected ResponseEntity<Object> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException ex,
                                                                           HttpHeaders headers, HttpStatusCode status,
                                                                           WebRequest request) {
@@ -123,6 +139,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemDetail pd = ProblemDetail.forStatusAndDetail(code.status(), message);
         pd.setTitle(code.status().getReasonPhrase());
         pd.setProperty("code", code.name());
+        // 사용자가 알려 준 오류를 서버 로그에서 바로 찾을 수 있도록 요청 추적 ID 를 함께 돌려줍니다.
+        String requestId = MDC.get(REQUEST_ID);
+        if (requestId != null) {
+            pd.setProperty(REQUEST_ID, requestId);
+        }
         return pd;
     }
 }

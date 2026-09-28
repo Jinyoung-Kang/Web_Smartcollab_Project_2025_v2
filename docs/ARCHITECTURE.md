@@ -38,7 +38,8 @@ flowchart LR
 
 ```
 com.smartcollab
-├── global      config · error(ProblemDetail) · security(JWT 쿠키, CSRF, 요청 제한) · util
+├── global      config · error(ProblemDetail) · security(JWT 쿠키, CSRF, 요청 제한, 보안 이벤트 로그)
+│               · web(요청 추적 ID·접근 기록, 본문 크기 제한) · util
 ├── access      AccessPolicy — 파일·폴더·팀 권한 판단의 단일 진입점
 ├── auth / user 가입·로그인·탈퇴, 시스템 계정
 ├── folder      Folder, 재귀 CTE 조회, FolderTree(O(n) 트리)
@@ -50,9 +51,17 @@ com.smartcollab
 ├── signature   버전 서명
 ├── notification 알림
 ├── realtime    WebSocket 설정, STOMP 인가, 팀 구독 추적(접속 표시·권한 회수), 커밋 후 이벤트 발행
-├── ai          추출 요약, DeepL 클라이언트
+├── ai          추출 요약, 번역(사용자별 하루 분량 제한), DeepL 클라이언트
 └── system      공개 설정, 데모 데이터
 ```
+
+**의존 방향 규칙** (`ArchitectureTest`, ArchUnit 으로 빌드마다 검사): 컨트롤러는 리포지토리를 직접 쓰지 않고 서비스를 거칩니다.
+서비스는 서블릿(HTTP) 타입을 모르고, 컨트롤러는 엔티티 대신 DTO 를 돌려줍니다. 공통 모듈(`global`)과 저장소 어댑터(`storage`)는
+도메인 패키지에 의존하지 않습니다. 도메인 패키지끼리(file ↔ folder 등)는 서로 참조합니다 — 한 드라이브 기능을 이루는 밀접한
+애그리거트라 억지로 떼어 내지 않았습니다.
+
+**요청이 거치는 필터 순서**: `RequestTraceFilter`(추적 ID·접근 기록) → `RequestBodyLimitFilter`(본문 6MB) →
+Spring Security(쿠키 JWT 인증·CSRF·보안 헤더) → 컨트롤러. 추적 필터가 가장 앞에 있어 413·401 같은 거절 응답에도 추적 ID 가 붙습니다.
 
 v1 은 `controller/ service/ repository/ entity/ dto/` 로 계층만 나눠, 한 기능을 고치려면 다섯 폴더를 오가야 했고 권한 규칙이 서비스 4곳에 따로 흩어져 서로 달랐습니다.
 

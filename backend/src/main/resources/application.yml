@@ -99,6 +99,8 @@ app:
     share-password-per-link-per-10-minutes: ${SHARE_PASSWORD_LINK_RATE:50}
     # 한 IP 에서 계정을 대량으로 만드는 것을 막음 [SEC-05]
     signup-per-hour: ${SIGNUP_RATE_PER_HOUR:5}
+    # 한 사용자의 하루 번역 글자 수. DeepL 무료 요금제는 월 50만 자라 한 사람이 다 써 버리지 못하게 합니다 [SEC-07]
+    translation-chars-per-user-per-day: ${TRANSLATION_CHARS_PER_USER_PER_DAY:100000}
   # 저장 공간 한도 — 옛 버전·휴지통까지 포함한 실제 저장량 기준 [SEC-05]
   quota:
     personal: ${QUOTA_PERSONAL:1GB}
@@ -114,7 +116,14 @@ app:
     # 체험 데이터 초기화 시각 [SEC-06]
     reset-cron: ${DEMO_RESET_CRON:0 0 5 * * *}
     reset-zone: ${DEMO_RESET_ZONE:Asia/Seoul}
+  http:
+    # 파일 업로드를 뺀 요청 본문(JSON 등)의 최대 크기 [SEC-10]. 텍스트 편집 저장(TEXT_EDIT_MAX_BYTES, 2MB)이
+    # JSON 으로 이스케이프되면 커질 수 있으므로 그 2배 이상으로 둡니다.
+    max-body-size: ${MAX_REQUEST_BODY_SIZE:6MB}
 
 logging:
+  pattern:
+    # 모든 로그 줄에 요청 추적 ID 를 붙입니다 [ARC-02] (요청 밖의 로그는 빈 괄호)
+    correlation: "[%X{requestId:-}] "
   level:
     org.hibernate.SQL: ${SQL_LOG_LEVEL:warn}

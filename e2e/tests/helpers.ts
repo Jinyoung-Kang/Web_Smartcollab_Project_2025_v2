@@ -1,4 +1,5 @@
 import { expect, type Browser, type Page } from '@playwright/test'
+import { watchCsp } from './fixtures'
 
 export const DEMO_PASSWORD = process.env.DEMO_PASSWORD ?? 'demo1234!'
 
@@ -13,6 +14,7 @@ export async function login(page: Page, username: string, password = DEMO_PASSWO
 export async function newUserPage(browser: Browser, username: string) {
   const context = await browser.newContext()
   const page = await context.newPage()
+  watchCsp(page)
   await login(page, username)
   return page
 }
