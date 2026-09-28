@@ -108,6 +108,22 @@ test('두 사용자가 실시간으로 채팅하고, 폴더 변경이 새로고�
   await other.context().close()
 })
 
+test('팀 채팅에 올린 파일을 누르면 드라이브와 같은 미리보기가 열린다', async ({ page }) => {
+  await login(page, 'demo1')
+  await openDemoTeam(page)
+  const name = `채팅-미리보기-${Date.now()}.png`
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64') // 1×1
+  await page.locator('form', { has: page.getByLabel('메시지') }).locator('input[type=file]')
+    .setInputFiles({ name, mimeType: 'image/png', buffer: png })
+  await page.getByRole('button', { name: `${name} 미리보기` }).click()
+
+  const dialog = page.getByRole('dialog', { name })
+  const image = dialog.getByRole('img', { name })
+  await expect(image).toBeVisible()
+  await expect.poll(() => image.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBeGreaterThan(0)
+  await expect(dialog.getByRole('link', { name: '내려받기' })).toHaveAttribute('href', /\/api\/files\/\d+\/download$/)
+})
+
 test('공유 링크로 로그인 없이 내려받는다', async ({ page, browser }) => {
   await login(page, 'demo1')
   await openDemoTeam(page)

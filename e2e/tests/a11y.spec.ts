@@ -23,6 +23,11 @@ test('[UX-01] 주요 화면에 접근성 위반(WCAG 2.1 AA·모범 사례)이 �
   expect(await violations(page), '내 드라이브').toEqual([])
 
   await openDemoTeam(page)
+  // 내가 보낸 파일 카드(옅은 색 배경)도 검사하도록 채팅에 파일을 하나 올립니다 — 없으면 이 경우를 놓칩니다.
+  const shared = `a11y-${Date.now()}.txt`
+  await page.locator('form', { has: page.getByLabel('메시지') }).locator('input[type=file]')
+    .setInputFiles({ name: shared, mimeType: 'text/plain', buffer: Buffer.from('a11y') })
+  await expect(page.getByRole('button', { name: `${shared} 미리보기` })).toBeVisible()
   await page.getByRole('button', { name: '회의록', exact: true }).click()
   await page.getByLabel('킥오프 회의.md 선택').check()
   expect(await violations(page), '팀 드라이브·채팅·선택 작업 바').toEqual([])

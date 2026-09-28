@@ -53,6 +53,8 @@ export const folderApi = {
 }
 
 export const fileApi = {
+  /** 파일 한 개의 지금 정보 (채팅에 공유된 파일 미리보기) */
+  get: (fileId: number) => http.get<Item>(`/api/files/${fileId}`),
   rename: (fileId: number, name: string) => http.patch<void>(`/api/files/${fileId}`, { name }),
   content: (fileId: number) => http.get<TextContent>(`/api/files/${fileId}/content`),
   save: (fileId: number, content: string, baseVersionId: number) =>
