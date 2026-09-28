@@ -1,0 +1,84 @@
+{
+  "measuredAt": "2026-09-27T18:24:25.511Z",
+  "method": "API 응답만 가짜로 늘림, Chrome, 1440×900. firstRenderMs 는 주소 이동부터 첫 묶음 표시까지",
+  "before": [
+    {
+      "items": 1000,
+      "renderedRows": 1000,
+      "firstRenderMs": 410,
+      "sortMs": 99,
+      "selectAllMs": 44,
+      "heapMb": 39
+    },
+    {
+      "items": 5000,
+      "renderedRows": 5000,
+      "firstRenderMs": 1454,
+      "sortMs": 190,
+      "selectAllMs": 202,
+      "heapMb": 123
+    }
+  ],
+  "after": [
+    {
+      "run": 1,
+      "items": 1000,
+      "jsonKb": 216,
+      "renderedRows": 200,
+      "firstRenderMs": 170,
+      "sortMs": 24,
+      "selectAllMs": 17,
+      "heapMb": 16
+    },
+    {
+      "run": 1,
+      "items": 5000,
+      "jsonKb": 1079,
+      "renderedRows": 200,
+      "firstRenderMs": 172,
+      "sortMs": 33,
+      "selectAllMs": 17,
+      "heapMb": 24
+    },
+    {
+      "run": 2,
+      "items": 1000,
+      "jsonKb": 216,
+      "renderedRows": 200,
+      "firstRenderMs": 214,
+      "sortMs": 14,
+      "selectAllMs": 14,
+      "heapMb": 27
+    },
+    {
+      "run": 2,
+      "items": 5000,
+      "jsonKb": 1079,
+      "renderedRows": 200,
+      "firstRenderMs": 215,
+      "sortMs": 19,
+      "selectAllMs": 31,
+      "heapMb": 29
+    },
+    {
+      "run": 3,
+      "items": 1000,
+      "jsonKb": 216,
+      "renderedRows": 200,
+      "firstRenderMs": 135,
+      "sortMs": 15,
+      "selectAllMs": 28,
+      "heapMb": 45
+    },
+    {
+      "run": 3,
+      "items": 5000,
+      "jsonKb": 1079,
+      "renderedRows": 200,
+      "firstRenderMs": 202,
+      "sortMs": 19,
+      "selectAllMs": 54,
+      "heapMb": 37
+    }
+  ]
+}

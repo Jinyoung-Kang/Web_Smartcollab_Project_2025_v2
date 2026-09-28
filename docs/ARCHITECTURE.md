@@ -85,9 +85,9 @@ erDiagram
     users ||--o{ notifications : ""
 ```
 
-- 스키마는 Flyway(`db/migration/V1__init_schema.sql`)로 관리하고 JPA 는 `validate` 만 합니다.
+- 스키마는 Flyway(`db/migration/V1__init_schema.sql`, `V2__notifications_recent_index.sql`)로 관리하고 JPA 는 `validate` 만 합니다.
 - 모든 시각은 UTC(`DATETIME(6)`, `Instant`)로 저장하고 화면에서 사용자 시간대로 표시합니다.
-- 인덱스는 조회 경로 기준: `files(folder_id, is_deleted)`, `chat_messages(team_id, message_id)`, `notifications(user_id, is_read, created_at)`, `team_members(team_id, user_id) UNIQUE` 등.
+- 인덱스는 조회 경로 기준: `files(folder_id, is_deleted)`, `chat_messages(team_id, message_id)`, `notifications(user_id, is_read, created_at)`(읽지 않은 수)·`(user_id, created_at, notification_id)`(최신순 목록), `team_members(team_id, user_id) UNIQUE` 등.
 - `files ↔ file_versions` 는 서로를 참조하므로(현재 버전 포인터) 삭제 시 포인터를 먼저 끊습니다.
 
 ## 4. 권한 모델

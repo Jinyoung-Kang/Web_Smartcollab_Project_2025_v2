@@ -123,5 +123,6 @@ export const http = {
   post: <T>(path: string, json?: unknown) => request<T>(path, { method: 'POST', json }),
   put: <T>(path: string, json?: unknown) => request<T>(path, { method: 'PUT', json }),
   patch: <T>(path: string, json?: unknown) => request<T>(path, { method: 'PATCH', json }),
-  del: <T>(path: string, json?: unknown) => request<T>(path, { method: 'DELETE', json }),
+  // DELETE 요청에는 본문을 싣지 않습니다 — HTTP 에 정의된 의미가 없어 프록시가 버리기도 합니다 [ARC-03]
+  del: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
 }

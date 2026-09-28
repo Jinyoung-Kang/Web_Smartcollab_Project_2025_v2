@@ -13,7 +13,7 @@ v2 를 완성한 뒤에는 실무 코드 리뷰 기준으로 한 번 더 점검�
 | **백엔드** | Java 21 · Spring Boot 4.1 · Spring Security (쿠키 JWT·CSRF) · JPA/Hibernate 7 · Flyway · STOMP WebSocket |
 | **프론트엔드** | React 19 · TypeScript · Vite · TanStack Query · Tailwind CSS 4 |
 | **데이터·인프라** | MySQL 8 · Azure Blob Storage(또는 로컬 디스크) · Docker · GitHub Actions |
-| **테스트** | JUnit 6 + Testcontainers(MySQL·Azurite) 156건 · Vitest 33건 · Playwright E2E 8개 시나리오 · ArchUnit 구조 규칙 |
+| **테스트** | JUnit 6 + Testcontainers(MySQL·Azurite) 162건 · Vitest 37건 · Playwright E2E 8개 시나리오 · ArchUnit 구조 규칙 |
 
 ---
 
@@ -89,12 +89,12 @@ API 문서: <http://localhost:8080/swagger-ui.html> · 전체 목록 [docs/API.m
 ## 테스트
 
 ```bash
-cd backend && ./gradlew test          # 156건 (MySQL·Azurite 컨테이너 자동 실행), 커버리지 리포트 포함
-cd frontend && npm test               # 33건
+cd backend && ./gradlew test          # 162건 (MySQL·Azurite 컨테이너 자동 실행), 커버리지 리포트 포함
+cd frontend && npm test               # 37건
 docker compose up -d --wait && cd e2e && npm ci && npx playwright test   # E2E 8개 시나리오
 ```
 
-백엔드 라인 커버리지 89.5%(분기 76.3%). v1 에서 찾은 결함마다 회귀 테스트가 있습니다 → [docs/TESTING.md](docs/TESTING.md)
+백엔드 라인 커버리지 89.8%(분기 76.8%). v1 에서 찾은 결함마다 회귀 테스트가 있습니다 → [docs/TESTING.md](docs/TESTING.md)
 GitHub Actions 가 PR 과 main 푸시마다 백엔드·프론트엔드·E2E(Docker 이미지)·비밀값 검사(gitleaks)를 실행합니다.
 E2E 를 1분 안에 여러 번 돌리면 로그인 요청 제한에 걸리므로, 반복 실행 방법은 [TESTING](docs/TESTING.md) 을 참고하세요.
 
