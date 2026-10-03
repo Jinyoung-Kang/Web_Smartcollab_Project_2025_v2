@@ -13,7 +13,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.sql.Connection;
+import java.util.Collection;
 import java.util.Locale;
 
 /**
@@ -22,6 +25,9 @@ import java.util.Locale;
  * <b>실제 저장량</b>(옛 버전·휴지통 포함)으로 셉니다 — 그렇지 않으면 텍스트를 반복 저장해 버전을 한없이 쌓을 수 있습니다.
  * 체험 계정의 개인 저장소와 체험 계정이 팀장인 팀에는 더 작은 체험 한도를 적용합니다 [SEC-06].</p>
  * <p>저장 직전에는 저장소 주인(사용자·팀) 행을 잠가 같은 저장소의 동시 저장을 줄 세운 뒤 다시 확인하므로, 동시에 올려도 한도를 넘지 않습니다.</p>
+ * <p>사용량은 사용자·팀 행의 집계(stored_bytes)로 읽습니다. 버전을 넣는 트랜잭션은 {@link #record}, 파일을 영구 삭제하는 트랜잭션은
+ * {@link #releaseFiles} 로 같은 트랜잭션 안에서 고칩니다. 이전에는 확인할 때마다 그 범위의 모든 버전을 합산해 파일이 많을수록 느렸습니다
+ * [IMP-01]. 어긋남은 {@link StorageUsageReconciler} 가 매일 바로잡습니다.</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -53,6 +59,11 @@ public class StorageQuota {
     }
 
     public long usedBytes(Scope scope) {
+        return (scope.isTeam() ? teams.storedBytes(scope.teamId()) : users.storedBytes(scope.ownerId())).orElse(0L);
+    }
+
+    /** 버전 행의 실제 합계(정리 작업용 — 파일 수에 비례해 느림) */
+    long actualBytes(Scope scope) {
         return scope.isTeam() ? versions.sumTeamBytes(scope.teamId()) : versions.sumPersonalBytes(scope.ownerId());
     }
 
@@ -79,12 +90,65 @@ public class StorageQuota {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public void lockAndCheckRoom(Scope scope, long additionalBytes) {
+        requireReadCommitted();
+        lock(scope);
+        requireRoom(scope, usedBytes(scope), additionalBytes);
+    }
+
+    /** 새 버전을 넣은 트랜잭션에서 그 저장 공간의 사용량 집계를 늘립니다({@link #lockAndCheckRoom} 으로 잠근 뒤) [IMP-01] */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void record(Scope scope, long bytes) {
+        add(scope, bytes);
+    }
+
+    /** 파일 행을 영구 삭제하기 직전에, 그 파일들의 모든 버전 크기만큼 저장 공간별 사용량 집계를 줄입니다 [IMP-01] */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void releaseFiles(Collection<Long> fileIds) {
+        if (fileIds.isEmpty()) return;
+        for (FileVersionRepository.ScopeBytes row : versions.sumByScope(fileIds)) {
+            add(row.getTeamId() != null ? Scope.team(row.getTeamId()) : Scope.personal(row.getOwnerId()), -row.getBytes());
+        }
+    }
+
+    /** 잠근 뒤 집계를 실제 합계로 맞춥니다. 어긋나 있었으면 true [IMP-01] */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public boolean recompute(Scope scope) {
+        requireReadCommitted();
+        lock(scope);
+        long actual = actualBytes(scope);
+        if (usedBytes(scope) == actual) return false;
+        if (scope.isTeam()) {
+            teams.setStoredBytes(scope.teamId(), actual);
+        } else {
+            users.setStoredBytes(scope.ownerId(), actual);
+        }
+        return true;
+    }
+
+    private void lock(Scope scope) {
         if (scope.isTeam()) {
             teams.lockById(scope.teamId());
         } else {
             users.lockById(scope.ownerId());
         }
-        requireRoom(scope, usedBytes(scope), additionalBytes);
+    }
+
+    private void add(Scope scope, long delta) {
+        if (delta == 0) return;
+        if (scope.isTeam()) {
+            teams.addStoredBytes(scope.teamId(), delta);
+        } else {
+            users.addStoredBytes(scope.ownerId(), delta);
+        }
+    }
+
+    /** 잠근 뒤의 일반 읽기가 최신 커밋을 보도록 READ COMMITTED 에서만 씁니다(REPEATABLE READ 면 트랜잭션 초반 스냅샷을 봄) [QA-06] */
+    private static void requireReadCommitted() {
+        Integer level = TransactionSynchronizationManager.getCurrentTransactionIsolationLevel();
+        if (!TransactionSynchronizationManager.isActualTransactionActive() || level == null
+                || level != Connection.TRANSACTION_READ_COMMITTED) {
+            throw new IllegalStateException("저장 한도 확인은 READ COMMITTED 트랜잭션 안에서 써야 합니다(잠근 뒤 최신 사용량을 읽기 위함).");
+        }
     }
 
     private void requireRoom(Scope scope, long additionalBytes) {

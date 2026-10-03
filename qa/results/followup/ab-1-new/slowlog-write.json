@@ -1,0 +1,119 @@
+{
+  "entries": 5541,
+  "shapes": 6,
+  "slowShapes(max>=50ms)": 5,
+  "topByTotal": [
+    {
+      "shape": "COMMIT",
+      "count": 564,
+      "total": 48.82168900000003,
+      "max": 0.183162,
+      "rows_examined": 0,
+      "rows_sent": 0,
+      "example": "COMMIT",
+      "avg_examined": 0
+    },
+    {
+      "shape": "WITH RECURSIVE ancestors (folder_id, name, parent_folder_id, depth) AS ( SELECT folder_id, name, parent_folder_id, ? FROM folders WHERE folder_id = ? UNION ALL SELECT f.folder_id, f.name, f.parent_folder_id, a.depth + ? FROM folders f JOIN ancestors a ON f.folder_id = a.parent_folder_id ) SELECT folder_id AS id, name AS name, parent_folder_id AS parentId FROM ancestors ORDER BY depth DESC",
+      "count": 4972,
+      "total": 1.7729819999999994,
+      "max": 0.03155,
+      "rows_examined": 19888,
+      "rows_sent": 9944,
+      "example": "WITH RECURSIVE ancestors (folder_id, name, parent_folder_id, depth) AS (\n    SELECT folder_id, name, parent_folder_id, 0 FROM folders WHERE folder_id = 29\n    UNION ALL\n    SELECT f.folder_id, f.name, f.parent_folder_id, a.depth + 1\n    FROM folders f JOIN ancestors a ON f.folder_id = a.parent_folder_id\n)\nSELECT folder_id AS id, name AS name, parent_folder_id AS parentId FROM ancestors ORDER BY depth DESC",
+      "avg_examined": 4
+    },
+    {
+      "shape": "insert into file_versions (created_at,editor_id,file_id,sha256,size,stored_path) values (?, …)",
+      "count": 2,
+      "total": 0.14638800000000002,
+      "max": 0.085497,
+      "rows_examined": 0,
+      "rows_sent": 0,
+      "example": "insert into file_versions (created_at,editor_id,file_id,sha256,size,stored_path) values ('2026-10-03 11:57:02.391759',9,241,'5e4a6c6af8a5897f74af81a48d248cf804e5348c22aa7b949eb985198ec8604c',417,'versions/4a813b86-2dfd-4dcc-aa76-7f5b2c0d69f9')",
+      "avg_examined": 0
+    },
+    {
+      "shape": "insert into folders (created_at,deleted_at,deleted_by,name,owner_id,parent_folder_id,team_id,trash_root_id) values (?,null,null,?,?,?,null,null)",
+      "count": 1,
+      "total": 0.061339,
+      "max": 0.061339,
+      "rows_examined": 0,
+      "rows_sent": 0,
+      "example": "insert into folders (created_at,deleted_at,deleted_by,name,owner_id,parent_folder_id,team_id,trash_root_id) values ('2026-10-03 11:58:20.078422',null,null,'f-1791028699971',2,12,null,null)",
+      "avg_examined": 0
+    },
+    {
+      "shape": "select fe1_0.file_id,fe1_0.active_version_id,fe1_0.created_at,fe1_0.is_deleted,fe1_0.deleted_at,fe1_0.deleted_by,fe1_0.folder_id,f1_0.folder_id,f1_0.created_at,f1_0.deleted_at,f1_0.deleted_by,f1_0.name,f1_0.owner_id,f1_0.parent_folder_id,f1_0.team_id,f1_0.trash_root_id,fe1_0.original_name,fe1_0.owner_id,fe1_0.size,fe1_0.updated_at,fe1_0.version from files fe1_0 join folders f1_0 on f1_0.folder_id=",
+      "count": 1,
+      "total": 0.061088,
+      "max": 0.061088,
+      "rows_examined": 1,
+      "rows_sent": 1,
+      "example": "select fe1_0.file_id,fe1_0.active_version_id,fe1_0.created_at,fe1_0.is_deleted,fe1_0.deleted_at,fe1_0.deleted_by,fe1_0.folder_id,f1_0.folder_id,f1_0.created_at,f1_0.deleted_at,f1_0.deleted_by,f1_0.name,f1_0.owner_id,f1_0.parent_folder_id,f1_0.team_id,f1_0.trash_root_id,fe1_0.original_name,fe1_0.owner_id,fe1_0.size,fe1_0.updated_at,fe1_0.version from files fe1_0 join folders f1_0 on f1_0.folder_id=fe1_0.folder_id where fe1_0.file_id=1015",
+      "avg_examined": 1
+    },
+    {
+      "shape": "update files set active_version_id=?,is_deleted=?,deleted_at=null,deleted_by=null,folder_id=?,original_name=?,owner_id=?,size=?,updated_at=?,version=? where file_id=? and version=?",
+      "count": 1,
+      "total": 0.056314,
+      "max": 0.056314,
+      "rows_examined": 1,
+      "rows_sent": 0,
+      "example": "update files set active_version_id=18697,is_deleted=0,deleted_at=null,deleted_by=null,folder_id=3,original_name='up-6-10378.bin',owner_id=7,size=1048576,updated_at='2026-10-03 11:57:45.794247',version=1 where file_id=15592 and version=0",
+      "avg_examined": 1
+    }
+  ],
+  "slow": [
+    {
+      "shape": "COMMIT",
+      "count": 564,
+      "total": 48.82168900000003,
+      "max": 0.183162,
+      "rows_examined": 0,
+      "rows_sent": 0,
+      "example": "COMMIT",
+      "avg_examined": 0
+    },
+    {
+      "shape": "insert into file_versions (created_at,editor_id,file_id,sha256,size,stored_path) values (?, …)",
+      "count": 2,
+      "total": 0.14638800000000002,
+      "max": 0.085497,
+      "rows_examined": 0,
+      "rows_sent": 0,
+      "example": "insert into file_versions (created_at,editor_id,file_id,sha256,size,stored_path) values ('2026-10-03 11:57:02.391759',9,241,'5e4a6c6af8a5897f74af81a48d248cf804e5348c22aa7b949eb985198ec8604c',417,'versions/4a813b86-2dfd-4dcc-aa76-7f5b2c0d69f9')",
+      "avg_examined": 0
+    },
+    {
+      "shape": "insert into folders (created_at,deleted_at,deleted_by,name,owner_id,parent_folder_id,team_id,trash_root_id) values (?,null,null,?,?,?,null,null)",
+      "count": 1,
+      "total": 0.061339,
+      "max": 0.061339,
+      "rows_examined": 0,
+      "rows_sent": 0,
+      "example": "insert into folders (created_at,deleted_at,deleted_by,name,owner_id,parent_folder_id,team_id,trash_root_id) values ('2026-10-03 11:58:20.078422',null,null,'f-1791028699971',2,12,null,null)",
+      "avg_examined": 0
+    },
+    {
+      "shape": "select fe1_0.file_id,fe1_0.active_version_id,fe1_0.created_at,fe1_0.is_deleted,fe1_0.deleted_at,fe1_0.deleted_by,fe1_0.folder_id,f1_0.folder_id,f1_0.created_at,f1_0.deleted_at,f1_0.deleted_by,f1_0.name,f1_0.owner_id,f1_0.parent_folder_id,f1_0.team_id,f1_0.trash_root_id,fe1_0.original_name,fe1_0.owner_id,fe1_0.size,fe1_0.updated_at,fe1_0.version from files fe1_0 join folders f1_0 on f1_0.folder_id=",
+      "count": 1,
+      "total": 0.061088,
+      "max": 0.061088,
+      "rows_examined": 1,
+      "rows_sent": 1,
+      "example": "select fe1_0.file_id,fe1_0.active_version_id,fe1_0.created_at,fe1_0.is_deleted,fe1_0.deleted_at,fe1_0.deleted_by,fe1_0.folder_id,f1_0.folder_id,f1_0.created_at,f1_0.deleted_at,f1_0.deleted_by,f1_0.name,f1_0.owner_id,f1_0.parent_folder_id,f1_0.team_id,f1_0.trash_root_id,fe1_0.original_name,fe1_0.owner_id,fe1_0.size,fe1_0.updated_at,fe1_0.version from files fe1_0 join folders f1_0 on f1_0.folder_id=fe1_0.folder_id where fe1_0.file_id=1015",
+      "avg_examined": 1
+    },
+    {
+      "shape": "update files set active_version_id=?,is_deleted=?,deleted_at=null,deleted_by=null,folder_id=?,original_name=?,owner_id=?,size=?,updated_at=?,version=? where file_id=? and version=?",
+      "count": 1,
+      "total": 0.056314,
+      "max": 0.056314,
+      "rows_examined": 1,
+      "rows_sent": 0,
+      "example": "update files set active_version_id=18697,is_deleted=0,deleted_at=null,deleted_by=null,folder_id=3,original_name='up-6-10378.bin',owner_id=7,size=1048576,updated_at='2026-10-03 11:57:45.794247',version=1 where file_id=15592 and version=0",
+      "avg_examined": 1
+    }
+  ]
+}

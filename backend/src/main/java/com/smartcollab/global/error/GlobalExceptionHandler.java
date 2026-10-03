@@ -3,7 +3,12 @@ package com.smartcollab.global.error;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.exception.ConstraintViolationException;
 import org.slf4j.MDC;
+import org.hibernate.exception.JDBCConnectionException;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.TransientDataAccessException;
+import org.springframework.transaction.CannotCreateTransactionException;
+import org.springframework.transaction.TransactionTimedOutException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
@@ -107,6 +112,19 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             t = t.getCause();
         }
         return t;
+    }
+
+    /**
+     * DB 를 잠시 쓸 수 없는 경우 — 커넥션을 얻지 못함(장애·풀 고갈), 쿼리·트랜잭션 시간 제한 초과. 다시 시도하면 될 수 있으므로
+     * 500 이 아니라 503 과 Retry-After 로 답하고, 장애 중 로그가 스택으로 넘치지 않게 원인 한 줄만 남깁니다 [IMP-04·IMP-08].
+     */
+    @ExceptionHandler({CannotCreateTransactionException.class, DataAccessResourceFailureException.class,
+            TransientDataAccessException.class, JDBCConnectionException.class, TransactionTimedOutException.class})
+    ResponseEntity<ProblemDetail> handleUnavailable(Exception e) {
+        log.warn("Database unavailable: {}: {}", e.getClass().getSimpleName(), deepestCause(e).getMessage());
+        return ResponseEntity.status(ErrorCode.SERVICE_UNAVAILABLE.status())
+                .header(HttpHeaders.RETRY_AFTER, "5")
+                .body(body(ErrorCode.SERVICE_UNAVAILABLE, ErrorCode.SERVICE_UNAVAILABLE.defaultMessage()));
     }
 
     @ExceptionHandler(Exception.class)

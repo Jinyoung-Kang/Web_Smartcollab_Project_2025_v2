@@ -272,6 +272,11 @@ class StorageConnectionBenchmarkTest extends IntegrationTest {
             return delegate.type();
         }
 
+        @Override
+        public void list(String prefix, java.util.function.Consumer<Listed> sink) {
+            delegate.list(prefix, sink);
+        }
+
         private void record(String operation) {
             try {
                 int active = dataSource.unwrap(HikariDataSource.class).getHikariPoolMXBean().getActiveConnections();

@@ -1,3 +1,5 @@
+import type { FolderSort } from './types'
+
 /**
  * 쿼리 키를 한 곳에 모읍니다. 흩어진 문자열 배열로는 무효화할 때 모양(['tree', 'personal'] 과 ['tree', 3])을 틀리기
  * 쉬웠습니다. 앞부분만 같은 키(`all`)로 무효화하면 그 아래가 모두 무효화됩니다(예: 모든 폴더 내용).
@@ -15,7 +17,12 @@ export const queryKeys = {
   team: (teamId: number | undefined) => ['team', teamId] as const,
   presence: (teamId: number) => ['presence', teamId] as const,
   chat: { all: ['chat'] as const, of: (teamId: number) => ['chat', teamId] as const },
-  folder: { all: ['folder'] as const, of: (folderId: number) => ['folder', folderId] as const },
+  folder: {
+    all: ['folder'] as const,
+    of: (folderId: number) => ['folder', folderId] as const,
+    /** 정렬별 묶음 목록 — of(folderId) 로 무효화하면 모든 정렬이 함께 무효화됩니다 */
+    sorted: (folderId: number, sort: FolderSort) => ['folder', folderId, sort.key, sort.dir] as const,
+  },
   tree: { all: ['tree'] as const, of: (scope: Scope) => ['tree', scope] as const },
   usage: { all: ['usage'] as const, of: (scope: Scope) => ['usage', scope] as const },
   trash: { all: ['trash'] as const, of: (scope: Scope) => ['trash', scope] as const },

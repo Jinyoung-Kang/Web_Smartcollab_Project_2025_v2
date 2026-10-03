@@ -11,6 +11,8 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 /**
  * 로컬 디스크 저장소 (개발·데모용). 임시 파일에 먼저 쓴 뒤 원자적으로 이동해 중간에 실패해도 반쯤 쓴 파일이 남지 않습니다.
@@ -75,6 +77,24 @@ public class LocalBlobStorage implements BlobStorage {
     public void delete(String key) {
         try {
             Files.deleteIfExists(resolve(key));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    @Override
+    public void list(String prefix, Consumer<Listed> sink) {
+        Path dir = root.resolve(prefix).normalize();
+        if (!dir.startsWith(root) || !Files.isDirectory(dir)) return;
+        try (Stream<Path> files = Files.walk(dir)) {
+            files.filter(Files::isRegularFile).forEach(path -> {
+                try {
+                    sink.accept(new Listed(root.relativize(path).toString().replace('\\', '/'),
+                            Files.getLastModifiedTime(path).toInstant()));
+                } catch (IOException e) {
+                    log.debug("Skipped unreadable blob {}", path, e);
+                }
+            });
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

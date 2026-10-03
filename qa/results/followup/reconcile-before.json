@@ -1,0 +1,17 @@
+{
+  "versions": 33823,
+  "blobs": 33823,
+  "missingBlobs": 0,
+  "orphanBlobs": 0,
+  "tempUploads": 0,
+  "hashMismatch(sample<=300)": 0,
+  "filesWithoutActiveVersion": 0,
+  "activeVersionOfOtherFile": 0,
+  "fileSizeMismatch": 0,
+  "childScopeMismatch": 0,
+  "trashRootNotTrashed": 0,
+  "childOfTrashedNotTrashed": 0,
+  "teamsWithoutOneLeader": 0,
+  "duplicateMembers": 0,
+  "usageCounterDrift": { "users": 50, "teams": 0 }
+}

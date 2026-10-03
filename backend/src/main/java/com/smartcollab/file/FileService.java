@@ -84,6 +84,7 @@ public class FileService {
                 FileEntity file = files.save(new FileEntity(folder, uploader, name, blob.size()));
                 FileVersion first = versions.save(new FileVersion(file, key, uploader, blob.size(), blob.sha256()));
                 file.activate(first);
+                quota.record(StorageQuota.Scope.of(folder), blob.size());
                 publishChanged(folder);
                 return DriveDtos.ItemResponse.of(file);
             });

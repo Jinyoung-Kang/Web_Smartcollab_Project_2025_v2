@@ -1,12 +1,14 @@
 package com.smartcollab.realtime;
 
 import com.smartcollab.event.ChangeEvents;
+import com.smartcollab.global.web.RequestOrigin;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -37,8 +39,12 @@ public class RealtimePublisher {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void on(ChangeEvents.FolderChanged event) {
-        messaging.convertAndSend(eventsTopic(event.teamId()),
-                (Object) Map.of("type", "FOLDER_CHANGED", "folderId", event.folderId()));
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("type", "FOLDER_CHANGED");
+        payload.put("folderId", event.folderId());
+        // 이 변경을 일으킨 탭의 ID — 그 탭은 자기 변경으로 목록을 다시 불러오지 않습니다 [IMP-03]
+        RequestOrigin.current().ifPresent(origin -> payload.put("origin", origin));
+        messaging.convertAndSend(eventsTopic(event.teamId()), (Object) payload);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)

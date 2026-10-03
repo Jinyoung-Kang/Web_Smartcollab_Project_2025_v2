@@ -34,6 +34,8 @@ const contents = (id: number): FolderContents => ({
   items: id === 10 ? [{ type: 'folder', id: 11, name: '회의록', ownerName: '김하늘', createdAt: '2026-09-01T00:00:00Z',
     updatedAt: '2026-09-01T00:00:00Z', previewKind: 'NONE', textEditable: false }] : [],
   permissions: { canEdit: true, canDelete: true, canInvite: true, leader: true },
+  nextCursor: null,
+  itemCount: id === 10 ? 1 : 0,
 })
 
 let client: QueryClient
@@ -180,6 +182,18 @@ describe('DrivePage — 지금 동작 고정 (구조 정리 전)', () => {
     vi.mocked(folderApi.contents).mockRejectedValue(new ApiError(404, 'NOT_FOUND', '폴더를 찾을 수 없습니다.'))
     await act(() => client.resetQueries())
     expect(await screen.findByText('폴더를 찾을 수 없습니다')).toBeInTheDocument()
+  })
+})
+
+describe('DrivePage — 폴더 목록 나눠 받기 [IMP-02]', () => {
+  it('처음에는 이름 오름차순으로 첫 묶음을 요청하고, 정렬을 바꾸면 그 정렬로 서버에 다시 요청한다', async () => {
+    renderDrive(true)
+    await screen.findByRole('button', { name: '회의록' })
+    expect(folderApi.contents).toHaveBeenCalledWith(10, expect.objectContaining({ sort: 'name', order: 'asc' }))
+
+    await userEvent.click(screen.getByRole('button', { name: /크기/ }))
+    await vi.waitFor(() =>
+      expect(folderApi.contents).toHaveBeenCalledWith(10, expect.objectContaining({ sort: 'size', order: 'asc' })))
   })
 })
 

@@ -28,6 +28,9 @@ spring:
         order_inserts: true
         order_updates: true
         default_batch_fetch_size: 100
+  # 모든 트랜잭션의 시간 제한. DB 가 느릴 때 요청이 끝없이 걸리지 않게 넘으면 쿼리를 취소하고 503 으로 끝냅니다 [IMP-08]
+  transaction:
+    default-timeout: ${DB_TX_TIMEOUT:30s}
   flyway:
     enabled: true
     locations: classpath:db/migration
@@ -64,6 +67,11 @@ management:
     health:
       probes:
         enabled: true
+      # DB 를 쓸 수 없으면 준비되지 않음(503)으로 알려 부하 분산기가 요청을 보내지 않게 합니다. liveness 에는 넣지 않습니다
+      # (DB 장애로 앱을 재시작하지 않게) [IMP-04]
+      group:
+        readiness:
+          include: readinessState,db
       show-details: never
 
 springdoc:
@@ -96,6 +104,11 @@ app:
     # 보관 기간이 지난 휴지통 파일을 비우는 시각. 서버(컨테이너) 시간대가 UTC 여도 이 시간대 기준으로 실행합니다.
     trash-purge-cron: ${TRASH_PURGE_CRON:0 0 4 * * *}
     trash-purge-zone: ${TRASH_PURGE_ZONE:Asia/Seoul}
+    # 저장 사용량 집계를 실제 버전 합계와 맞추는 시각(같은 시간대) [IMP-01]
+    usage-reconcile-cron: ${USAGE_RECONCILE_CRON:0 30 4 * * *}
+    # DB 가 가리키지 않는 저장소 파일을 지우는 시각과 유예 시간(올라오는 중인 파일을 지우지 않게) [IMP-05]
+    orphan-cleanup-cron: ${ORPHAN_CLEANUP_CRON:0 0 5 * * *}
+    orphan-grace: ${ORPHAN_GRACE:24h}
   rate-limit:
     login-per-minute: ${LOGIN_RATE_PER_MINUTE:10}
     # 여러 IP 에서 한 계정을 노리는 시도 제한. 로그인에 성공하면 초기화됩니다.

@@ -1,0 +1,53 @@
+# 운영 DB 점검 (읽기 전용) — 2026-10-03 20:42 KST
+# 대상: 로컬 상시 스택 web_smartcollab_project_2025_v2 (http://localhost:8081). 실제 운영 배포는 없음(Azure 는 연동·배포 구성만).
+# 스키마: V1,V2,V3
+users=9 teams=4 files=162 versions=204
+
+## QA-01 계열: 리더 없는 팀 / 리더 여럿인 팀 / 초대 상태와 멤버십 어긋남
+leaderless_teams=0
+multi_leader_teams=0
+leader_not_owner=0
+invite_rejected_but_member=0
+pending_invite_but_member=0
+
+## 정합성 검사 (qa/scripts/integrity-check.sh web_smartcollab_project_2025_v2)
+{
+  "versions": 204,
+  "blobs": 204,
+  "missingBlobs": 0,
+  "orphanBlobs": 0,
+  "tempUploads": 0,
+  "hashMismatch(sample<=300)": 0,
+  "filesWithoutActiveVersion": 0,
+  "activeVersionOfOtherFile": 0,
+  "fileSizeMismatch": 0,
+  "childScopeMismatch": 0,
+  "trashRootNotTrashed": 0,
+  "childOfTrashedNotTrashed": 0,
+  "teamsWithoutOneLeader": 0,
+  "duplicateMembers": 0
+}
+
+## QA 문서 9-8 의 확인 쿼리 그대로 (팀장 조건이 1이 아닌 팀)
+rows=0
+→ 정리할 데이터 없음(데이터 변경 안 함)
+
+
+## V4 적용·E2E 3회 뒤 (2026-10-03 20:52) — 이미지 재빌드·스택 재시작(Flyway V4 0.230s), E2E 13/13 × 3 이 업로드·편집·휴지통·복원을 실행한 뒤
+{
+  "versions": 219,
+  "blobs": 219,
+  "missingBlobs": 0,
+  "orphanBlobs": 0,
+  "tempUploads": 0,
+  "hashMismatch(sample<=300)": 0,
+  "filesWithoutActiveVersion": 0,
+  "activeVersionOfOtherFile": 0,
+  "fileSizeMismatch": 0,
+  "childScopeMismatch": 0,
+  "trashRootNotTrashed": 0,
+  "childOfTrashedNotTrashed": 0,
+  "teamsWithoutOneLeader": 0,
+  "duplicateMembers": 0,
+  "usageCounterDrift": { "users": 0, "teams": 0 }
+}

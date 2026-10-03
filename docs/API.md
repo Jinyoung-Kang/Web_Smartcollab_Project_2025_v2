@@ -8,8 +8,10 @@
 |---|---|
 | 인증 | 로그인·가입 시 HttpOnly 쿠키 `SC_AUTH`(JWT, 기본 8시간)가 설정됩니다. API 클라이언트는 `Authorization: Bearer <JWT>` 헤더도 쓸 수 있습니다. |
 | CSRF | 쿠키로 인증된 `POST/PUT/PATCH/DELETE` 는 `XSRF-TOKEN` 쿠키 값을 `X-XSRF-TOKEN` 헤더로 보내야 합니다. 토큰은 `GET /api/auth/csrf` 로 받습니다. |
-| 오류 형식 | RFC 9457 `application/problem+json` — `{ "status", "title", "detail", "code", "requestId", "errors"? }` |
+| 오류 형식 | RFC 9457 `application/problem+json` — `{ "status", "title", "detail", "code", "requestId", "errors"? }`. 경로에 `%00`·`%2F`·`//`·`;` 가 들어 Tomcat·보안 방화벽이 라우팅 전에 거절한 요청도 같은 형식의 400 입니다 |
 | 요청 추적 | 모든 응답에 `X-Request-Id` 헤더. 오류 본문의 `requestId` 와 서버 로그의 추적 ID 가 같습니다 (프록시가 보낸 값은 `[A-Za-z0-9._-]{8,64}` 일 때만 이어 씀) |
+| 요청한 화면 | 선택 헤더 `X-Client-Id`(`[A-Za-z0-9-]{8,64}`, 탭마다 하나). 이 요청이 만든 `FOLDER_CHANGED` 이벤트의 `origin` 에 그대로 실려, 보낸 탭은 자기 변경을 다시 불러오지 않습니다. 형식이 맞지 않으면 무시 |
+| 일시적 장애 | DB 연결 실패·응답 지연(트랜잭션 30초 초과) 등 잠시 뒤 다시 시도하면 될 수 있는 오류는 503 `SERVICE_UNAVAILABLE` 과 `Retry-After: 5` |
 | 본문 크기 | 파일 업로드를 뺀 요청 본문은 6MB 까지 (넘으면 413 `PAYLOAD_TOO_LARGE`). multipart 는 업로드 경로에서만 받습니다(다른 경로는 415 `UNSUPPORTED_MEDIA_TYPE`) |
 | 시각 | ISO-8601 UTC (`2026-09-27T02:40:00Z`) |
 | 권한 없음 | 읽을 수 없는 대상은 `404`(존재 여부 비공개), 읽을 수 있지만 권한이 부족하면 `403` |
@@ -29,6 +31,7 @@
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | 업로드 경로가 아닌 곳으로 보낸 multipart 요청 (본문을 읽기 전에 거절) |
 | `RATE_LIMITED` | 429 | 요청 제한 초과 (로그인·가입·공유 비밀번호 시도, 사용자별 하루 번역 분량) |
 | `FEATURE_DISABLED` | 503 | 서버에 설정되지 않은 기능 (번역 키 없음, 로컬 저장소에서 Office 미리보기 등) |
+| `SERVICE_UNAVAILABLE` | 503 | DB 연결 실패·트랜잭션 시간 초과 등 일시적 장애. `Retry-After` 초 뒤 다시 시도 |
 
 ## 엔드포인트
 
@@ -40,14 +43,15 @@
 | POST | `/api/auth/signup` | 가입 후 바로 로그인 (201). 체험 계정용 아이디(`demo1~3`, 대소문자 무관)는 409 |
 | POST | `/api/auth/login` | 로그인 (IP 당 분당 10회 제한) |
 | POST | `/api/auth/logout` | 쿠키 삭제 |
-| GET | `/api/auth/me` | 내 정보 + 개인 루트 폴더 ID |
+| GET | `/api/auth/me` | 내 정보 + 개인 루트 폴더 ID (로그인 전이면 401) |
+| GET | `/api/auth/session` | 로그인 여부 — 로그인 전에도 200. `{authenticated, user}`(`user` 는 `/me` 와 같은 모양, 로그인 전이면 `null`). 만료·위조된 쿠키는 지우고 `authenticated=false` |
 | POST | `/api/users/me/delete` | 회원 탈퇴 (`{password}` 재확인). 본문이 필요해 DELETE 대신 POST |
 
 ### 폴더·파일
 
 | Method | Path | 설명 |
 |---|---|---|
-| GET | `/api/folders/{id}` | 폴더 내용 · 경로 · 이 폴더에서의 내 권한 |
+| GET | `/api/folders/{id}?limit=&cursor=&sort=&order=` | 폴더 내용 · 경로 · 이 폴더에서의 내 권한. 내용은 나눠서 줍니다 — 아래 [폴더 목록 나누기](#폴더-목록-나누기) |
 | GET | `/api/folders/tree?teamId=` | 폴더 트리 (쿼리 1회) |
 | POST | `/api/folders` | 폴더 만들기 `{parentId, name}`. 최상위 아래 50단계를 넘으면 400 |
 | PATCH | `/api/folders/{id}` | 이름 바꾸기 |
@@ -72,6 +76,20 @@
 | DELETE | `/api/trash/{fileId}` | 파일 영구 삭제 |
 | POST | `/api/trash/folders/{id}/restore` | 폴더 복원(안의 폴더·파일 함께). 원래 상위 폴더가 휴지통에 있으면 최상위 폴더로 — 응답 `{folderId, relocated}` |
 | DELETE | `/api/trash/folders/{id}` | 폴더 영구 삭제(안의 폴더·파일까지) |
+
+#### 폴더 목록 나누기
+
+| 매개변수 | 기본값 | 설명 |
+|---|---|---|
+| `limit` | 500 | 한 번에 줄 항목 수, 1~1,000 |
+| `cursor` | (없음) | 앞 응답의 `nextCursor` 를 그대로. 해석하지 않는 불투명한 값 |
+| `sort` | `name` | `name` · `updatedAt` · `ownerName` · `size` |
+| `order` | `asc` | `asc` · `desc` |
+
+- 정렬은 서버가 합니다. 폴더가 늘 앞이고, 선택한 열이 같으면 이름(한국어·숫자 자연 정렬)·ID 순입니다.
+- 응답의 `itemCount` 는 폴더의 전체 항목 수, `nextCursor` 는 다음 묶음의 커서(마지막 묶음이면 `null`)입니다.
+- 커서는 위치(몇 번째부터)를 담습니다. 묶음을 받는 사이 항목이 더해지거나 빠지면 경계의 항목이 겹치거나 빠질 수 있어, 화면은 실시간 이벤트를 받으면 처음부터 다시 받습니다.
+- 잘못된 `limit`·`cursor`·`sort`·`order` 는 400 `INVALID_REQUEST`.
 
 ### 문서 도구
 

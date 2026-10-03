@@ -1,7 +1,9 @@
 package com.smartcollab.realtime;
 
 import com.smartcollab.global.security.JwtTokenService;
+import com.smartcollab.global.security.RevokedUsers;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
@@ -29,13 +31,16 @@ public class WebSocketSessionExpiry {
 
     private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
     private final Clock clock;
+    private final RevokedUsers revokedUsers;
 
-    public WebSocketSessionExpiry() {
-        this(Clock.systemUTC());
+    @Autowired
+    public WebSocketSessionExpiry(RevokedUsers revokedUsers) {
+        this(Clock.systemUTC(), revokedUsers);
     }
 
-    WebSocketSessionExpiry(Clock clock) {
+    WebSocketSessionExpiry(Clock clock, RevokedUsers revokedUsers) {
         this.clock = clock;
+        this.revokedUsers = revokedUsers;
     }
 
     /** STOMP 핸들러를 감싸 열린 세션을 기록합니다 ({@link WebSocketConfig} 에서 등록). */
@@ -60,7 +65,9 @@ public class WebSocketSessionExpiry {
         Instant now = clock.instant();
         sessions.values().forEach(session -> {
             Instant expiresAt = JwtTokenService.expiresAt(session.getPrincipal());
-            if (expiresAt != null && !expiresAt.isAfter(now)) {
+            boolean expired = expiresAt != null && !expiresAt.isAfter(now);
+            // 탈퇴한 계정의 연결도 닫습니다 — 다시 연결하면 핸드셰이크의 JWT 검증에서 거절됩니다 [QA-07]
+            if (expired || revokedUsers.isRevoked(JwtTokenService.userIdOf(session.getPrincipal()))) {
                 close(session);
             }
         });

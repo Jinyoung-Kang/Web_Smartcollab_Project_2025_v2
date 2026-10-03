@@ -1,5 +1,6 @@
 package com.smartcollab.folder;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.smartcollab.access.PermissionsResponse;
 import com.smartcollab.file.DriveDtos;
 import jakarta.validation.constraints.NotBlank;
@@ -20,8 +21,14 @@ public final class FolderDtos {
     public record FolderInfo(Long id, String name, Long teamId, boolean root) {
     }
 
+    /**
+     * @param items      이번 묶음의 항목(폴더 우선·정렬 적용) [IMP-02]
+     * @param nextCursor 다음 묶음을 받을 커서. 마지막 묶음이면 null(항상 내보냄)
+     * @param itemCount  이 폴더의 휴지통이 아닌 항목 전체 수
+     */
     public record FolderContents(FolderInfo folder, List<Breadcrumb> path, List<DriveDtos.ItemResponse> items,
-                                 PermissionsResponse permissions) {
+                                 PermissionsResponse permissions,
+                                 @JsonInclude(JsonInclude.Include.ALWAYS) String nextCursor, int itemCount) {
     }
 
     public record FolderTreeResponse(List<FolderTree.TreeNode> roots) {

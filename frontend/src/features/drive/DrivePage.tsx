@@ -5,7 +5,7 @@ import { FolderX, UploadCloud } from 'lucide-react'
 import { teamApi } from '@/api/endpoints'
 import { ApiError } from '@/api/http'
 import { queryKeys } from '@/api/queryKeys'
-import type { Item } from '@/api/types'
+import type { FolderSort, Item } from '@/api/types'
 import { useMe } from '@/auth/AuthProvider'
 import { buttonStyles } from '@/components/ui/Button'
 import { EmptyState, Spinner } from '@/components/ui/misc'
@@ -37,6 +37,8 @@ type DialogState =
   | { kind: 'versions'; item: Item }
   | { kind: 'preview'; item: Item }
 
+const DEFAULT_SORT: FolderSort = { key: 'name', dir: 'asc' }
+
 /** /teams/:teamId → 팀 루트 폴더로 이동 */
 export function TeamRootRedirect() {
   const teamId = Number(useParams().teamId)
@@ -62,7 +64,8 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
   const navigate = useNavigate()
   const toast = useToast()
   const uploads = useUploads()
-  const { contents, data, items, teamId, permissions, redirectTo } = useDriveFolder(folderId, routeTeamId)
+  const [sort, setSort] = useState<FolderSort>(DEFAULT_SORT)
+  const { contents, data, items, itemCount, hasMore, loadMore, teamId, permissions, redirectTo } = useDriveFolder(folderId, routeTeamId, sort)
   const selection = useDriveSelection(items)
   const changes = useDriveMutations({ folderId, onSelectionDone: selection.clear })
   const drop = useFileDrop({
@@ -85,6 +88,7 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
     setDialog({ kind: 'none' })
     setMenu(null)
     drop.reset()
+    setSort(DEFAULT_SORT)
   }
 
   const { selected, setSelected, selectedItems, refs } = selection
@@ -166,6 +170,11 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
             <FileTable
               key={folderId}
               items={items}
+              sort={sort}
+              onSortChange={setSort}
+              totalCount={itemCount}
+              hasMore={hasMore}
+              onLoadMore={loadMore}
               selected={selected}
               onSelectionChange={setSelected}
               onOpen={open}

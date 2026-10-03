@@ -1,0 +1,51 @@
+# QA 후속 — 수정 전 실패 시험 기록
+
+## [QA-07] DeletedAccountTokenTest (커밋 "QA 후속: 탈퇴한 계정 토큰 거절 시험" 시점)
+FAIL [QA-07] 탈퇴한 계정의 토큰은 모든 API 에서 401 이다 (쿠키·Bearer) | Status expected:<401> but was:<200>
+PASS [QA-07] 탈퇴가 거절되면(비밀번호 오류) 토큰은 그대로 쓸 수 있다
+
+## [IMP-04·08] GlobalExceptionHandlerTest·HealthReadinessTest (처리기 자리에 현재 동작(일반 예외 처리)을 둔 상태)
+FAIL [IMP-08] 쿼리 시간 제한에 걸리면 503 SERVICE_UNAVAILABLE | expected: 503 but was: 500
+FAIL [IMP-04] DB 연결을 얻지 못하면 500 이 아니라 503 SERVICE_UNAVAILABLE 이고, 스택 없이 한 줄만 남긴다 | expected: 503 but was: 500
+FAIL [IMP-04] readiness 는 DB 상태를 포함하고 liveness 는 포함하지 않는다 | Expecting value to be true but was false
+
+## [IMP-01] StorageUsageCounterTest (V4 열만 있고 집계·정리 로직은 없는 상태)
+FAIL [IMP-01] 한도 확인은 합산이 아니라 사용자 행의 사용량 집계를 쓴다 | java.lang.AssertionError: Status expected:<413> but was:<201>
+FAIL [IMP-01] 정리 작업은 어긋난 집계를 실제 합계로 바로잡고 고친 수를 돌려준다 | java.lang.AssertionError:  Expecting actual:   0 to be greater than or equal to:   2 
+FAIL [IMP-01] 같은 사용자가 동시에 업로드해도 집계를 잃지 않는다 | org.opentest4j.AssertionFailedError:  expected: 16120L  but was: 0L
+FAIL [IMP-01] 업로드·텍스트 저장·복사·휴지통·영구 삭제·폴더 삭제 뒤에도 집계는 실제 합계와 같다 (개인·팀) | org.opentest4j.AssertionFailedError:  expected: 3062L  but was: 0L
+
+## [IMP-02] FolderPagingTest (수정 전 — 페이지·정렬 매개변수를 무시하고 전부 돌려줌)
+FAIL [IMP-02] 아무 값도 주지 않으면 500개까지만 주고 다음 커서를 준다 | java.lang.AssertionError:  Expected size: 500 but was: 503 in: ["하위 0",     "하위 1",     "하위 10",     "하위 100",     "하위 101",     "하위 102",  
+FAIL [IMP-02] 잘못된 limit·커서·정렬 기준은 400 | java.lang.AssertionError: Status expected:<400> but was:<200>
+FAIL [IMP-02] limit 만큼 나눠 주고, 커서로 이어 받으면 빠짐·겹침 없이 끝까지 온다 (폴더 우선·자연 정렬) | com.jayway.jsonpath.PathNotFoundException: No results for path: $['itemCount']
+FAIL [IMP-02] 정렬 기준·방향을 서버가 적용한다 (폴더는 늘 앞) | org.opentest4j.AssertionFailedError:  Expecting actual:   ["폴더", "작은.bin", "중간.bin", "큰.bin"] to contain exactly (and in same order):   ["폴더
+
+## [IMP-02] 프론트 FileTable·DrivePage (수정 전 — 화면이 직접 정렬하고 전부 받음)
+FAIL 받은 순서 그대로 그린다 (정렬은 서버가 함)
+FAIL 정렬 머리글을 누르면 서버에 그 정렬로 다시 받아 오라고 알린다
+FAIL 받은 항목을 다 그렸는데 서버에 더 있으면, 남은 수를 보여 주고 더 보기가 다음 묶음을 불러온다
+FAIL 처음에는 이름 오름차순으로 첫 묶음을 요청하고, 정렬을 바꾸면 그 정렬로 서버에 다시 요청한다
+
+## [IMP-05·08] OrphanBlobCleanerTest·AzureBlobStorageTest(목록)·TransactionTimeoutTest (수정 전 — 나열·정리·시간 제한 없음)
+PASS [IMP-08] 시간 제한을 넘는 쿼리는 DB 에서 취소되어 그 시간 즈음 실패한다 | 
+FAIL [IMP-08] 트랜잭션 기본 시간 제한은 30초다 | org.opentest4j.AssertionFailedError:  expected: 30  but was: -1
+FAIL [IMP-05] 접두어 아래의 키와 마지막 수정 시각을 나열한다 (고아 파일 정리용) | java.lang.AssertionError:  Expecting actual:   [] to contain exactly in any order:   ["list-fb5ac62a-37dc-41d2-9980-7e06de2da9f1/a",     "li
+FAIL [IMP-05] 유예 시간보다 오래된 고아 파일·임시 파일만 지우고, DB 가 가리키는 파일과 새 고아는 남긴다 | org.opentest4j.AssertionFailedError:  Expecting value to be false but was true
+
+## [IMP-03] 프론트 teamEvents·http (수정 전 — 탭 ID 없음, 자기 변경도 다시 불러옴)
+FAIL [IMP-03] 요청에 이 탭의 ID 를 X-Client-Id 헤더로 보낸다
+FAIL [IMP-03] 이 탭이 일으킨 폴더 변경이면 다시 불러오지 않는다, 다른 탭·사람이면 불러온다
+
+## [IMP-03] 백엔드 EventOriginTest (이벤트에 탭 ID 를 싣는 줄을 뺀 상태)
+FAIL [IMP-03] 요청의 X-Client-Id 가 그 요청이 일으킨 폴더 변경 이벤트에 실린다
+
+## [IMP-10] AuthSessionTest·AuthProvider.test (수정 전 — /api/auth/session 없음, 첫 확인에 /me 사용)
+FAIL [IMP-10] 로그인 전에는 200 과 authenticated=false
+FAIL [IMP-10] 로그인했으면 내 정보를 함께 돌려준다
+FAIL [IMP-10] 만료·위조된 쿠키면 200 과 authenticated=false 이고, 쿠키를 지운다
+FAIL 로그인 전 화면은 /me(401) 대신 오류 없는 로그인 상태 확인을 쓴다
+
+## [QA-08] PreRoutingErrorFormatTest (수정 전 — Tomcat 거절은 HTML, 방화벽 거절은 Boot 기본 JSON)
+FAIL [QA-08] Tomcat 이 주소를 해석하지 못해 라우팅 전에 거절한 요청(%00·%2F)도 problem+json 400 과 추적 ID | Expecting actual: "text/html;charset=utf-8" to start with: "application/problem+json"
+FAIL [QA-08] 보안 방화벽이 거절한 요청(//·;)도 problem+json 400 과 추적 ID | Expecting actual: "application/json" to start with: "application/problem+json"

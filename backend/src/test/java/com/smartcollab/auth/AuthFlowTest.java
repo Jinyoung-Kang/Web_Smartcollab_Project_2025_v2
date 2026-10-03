@@ -18,7 +18,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -46,7 +46,7 @@ class AuthFlowTest extends IntegrationTest {
     void blankEmailDoesNotCollide() throws Exception {
         for (int i = 0; i < 2; i++) {
             String username = "noemail" + UUID.randomUUID().toString().substring(0, 6);
-            api().perform(MockMvcRequestBuilders.post("/api/auth/signup").with(csrf())
+            api().perform(MockMvcRequestBuilders.post("/api/auth/signup").with(Api.xsrf())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(api().toJson(Map.of("username", username, "password", "abcd1234",
                                     "passwordConfirm", "abcd1234", "name", "무이메일", "email", ""))))
@@ -58,7 +58,7 @@ class AuthFlowTest extends IntegrationTest {
     @DisplayName("로그인 실패는 401 + 표준 오류 형식(ProblemDetail)으로 응답한다")
     void loginFailureIsProblemDetail() throws Exception {
         Api.Session s = api().signUp("bob");
-        api().perform(MockMvcRequestBuilders.post("/api/auth/login").with(csrf())
+        api().perform(MockMvcRequestBuilders.post("/api/auth/login").with(Api.xsrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(api().toJson(Map.of("username", s.username, "password", "wrong-pass1"))))
                 .andExpect(status().isUnauthorized())
@@ -70,7 +70,7 @@ class AuthFlowTest extends IntegrationTest {
     @DisplayName("로그인 성공 시 쿠키 발급, 로그아웃 시 쿠키 삭제")
     void loginAndLogout() throws Exception {
         Api.Session s = api().signUp("carol");
-        Cookie issued = api().perform(MockMvcRequestBuilders.post("/api/auth/login").with(csrf())
+        Cookie issued = api().perform(MockMvcRequestBuilders.post("/api/auth/login").with(Api.xsrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(api().toJson(Map.of("username", s.username, "password", Api.PASSWORD))))
                 .andExpect(status().isOk())
@@ -83,7 +83,7 @@ class AuthFlowTest extends IntegrationTest {
     @Test
     @DisplayName("[v1 보안] 시스템 계정(deleted_user)으로는 로그인할 수 없다")
     void systemAccountCannotLogin() throws Exception {
-        api().perform(MockMvcRequestBuilders.post("/api/auth/login").with(csrf())
+        api().perform(MockMvcRequestBuilders.post("/api/auth/login").with(Api.xsrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(api().toJson(Map.of("username", SystemAccountInitializer.USERNAME,
                                 "password", "a_very_long_and_unusable_password"))))
@@ -97,7 +97,7 @@ class AuthFlowTest extends IntegrationTest {
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
         api().perform(MockMvcRequestBuilders.get("/api/auth/me").cookie(new Cookie("SC_AUTH", "forged.token.value")))
                 .andExpect(status().isUnauthorized())
-                .andExpect(header().string("Set-Cookie", containsString("SC_AUTH=;")));
+                .andExpect(header().stringValues("Set-Cookie", hasItem(containsString("SC_AUTH=;"))));
     }
 
     @Test
@@ -118,7 +118,7 @@ class AuthFlowTest extends IntegrationTest {
         while (rateLimiter.tryAcquire("login:" + ip, 1000, Duration.ofMinutes(1))) {
             // fill
         }
-        api().perform(MockMvcRequestBuilders.post("/api/auth/login").with(csrf())
+        api().perform(MockMvcRequestBuilders.post("/api/auth/login").with(Api.xsrf())
                         .with(r -> {
                             r.setRemoteAddr(ip);
                             return r;
@@ -148,7 +148,7 @@ class AuthFlowTest extends IntegrationTest {
         while (rateLimiter.tryAcquire("signup:" + ip, 1000, Duration.ofHours(1))) {
             // 테스트 설정의 가입 한도(시간당 1000회)를 채움
         }
-        api().perform(MockMvcRequestBuilders.post("/api/auth/signup").with(csrf())
+        api().perform(MockMvcRequestBuilders.post("/api/auth/signup").with(Api.xsrf())
                         .with(r -> {
                             r.setRemoteAddr(ip);
                             return r;
@@ -192,7 +192,7 @@ class AuthFlowTest extends IntegrationTest {
     }
 
     private org.springframework.test.web.servlet.ResultActions login(String username, String password, String ip) {
-        return api().perform(MockMvcRequestBuilders.post("/api/auth/login").with(csrf())
+        return api().perform(MockMvcRequestBuilders.post("/api/auth/login").with(Api.xsrf())
                 .with(r -> {
                     r.setRemoteAddr(ip);
                     return r;
@@ -205,7 +205,7 @@ class AuthFlowTest extends IntegrationTest {
     @DisplayName("[S-19] 체험 계정 아이디(demo1~3)로는 대소문자와 상관없이 가입할 수 없다 — 나중에 체험 모드를 켜면 매일 초기화되기 때문")
     void demoUsernamesAreReserved() throws Exception {
         for (String username : List.of("demo1", "Demo2", "DEMO3")) {
-            api().perform(MockMvcRequestBuilders.post("/api/auth/signup").with(csrf())
+            api().perform(MockMvcRequestBuilders.post("/api/auth/signup").with(Api.xsrf())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(api().toJson(Map.of("username", username, "password", Api.PASSWORD,
                                     "passwordConfirm", Api.PASSWORD, "name", "가입자"))))
@@ -218,7 +218,7 @@ class AuthFlowTest extends IntegrationTest {
     @DisplayName("[BUG-01] 글자 수는 72 이하지만 UTF-8 로 72바이트를 넘는 비밀번호(한글 32자)는 500 이 아니라 400 과 필드 메시지")
     void passwordOver72BytesIsRejected() throws Exception {
         String password = "a1" + "가".repeat(30);   // 32자, UTF-8 92바이트 — BCrypt 는 72바이트까지만 처리
-        api().perform(MockMvcRequestBuilders.post("/api/auth/signup").with(csrf())
+        api().perform(MockMvcRequestBuilders.post("/api/auth/signup").with(Api.xsrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(api().toJson(Map.of("username", "longpw" + UUID.randomUUID().toString().substring(0, 6),
                                 "password", password, "passwordConfirm", password, "name", "긴비번"))))
@@ -230,7 +230,7 @@ class AuthFlowTest extends IntegrationTest {
     @Test
     @DisplayName("가입 검증: 아이디 형식·비밀번호 규칙 위반은 400과 필드 메시지")
     void signUpValidation() throws Exception {
-        api().perform(MockMvcRequestBuilders.post("/api/auth/signup").with(csrf())
+        api().perform(MockMvcRequestBuilders.post("/api/auth/signup").with(Api.xsrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(api().toJson(Map.of("username", "a b", "password", "short",
                                 "passwordConfirm", "short", "name", "x"))))

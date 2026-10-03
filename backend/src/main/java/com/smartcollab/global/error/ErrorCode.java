@@ -21,6 +21,7 @@ public enum ErrorCode {
     RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "요청이 너무 많습니다. 잠시 후 다시 시도하세요."),
     FEATURE_DISABLED(HttpStatus.SERVICE_UNAVAILABLE, "이 기능은 현재 서버에서 설정되어 있지 않습니다."),
     UPSTREAM_ERROR(HttpStatus.BAD_GATEWAY, "외부 서비스 호출에 실패했습니다."),
+    SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "일시적으로 요청을 처리할 수 없습니다. 잠시 후 다시 시도하세요."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류가 발생했습니다.");
 
     private final HttpStatus status;
@@ -37,5 +38,23 @@ public enum ErrorCode {
 
     public String defaultMessage() {
         return defaultMessage;
+    }
+
+    /**
+     * 상태 코드만 아는 곳(라우팅 전 거절·/error)에서 쓸 코드 [QA-08]. 상태가 같은 코드가 여럿이면 일반적인 쪽을 고르고,
+     * 따로 정하지 않은 상태는 4xx 면 INVALID_REQUEST, 5xx 면 INTERNAL_ERROR 입니다.
+     */
+    public static ErrorCode forStatus(int status) {
+        return switch (status) {
+            case 401 -> UNAUTHORIZED;
+            case 403 -> FORBIDDEN;
+            case 404 -> NOT_FOUND;
+            case 409 -> CONFLICT;
+            case 413 -> PAYLOAD_TOO_LARGE;
+            case 415 -> UNSUPPORTED_MEDIA_TYPE;
+            case 429 -> RATE_LIMITED;
+            case 503 -> SERVICE_UNAVAILABLE;
+            default -> status >= 500 ? INTERNAL_ERROR : INVALID_REQUEST;
+        };
     }
 }

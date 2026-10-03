@@ -1,6 +1,7 @@
 package com.smartcollab.file;
 
 import com.smartcollab.folder.Folder;
+import com.smartcollab.folder.ListedFolder;
 import com.smartcollab.global.util.FileNames;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -25,6 +26,17 @@ public final class DriveDtos {
             return new ItemResponse("folder", folder.getId(), folder.getName(), null, null,
                     folder.getOwner().getName(), folder.getCreatedAt(), folder.getCreatedAt(), FileNames.PreviewKind.NONE,
                     false);
+        }
+
+        public static ItemResponse of(ListedFolder folder) {
+            return new ItemResponse("folder", folder.id(), folder.name(), null, null, folder.ownerName(),
+                    folder.createdAt(), folder.createdAt(), FileNames.PreviewKind.NONE, false);
+        }
+
+        public static ItemResponse of(ListedFile file) {
+            return new ItemResponse("file", file.id(), file.name(), file.size(), FileNames.extension(file.name()),
+                    file.ownerName(), file.createdAt(), file.updatedAt(), FileNames.previewKind(file.name()),
+                    FileNames.isTextEditable(file.name()));
         }
 
         public static ItemResponse of(FileEntity file) {

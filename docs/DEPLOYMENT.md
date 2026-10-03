@@ -8,6 +8,10 @@ docker compose up -d --build --wait
 open http://localhost:8080
 ```
 
+앱 컨테이너의 메모리 한도는 `APP_MEM_LIMIT`(기본 `2g`)이고, JVM 은 그 75% 를 힙으로 씁니다. 한도가 없으면 JVM 이 Docker 호스트 메모리의
+75% 를 힙으로 잡아, 다른 컨테이너와 메모리를 나누는 호스트에서는 부하 중 OOMKilled(137)로 죽었습니다(출시 기준 QA, IMP-06).
+2GB 한도에서는 같은 부하에 JVM 메모리가 최대 1,150MiB 였습니다.
+
 `DEMO_ENABLED=true` 와 `DEMO_PASSWORD` 를 넣으면 체험용 계정(demo1~3)·팀·문서가 만들어집니다.
 
 > 체험 모드에서는 `demo1~3` 계정과 그 데이터가 매일 초기화됩니다. 이 아이디는 가입에 쓸 수 없지만(2026-10 이후), 그 전에 같은 아이디로 가입한 실사용자가 있는 DB 라면 체험 모드를 켜기 전에 확인하세요.
@@ -22,7 +26,8 @@ open http://localhost:8080
 | `JWT_SECRET` | ✔(운영) | 개발 시 임시 키 | 32바이트 이상 무작위 문자열 |
 | `JWT_TTL` | | `8h` | 로그인 유지 시간 |
 | `DB_POOL_SIZE` | | `10` (`prod` 는 `20`) | DB 커넥션 풀 크기 |
-| `DB_CONNECTION_TIMEOUT_MS` | | `5000` | DB 커넥션을 기다리는 최대 시간(ms). DB 장애 중 요청을 오래 붙잡지 않도록 짧게 둡니다 |
+| `DB_CONNECTION_TIMEOUT_MS` | | `5000` | DB 커넥션을 기다리는 최대 시간(ms). DB 장애 중 요청을 오래 붙잡지 않도록 짧게 둡니다. 넘으면 503 `SERVICE_UNAVAILABLE` |
+| `DB_TX_TIMEOUT` | | `30s` | 트랜잭션 하나의 최대 시간. 넘으면 진행 중인 쿼리를 끊고 롤백한 뒤 503 — DB 가 느릴 때 요청이 끝없이 쌓이지 않게 합니다 |
 | `STORAGE_TYPE` | | `local` (`prod` 는 `azure`) | `local` \| `azure` |
 | `STORAGE_LOCAL_ROOT` | | `~/smartcollab-data` | 로컬 저장소 경로 |
 | `AZURE_STORAGE_CONNECTION_STRING` | azure 시 ✔ | – | Blob Storage 연결 문자열 |
@@ -38,7 +43,9 @@ open http://localhost:8080
 | `SIGNUP_RATE_PER_HOUR` | | `5` | IP 당 시간당 가입 횟수 |
 | `DEMO_QUOTA` | | `50MB` | 체험 계정·체험 팀의 저장 한도 |
 | `DEMO_RESET_CRON` / `DEMO_RESET_ZONE` | | `0 0 5 * * *` / `Asia/Seoul` | 체험 데이터 초기화 시각 |
-| `TRASH_PURGE_CRON` / `TRASH_PURGE_ZONE` | | `0 0 4 * * *` / `Asia/Seoul` | 휴지통 자동 비우기 시각과 그 기준 시간대 |
+| `TRASH_PURGE_CRON` / `TRASH_PURGE_ZONE` | | `0 0 4 * * *` / `Asia/Seoul` | 휴지통 자동 비우기 시각과 그 기준 시간대 (아래 두 작업도 이 시간대) |
+| `USAGE_RECONCILE_CRON` | | `0 30 4 * * *` | 저장 사용량 집계를 실제 버전 합계와 맞춰 보는 시각. 어긋난 저장 공간이 있으면 바로잡고 경고 로그 |
+| `ORPHAN_CLEANUP_CRON` / `ORPHAN_GRACE` | | `0 0 5 * * *` / `24h` | 어떤 버전도 가리키지 않는 저장소 파일 정리 시각 / 이보다 새 파일은 올라오는 중일 수 있어 남김 |
 | `LOGIN_RATE_PER_MINUTE` / `LOGIN_ACCOUNT_RATE` | | `10` / `20` | 로그인 시도 한도 (IP 당 분당 / 계정당 10분) |
 | `SHARE_PASSWORD_RATE` / `SHARE_PASSWORD_LINK_RATE` | | `10` / `50` | 공유 비밀번호 시도 한도 (링크+IP 당 / 링크당, 10분) |
 | `SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES` | | Tomcat 기본값(사설·루프백 대역) | X-Forwarded-For 를 믿을 프록시 주소(정규식). 프록시 없이 직접 노출할 때는 좁히세요 |
@@ -79,20 +86,23 @@ az webapp config appsettings set -g <리소스그룹> -n <앱이름> --settings 
 az webapp deploy -g <리소스그룹> -n <앱이름> --src-path backend/build/libs/smartcollab.jar --type jar
 ```
 
-- 헬스 체크 경로: `/actuator/health/readiness`
+- 헬스 체크 경로: `/actuator/health/readiness` — DB 에 닿지 않으면 503 이 되어 트래픽을 받지 않습니다(liveness 는 그대로 200 이라 재시작되지 않음) [IMP-04]
+- 메모리: App Service 플랜의 메모리가 곧 한도입니다. 컨테이너 이미지는 그 75% 를 힙으로 씁니다(`JAVA_TOOL_OPTIONS` 의 `MaxRAMPercentage`). jar 배포라면 `JAVA_OPTS` 에 `-XX:MaxRAMPercentage=75` 를 더하세요.
 - HTTPS 전용으로 설정하세요(`COOKIE_SECURE=true` 가 `prod` 프로필 기본값이므로 HTTP 로는 로그인 쿠키가 전송되지 않습니다).
 - 배포 후 클라이언트 IP 판별을 확인하세요: 한 네트워크에서 로그인을 11번 틀리면 429, 그 사이 다른 네트워크(휴대폰 데이터 등)에서는 정상 로그인되어야 합니다. 모두 함께 막히면 프록시 주소가 `SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES` 에 포함되지 않은 것입니다.
-- 인스턴스는 1개로 운영하세요. 실시간 브로커·요청 제한이 인메모리입니다([ARCHITECTURE.md §7](ARCHITECTURE.md#7-한계와-확장-방안)).
+- 인스턴스는 1개로 운영하세요. 실시간 브로커·요청 제한·탈퇴 계정 거절 목록이 인메모리입니다([ARCHITECTURE.md §7](ARCHITECTURE.md#7-한계와-확장-방안)).
 
 ### 3.3 v2 를 이미 배포했다면
 
-새 버전이 기동하면 Flyway 가 추가된 마이그레이션(V2 알림 인덱스, V3 폴더 휴지통 열·인덱스)을 자동 적용합니다. 열·인덱스 추가뿐이라 기존 데이터는 바뀌지 않습니다.
+새 버전이 기동하면 Flyway 가 추가된 마이그레이션(V2 알림 인덱스, V3 폴더 휴지통 열·인덱스, V4 저장 사용량 집계 열)을 자동 적용합니다. 열·인덱스 추가뿐이라 기존 데이터는 바뀌지 않습니다. V4 는 `users.stored_bytes`·`teams.stored_bytes` 를 더하고 지금까지의 버전 합계로 채웁니다(한 번 전체 합산).
 
 **폴더 휴지통(V3) 이전 버전으로 되돌릴 때**는 먼저 휴지통의 폴더를 모두 복원하거나 영구 삭제하세요. 이전 버전은 폴더의 휴지통 표시를 몰라 휴지통의 폴더가 드라이브에 다시 보이고, 맨 위 폴더가 자기 자신을 가리키는 외래 키 때문에 그 폴더를 지울 수도 없습니다(MySQL 8.4 에서 오류 1451 확인). 다른 사용자의 휴지통은 화면에서 복원할 수 없으므로, 운영자는 다음 SQL 로 한 번에 복원합니다.
 
 ```sql
 UPDATE folders SET trash_root_id = NULL, deleted_at = NULL, deleted_by = NULL WHERE trash_root_id IS NOT NULL;
 ```
+
+**저장 사용량 집계(V4) 이전 버전으로 되돌렸다가 다시 올릴 때**: 이전 버전은 V4 열이 있는 DB 에서도 기동하지만(QA 스택에서 확인) 집계를 고치지 않습니다. 다시 올리면 그 사이의 업로드·삭제만큼 집계가 어긋나 있어(QA 스택: 이전 버전으로 1분 쓰기 부하 뒤 사용자 50명), 매일 04:30 정리 작업 전까지는 한도 판단이 틀릴 수 있습니다. 다시 올린 직후 V4 의 채우기 UPDATE 두 문장(`V4__storage_usage_counters.sql`)을 한 번 실행하거나, `USAGE_RECONCILE_CRON` 을 잠시 짧게 두세요.
 
 추가된 열·인덱스는 남겨 둬도 이전 버전이 기동합니다. Flyway 는 로컬에 없는 더 높은 버전(V3)을 기본 설정(`ignoreMigrationPatterns=*:future`, 12.4.0 에서 확인)으로 건너뛰고, Hibernate `validate` 는 엔티티에 없는 열을 검사하지 않습니다.
 

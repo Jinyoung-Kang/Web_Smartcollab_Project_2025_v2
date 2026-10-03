@@ -55,6 +55,3 @@ export function sameDay(a: string, b: string): boolean {
   const y = new Date(b)
   return x.getFullYear() === y.getFullYear() && x.getMonth() === y.getMonth() && x.getDate() === y.getDate()
 }
-
-/** 한국어 자연 정렬 ("파일 2" < "파일 10") */
-export const collator = new Intl.Collator('ko', { numeric: true, sensitivity: 'base' })

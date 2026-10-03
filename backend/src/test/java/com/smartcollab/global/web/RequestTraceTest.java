@@ -13,7 +13,6 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
@@ -71,7 +70,7 @@ class RequestTraceTest extends IntegrationTest {
     @DisplayName("로그인 실패·성공을 보안 이벤트로 남기되, 입력한 아이디·비밀번호는 남기지 않는다")
     void logsLoginEventsWithoutCredentials(CapturedOutput output) throws Exception {
         Api.Session s = api().signUp("trace");
-        mvc.perform(post("/api/auth/login").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/auth/login").with(Api.xsrf()).contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(Map.of("username", s.username, "password", "Wrong-Pass-4821"))));
 
         assertThat(output).containsPattern("security-event login-failed ip=\\S+");

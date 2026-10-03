@@ -19,6 +19,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -84,5 +88,19 @@ class AzureBlobStorageTest {
         storage.delete("files/x");
         storage.delete("files/x");
         assertThatThrownBy(() -> storage.open("files/x").read()).isInstanceOf(Exception.class);
+    }
+
+    @Test
+    @DisplayName("[IMP-05] 접두어 아래의 키와 마지막 수정 시각을 나열한다 (고아 파일 정리용)")
+    void listsKeysWithLastModified() {
+        String prefix = "list-" + UUID.randomUUID() + "/";
+        storage.put(prefix + "a", new ByteArrayInputStream("a".getBytes(StandardCharsets.UTF_8)), 1);
+        storage.put(prefix + "b", new ByteArrayInputStream("b".getBytes(StandardCharsets.UTF_8)), 1);
+        List<BlobStorage.Listed> listed = new ArrayList<>();
+
+        storage.list(prefix, listed::add);
+
+        assertThat(listed).extracting(BlobStorage.Listed::key).containsExactlyInAnyOrder(prefix + "a", prefix + "b");
+        assertThat(listed).allSatisfy(b -> assertThat(b.lastModified()).isBefore(Instant.now().plusSeconds(60)));
     }
 }

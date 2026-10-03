@@ -4,6 +4,7 @@ import com.smartcollab.global.security.AuthCookies;
 import com.smartcollab.global.security.AuthUser;
 import com.smartcollab.global.security.ClientIp;
 import com.smartcollab.global.security.CurrentUser;
+import com.smartcollab.global.security.JwtTokenService;
 import com.smartcollab.user.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -13,6 +14,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.security.web.csrf.DeferredCsrfToken;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -70,6 +73,17 @@ public class AuthController {
     @GetMapping("/me")
     public AuthDtos.MeResponse me(@CurrentUser AuthUser user) {
         return authService.me(user.id());
+    }
+
+    /**
+     * 로그인 여부 — 로그인 전에도 200 입니다. 화면이 처음 열릴 때 /me 의 401 이 브라우저 콘솔 오류로 찍히던 것을 없앱니다 [IMP-10].
+     * 만료·위조된 쿠키는 인증 필터가 지우고 익명으로 넘기므로 authenticated=false 가 됩니다.
+     */
+    @Operation(summary = "로그인 여부와 내 정보 (로그인 전에도 200)")
+    @GetMapping("/session")
+    public AuthDtos.SessionResponse session(Authentication authentication) {
+        AuthUser user = authentication instanceof AbstractAuthenticationToken token ? JwtTokenService.toAuthUser(token) : null;
+        return user == null ? AuthDtos.SessionResponse.ANONYMOUS : authService.session(user.id());
     }
 
     private ResponseEntity<AuthDtos.MeResponse> withLoginCookie(HttpStatus status, AuthService.Account account) {

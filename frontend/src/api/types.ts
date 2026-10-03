@@ -39,8 +39,21 @@ export interface Breadcrumb {
 export interface FolderContents {
   folder: { id: number; name: string; teamId?: number; root: boolean }
   path: Breadcrumb[]
+  /** 이번 묶음(서버가 정렬) [IMP-02] */
   items: Item[]
   permissions: Permissions
+  /** 다음 묶음을 받을 커서, 마지막이면 null */
+  nextCursor: string | null
+  /** 이 폴더의 휴지통이 아닌 항목 전체 수 */
+  itemCount: number
+}
+
+export type FolderSortKey = 'name' | 'updatedAt' | 'ownerName' | 'size'
+
+/** 폴더 목록 정렬 — 서버가 적용합니다(폴더 우선, 같으면 이름 자연 정렬) [IMP-02] */
+export interface FolderSort {
+  key: FolderSortKey
+  dir: 'asc' | 'desc'
 }
 
 export interface TreeNode {

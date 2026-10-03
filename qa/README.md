@@ -11,14 +11,13 @@ APP_PORT=8080 DB_PORT=13307 docker compose -f docker-compose.yml -f qa/compose.q
 docker compose -p sc-qa down -v
 ```
 
-[compose.qa.yml](compose.qa.yml) 이 기본 compose 에 더하는 것:
+[compose.qa.yml](compose.qa.yml) 이 기본 compose 에 더하는 것(앱 메모리 한도 2GB 는 QA 뒤 기본 compose 로 옮김 — `APP_MEM_LIMIT`):
 
 | 구성 | 용도 |
 |---|---|
 | Toxiproxy(DB 앞, API 18474) | DB 지연·끊김 주입 |
 | DeepL 목([deepl-mock.mjs](deepl-mock.mjs), 19000) | 실제 DeepL 대신 지연·5xx·끊김 |
 | 느린 쿼리 로그 | 50ms 이상·인덱스 없는 쿼리 기록 |
-| 앱 메모리 한도 2GB | 운영과 같은 조건 |
 | 요청 제한 완화 | 시험 사용자를 많이 만들기 위해(제한 자체는 백엔드 시험이 검증) |
 
 ## 스크립트 (`node qa/scripts/<이름>.mjs`, 저장소 루트에서)
@@ -38,6 +37,7 @@ docker compose -p sc-qa down -v
 | `before-fix/` | 수정 전 이미지에서 잰 결과. 결함의 증거 |
 | 최상위 | 수정 뒤 다시 돌린 결과. 단, `lighthouse-summary.json`·`large-scope.json`·`perf-users.json` 은 수정 전 스택에서 잼 |
 | `failing-tests-before-fix.txt` · `tests-after-fix.txt` | 결함 재현 시험의 수정 전 실패·수정 뒤 통과 |
+| `followup/` | QA 후속(QA-07·IMP-01~10): 수정 전 실패 시험, 운영 DB 점검, 수정 뒤 다시 잰 성능·장애 결과 |
 | `independent-review.md` | 독립 검토(별도 에이전트)의 재현·심각도 확인 |
 | `docker/` · `after-fix/` | k6(Docker 네트워크 안) 수정 전 / 수정 뒤 쓰기 |
 | `host/` · `docker-run1-oom/` | 비교에 쓰지 않은 측정(호스트 포트 포워딩 병목 / 메모리 한도 없이 OOMKilled). 기록으로만 둠 |

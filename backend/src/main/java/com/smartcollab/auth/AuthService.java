@@ -138,4 +138,10 @@ public class AuthService {
         return new AuthDtos.MeResponse(user.getId(), user.getUsername(), user.getName(), user.getEmail(), root.getId(),
                 user.getCreatedAt());
     }
+
+    /** 로그인 여부와 내 정보 [IMP-10]. 토큰은 유효한데 계정이 없으면 익명입니다. */
+    @Transactional
+    public AuthDtos.SessionResponse session(Long userId) {
+        return users.existsById(userId) ? new AuthDtos.SessionResponse(true, me(userId)) : AuthDtos.SessionResponse.ANONYMOUS;
+    }
 }

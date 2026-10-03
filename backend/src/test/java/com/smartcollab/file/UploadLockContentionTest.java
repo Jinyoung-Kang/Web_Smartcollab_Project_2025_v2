@@ -6,6 +6,8 @@ import com.smartcollab.support.TransactionRace;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Duration;
@@ -26,7 +28,7 @@ class UploadLockContentionTest extends IntegrationTest {
     @Autowired
     StorageQuota quota;
     @Autowired
-    TransactionTemplate tx;
+    PlatformTransactionManager txManager;
 
     @Test
     @DisplayName("[QA-06] 다른 사용자의 저장 한도 확인이 진행 중이어도 내 업로드는 기다리지 않는다 (서로 다른 사용자의 업로드가 교착되던 원인)")
@@ -37,7 +39,9 @@ class UploadLockContentionTest extends IntegrationTest {
 
         AtomicReference<Duration> took = new AtomicReference<>();
         Throwable result;
-        try (TransactionRace race = new TransactionRace(tx)) {
+        TransactionTemplate readCommitted = new TransactionTemplate(txManager);   // 업로드·저장과 같은 격리 수준(한도 확인은 READ COMMITTED 에서만)
+        readCommitted.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
+        try (TransactionRace race = new TransactionRace(readCommitted)) {
             result = race.run(
                     () -> quota.lockAndCheckRoom(StorageQuota.Scope.personal(first.userId), 0),   // 첫 사용자의 업로드가 한도를 확인하는 중
                     () -> {

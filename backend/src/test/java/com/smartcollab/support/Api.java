@@ -10,14 +10,14 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.AbstractMockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.UUID;
-
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 
 /**
  * 테스트용 HTTP 클라이언트. 실제 브라우저처럼 인증 쿠키(SC_AUTH)와 CSRF 토큰을 붙여 요청합니다.
@@ -34,10 +34,28 @@ public class Api {
         this.json = json;
     }
 
+    /**
+     * 브라우저처럼 같은 CSRF 토큰을 쿠키(XSRF-TOKEN)와 헤더(X-XSRF-TOKEN)로 보냅니다(이중 제출).
+     * <p>Spring Security 의 {@code csrf()} 테스트 도우미는 공유 CSRF 필터의 토큰 저장소를 세션 저장소로 바꿔 둡니다. 같은 컨텍스트의
+     * 실제 서버(RANDOM_PORT)도 그 필터를 쓰므로, 그 뒤에 실행되는 실제 HTTP 시험은 XSRF-TOKEN 쿠키를 받지 못해 실행 순서에 따라
+     * 실패했습니다(ClientIpRateLimitTest). 그래서 {@code csrf()} 대신 이것을 씁니다.</p>
+     */
+    public static RequestPostProcessor xsrf() {
+        return request -> {
+            String token = UUID.randomUUID().toString();
+            Cookie[] existing = request.getCookies();
+            Cookie[] cookies = existing == null ? new Cookie[1] : Arrays.copyOf(existing, existing.length + 1);
+            cookies[cookies.length - 1] = new Cookie("XSRF-TOKEN", token);
+            request.setCookies(cookies);
+            request.addHeader("X-XSRF-TOKEN", token);
+            return request;
+        };
+    }
+
     public Session signUp(String prefix) {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
         String username = (prefix.length() > 11 ? prefix.substring(0, 11) : prefix) + "_" + suffix;
-        MvcResult result = perform(MockMvcRequestBuilders.post("/api/auth/signup").with(csrf())
+        MvcResult result = perform(MockMvcRequestBuilders.post("/api/auth/signup").with(xsrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(Map.of("username", username, "password", PASSWORD,
                         "passwordConfirm", PASSWORD, "name", prefix + "님")))).andReturn();
@@ -51,7 +69,7 @@ public class Api {
 
     /** 이미 있는 계정으로 로그인 (데모 계정 등) */
     public Session login(String username, String password) {
-        MvcResult result = perform(MockMvcRequestBuilders.post("/api/auth/login").with(csrf())
+        MvcResult result = perform(MockMvcRequestBuilders.post("/api/auth/login").with(xsrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(Map.of("username", username, "password", password)))).andReturn();
         String body = content(result);
@@ -88,7 +106,7 @@ public class Api {
         }
 
         public ResultActions send(AbstractMockHttpServletRequestBuilder<?> builder) {
-            return perform(builder.cookie(cookie).with(csrf()));
+            return perform(builder.cookie(cookie).with(xsrf()));
         }
 
         public ResultActions get(String url, Object... vars) {

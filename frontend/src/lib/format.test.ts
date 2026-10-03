@@ -1,4 +1,4 @@
-import { collator, formatBytes, formatRelative, sameDay } from './format'
+import { formatBytes, formatRelative, sameDay } from './format'
 
 describe('formatBytes', () => {
   it('단위를 자동으로 고른다 (v1: 항상 KB)', () => {
@@ -23,10 +23,7 @@ describe('formatRelative', () => {
   })
 })
 
-describe('정렬', () => {
-  it('숫자를 자연스럽게 비교한다', () => {
-    expect(['파일 10', '파일 2', '파일 1'].sort(collator.compare)).toEqual(['파일 1', '파일 2', '파일 10'])
-  })
+describe('날짜 비교', () => {
   it('같은 날인지 비교', () => {
     expect(sameDay('2026-09-27T01:00:00', '2026-09-27T23:00:00')).toBe(true)
   })

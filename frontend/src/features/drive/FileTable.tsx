@@ -1,22 +1,31 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useEffectEvent, useRef, useState, type KeyboardEvent } from 'react'
 import { ArrowDown, ArrowUp, MoreHorizontal } from 'lucide-react'
-import type { Item } from '@/api/types'
+import type { FolderSort, FolderSortKey, Item } from '@/api/types'
 import { Avatar } from '@/components/ui/misc'
 import { ItemIcon } from '@/lib/fileIcons'
-import { collator, formatBytes, formatRelative, formatDateTime } from '@/lib/format'
+import { formatBytes, formatRelative, formatDateTime } from '@/lib/format'
 import { cn } from '@/lib/cn'
 
-export type SortKey = 'name' | 'updatedAt' | 'ownerName' | 'size'
 export const itemKey = (item: Pick<Item, 'type' | 'id'>) => `${item.type}-${item.id}`
 
 /**
  * 한 번에 그리는 행 수 [PERF-02]. 항목이 5,000개인 폴더는 전부 그리면 첫 표시 1.45초, 정렬·전체 선택이 0.2초씩 걸렸습니다(측정).
- * 앞에서부터 이만큼씩 그리고 목록 끝이 보이면 이어서 그립니다. 선택·정렬은 그리지 않은 항목까지 포함한 전체 목록 기준입니다.
+ * 앞에서부터 이만큼씩 그리고 목록 끝이 보이면 이어서 그립니다. 받은 항목을 다 그렸고 서버에 더 있으면 다음 묶음을 불러옵니다 [IMP-02].
+ * 정렬은 서버가 하고(받은 순서 그대로 그림), 모두 선택은 받은 항목 전부입니다.
  */
 export const RENDER_BATCH = 200
 
 interface FileTableProps {
+  /** 서버가 정렬한 순서 */
   items: Item[]
+  sort: FolderSort
+  /** 정렬을 바꾸면 서버에 그 정렬로 다시 받아 옵니다 */
+  onSortChange: (sort: FolderSort) => void
+  /** 폴더의 전체 항목 수(아직 받지 않은 묶음 포함). 없으면 받은 수 */
+  totalCount?: number
+  /** 서버에 받을 묶음이 더 있음 */
+  hasMore?: boolean
+  onLoadMore?: () => void
   selected: ReadonlySet<string>
   onSelectionChange: (next: Set<string>) => void
   onOpen: (item: Item) => void
@@ -27,35 +36,12 @@ interface FileTableProps {
   onRenameKey?: (item: Item) => void
 }
 
-const COLUMNS: { key: SortKey; label: string; className: string }[] = [
+const COLUMNS: { key: FolderSortKey; label: string; className: string }[] = [
   { key: 'name', label: '이름', className: 'w-auto' },
   { key: 'ownerName', label: '올린 사람', className: 'hidden w-40 md:table-cell' },
   { key: 'updatedAt', label: '수정한 날짜', className: 'hidden w-36 sm:table-cell' },
   { key: 'size', label: '크기', className: 'hidden w-24 text-right lg:table-cell' },
 ]
-
-/** 폴더 우선 + 선택한 열 기준 정렬 (한국어 자연 정렬) */
-export function sortItems(items: Item[], key: SortKey, dir: 'asc' | 'desc'): Item[] {
-  const sign = dir === 'asc' ? 1 : -1
-  return [...items].sort((a, b) => {
-    if (a.type !== b.type) return a.type === 'folder' ? -1 : 1
-    let cmp: number
-    switch (key) {
-      case 'size':
-        cmp = (a.size ?? -1) - (b.size ?? -1)
-        break
-      case 'updatedAt':
-        cmp = a.updatedAt.localeCompare(b.updatedAt)
-        break
-      case 'ownerName':
-        cmp = collator.compare(a.ownerName, b.ownerName)
-        break
-      default:
-        cmp = collator.compare(a.name, b.name)
-    }
-    return cmp === 0 ? collator.compare(a.name, b.name) : cmp * sign
-  })
-}
 
 /**
  * Delete 키의 대상 [FB-01]. 키를 누른 행이 선택에 들어 있으면 선택한 항목 모두(화면 순서), 아니면 그 행만입니다.
@@ -65,22 +51,30 @@ export function deleteTargets(pressed: Item, selected: ReadonlySet<string>, orde
   return selected.has(itemKey(pressed)) ? ordered.filter((i) => selected.has(itemKey(i))) : [pressed]
 }
 
-export function FileTable({ items, selected, onSelectionChange, onOpen, onContextAction, onDeleteKey, onRenameKey }: FileTableProps) {
-  const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({ key: 'name', dir: 'asc' })
-  const sorted = useMemo(() => sortItems(items, sort.key, sort.dir), [items, sort])
+export function FileTable({
+  items, sort, onSortChange, totalCount, hasMore = false, onLoadMore,
+  selected, onSelectionChange, onOpen, onContextAction, onDeleteKey, onRenameKey,
+}: FileTableProps) {
+  const sorted = items
   const allSelected = sorted.length > 0 && sorted.every((i) => selected.has(itemKey(i)))
   const [renderLimit, setRenderLimit] = useState(RENDER_BATCH)
   const visible = sorted.length > renderLimit ? sorted.slice(0, renderLimit) : sorted
-  const remaining = sorted.length - visible.length
-  const showMore = () => setRenderLimit((n) => n + RENDER_BATCH)
+  const remaining = Math.max(totalCount ?? sorted.length, sorted.length) - visible.length
+  const showMore = () => {
+    setRenderLimit((n) => n + RENDER_BATCH)
+    // 다음에 그릴 만큼 받아 두지 않았으면 서버에서 다음 묶음을 불러옵니다
+    if (hasMore && renderLimit + RENDER_BATCH >= sorted.length) onLoadMore?.()
+  }
   const moreRef = useRef<HTMLTableRowElement>(null)
+  // 관찰기는 그린 수·남은 수가 바뀔 때만 다시 만들고, 호출할 때는 최신 상태(받은 수·더 있음)로 이어 그립니다
+  const onEndVisible = useEffectEvent(showMore)
 
   // 목록 끝(더 보기 줄)이 화면에 들어오면 다음 묶음을 그립니다. 버튼도 있어 키보드·보조기기로도 이어 볼 수 있습니다.
   useEffect(() => {
     const el = moreRef.current
     if (!el || remaining === 0 || typeof IntersectionObserver === 'undefined') return
     const observer = new IntersectionObserver((entries) => {
-      if (entries.some((e) => e.isIntersecting)) setRenderLimit((n) => n + RENDER_BATCH)
+      if (entries.some((e) => e.isIntersecting)) onEndVisible()
     })
     observer.observe(el)
     return () => observer.disconnect()
@@ -153,7 +147,7 @@ export function FileTable({ items, selected, onSelectionChange, onOpen, onContex
                 <button
                   className={cn('inline-flex items-center gap-1 hover:text-slate-900', active && 'text-slate-900')}
                   onClick={() => {
-                    setSort((s) => ({ key: col.key, dir: s.key === col.key && s.dir === 'asc' ? 'desc' : 'asc' }))
+                    onSortChange({ key: col.key, dir: sort.key === col.key && sort.dir === 'asc' ? 'desc' : 'asc' })
                     setRenderLimit(RENDER_BATCH)
                   }}
                 >

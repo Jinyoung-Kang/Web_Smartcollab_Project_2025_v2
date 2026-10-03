@@ -3,6 +3,7 @@ package com.smartcollab.storage;
 import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.BlobContainerClient;
 import com.azure.storage.blob.models.BlobStorageException;
+import com.azure.storage.blob.models.ListBlobsOptions;
 import com.azure.storage.blob.sas.BlobSasPermission;
 import com.azure.storage.blob.sas.BlobServiceSasSignatureValues;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +13,7 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * Azure Blob Storage 저장소 (운영).
@@ -58,6 +60,12 @@ public class AzureBlobStorage implements BlobStorage {
     @Override
     public void delete(String key) {
         container.getBlobClient(key).deleteIfExists();
+    }
+
+    @Override
+    public void list(String prefix, Consumer<Listed> sink) {
+        container.listBlobs(new ListBlobsOptions().setPrefix(prefix), null).forEach(item ->
+                sink.accept(new Listed(item.getName(), item.getProperties().getLastModified().toInstant())));
     }
 
     @Override

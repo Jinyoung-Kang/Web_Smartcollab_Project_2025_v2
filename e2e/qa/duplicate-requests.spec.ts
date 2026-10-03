@@ -54,6 +54,7 @@ test('내 변경 뒤 다시 불러오기 횟수', async ({ page }) => {
     await page.getByRole('button', { name: /알림/ }).first().click()
     await page.getByRole('button', { name: '모두 읽음' }).click().catch(() => {})
   }))
-  writeFileSync(new URL('../../qa/results/duplicate-requests.json', import.meta.url), JSON.stringify(results, null, 2))
+  // 결과 폴더는 QA_OUT(저장소 루트 기준, 기본 qa/results)
+  writeFileSync(new URL(`../../${process.env.QA_OUT ?? 'qa/results'}/duplicate-requests.json`, import.meta.url), JSON.stringify(results, null, 2))
   console.log(JSON.stringify(results, null, 2))
 })

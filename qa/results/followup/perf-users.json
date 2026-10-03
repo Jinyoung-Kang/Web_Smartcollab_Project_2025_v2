@@ -1,0 +1,554 @@
+{
+  "seededAt": "2026-10-03T11:55:14.340Z",
+  "seedSeconds": 96,
+  "password": "QaPassw0rd!",
+  "bigFolder": {
+    "ownerIndex": 0,
+    "folderId": 127,
+    "items": 10000
+  },
+  "users": [
+    {
+      "username": "perf_000_m6u",
+      "rootFolderId": 1,
+      "folderId": 12,
+      "textFileId": 244,
+      "bigFileId": 254,
+      "teamId": 1,
+      "teamRootFolderId": 121,
+      "bigFolderId": 127
+    },
+    {
+      "username": "perf_001_hu0",
+      "rootFolderId": 4,
+      "folderId": 16,
+      "textFileId": 239,
+      "bigFileId": 249,
+      "teamId": 1,
+      "teamRootFolderId": 121
+    },
+    {
+      "username": "perf_002_gh6",
+      "rootFolderId": 5,
+      "folderId": 9,
+      "textFileId": 246,
+      "bigFileId": 255,
+      "teamId": 1,
+      "teamRootFolderId": 121
+    },
+    {
+      "username": "perf_003_x14",
+      "rootFolderId": 2,
+      "folderId": 13,
+      "textFileId": 248,
+      "bigFileId": 256,
+      "teamId": 1,
+      "teamRootFolderId": 121
+    },
+    {
+      "username": "perf_004_loc",
+      "rootFolderId": 6,
+      "folderId": 14,
+      "textFileId": 237,
+      "bigFileId": 250,
+      "teamId": 1,
+      "teamRootFolderId": 121
+    },
+    {
+      "username": "perf_005_p6h",
+      "rootFolderId": 3,
+      "folderId": 15,
+      "textFileId": 240,
+      "bigFileId": 253,
+      "teamId": 1,
+      "teamRootFolderId": 121
+    },
+    {
+      "username": "perf_006_d23",
+      "rootFolderId": 7,
+      "folderId": 11,
+      "textFileId": 243,
+      "bigFileId": 252,
+      "teamId": 1,
+      "teamRootFolderId": 121
+    },
+    {
+      "username": "perf_007_i2s",
+      "rootFolderId": 8,
+      "folderId": 10,
+      "textFileId": 241,
+      "bigFileId": 251,
+      "teamId": 1,
+      "teamRootFolderId": 121
+    },
+    {
+      "username": "perf_008_m04",
+      "rootFolderId": 24,
+      "folderId": 29,
+      "textFileId": 494,
+      "bigFileId": 506,
+      "teamId": 1,
+      "teamRootFolderId": 121
+    },
+    {
+      "username": "perf_009_vpe",
+      "rootFolderId": 18,
+      "folderId": 25,
+      "textFileId": 502,
+      "bigFileId": 510,
+      "teamId": 1,
+      "teamRootFolderId": 121
+    },
+    {
+      "username": "perf_010_rvb",
+      "rootFolderId": 19,
+      "folderId": 26,
+      "textFileId": 493,
+      "bigFileId": 507,
+      "teamId": 2,
+      "teamRootFolderId": 122
+    },
+    {
+      "username": "perf_011_nqy",
+      "rootFolderId": 17,
+      "folderId": 22,
+      "textFileId": 480,
+      "bigFileId": 503,
+      "teamId": 2,
+      "teamRootFolderId": 122
+    },
+    {
+      "username": "perf_012_kbx",
+      "rootFolderId": 20,
+      "folderId": 27,
+      "textFileId": 500,
+      "bigFileId": 511,
+      "teamId": 2,
+      "teamRootFolderId": 122
+    },
+    {
+      "username": "perf_013_8bj",
+      "rootFolderId": 21,
+      "folderId": 28,
+      "textFileId": 498,
+      "bigFileId": 508,
+      "teamId": 2,
+      "teamRootFolderId": 122
+    },
+    {
+      "username": "perf_014_88b",
+      "rootFolderId": 23,
+      "folderId": 30,
+      "textFileId": 499,
+      "bigFileId": 509,
+      "teamId": 2,
+      "teamRootFolderId": 122
+    },
+    {
+      "username": "perf_015_kjn",
+      "rootFolderId": 31,
+      "folderId": 32,
+      "textFileId": 505,
+      "bigFileId": 512,
+      "teamId": 2,
+      "teamRootFolderId": 122
+    },
+    {
+      "username": "perf_016_qrm",
+      "rootFolderId": 33,
+      "folderId": 35,
+      "textFileId": 744,
+      "bigFileId": 759,
+      "teamId": 2,
+      "teamRootFolderId": 122
+    },
+    {
+      "username": "perf_017_wj1",
+      "rootFolderId": 34,
+      "folderId": 41,
+      "textFileId": 740,
+      "bigFileId": 761,
+      "teamId": 2,
+      "teamRootFolderId": 122
+    },
+    {
+      "username": "perf_018_34s",
+      "rootFolderId": 36,
+      "folderId": 39,
+      "textFileId": 751,
+      "bigFileId": 764,
+      "teamId": 2,
+      "teamRootFolderId": 122
+    },
+    {
+      "username": "perf_019_kqt",
+      "rootFolderId": 37,
+      "folderId": 40,
+      "textFileId": 756,
+      "bigFileId": 767,
+      "teamId": 2,
+      "teamRootFolderId": 122
+    },
+    {
+      "username": "perf_020_ev6",
+      "rootFolderId": 38,
+      "folderId": 43,
+      "textFileId": 753,
+      "bigFileId": 762,
+      "teamId": 3,
+      "teamRootFolderId": 123
+    },
+    {
+      "username": "perf_021_h8l",
+      "rootFolderId": 42,
+      "folderId": 45,
+      "textFileId": 755,
+      "bigFileId": 766,
+      "teamId": 3,
+      "teamRootFolderId": 123
+    },
+    {
+      "username": "perf_022_exw",
+      "rootFolderId": 44,
+      "folderId": 47,
+      "textFileId": 757,
+      "bigFileId": 765,
+      "teamId": 3,
+      "teamRootFolderId": 123
+    },
+    {
+      "username": "perf_023_ysb",
+      "rootFolderId": 46,
+      "folderId": 48,
+      "textFileId": 763,
+      "bigFileId": 773,
+      "teamId": 3,
+      "teamRootFolderId": 123
+    },
+    {
+      "username": "perf_024_tbx",
+      "rootFolderId": 49,
+      "folderId": 53,
+      "textFileId": 991,
+      "bigFileId": 1010,
+      "teamId": 3,
+      "teamRootFolderId": 123
+    },
+    {
+      "username": "perf_025_b2u",
+      "rootFolderId": 50,
+      "folderId": 54,
+      "textFileId": 1002,
+      "bigFileId": 1019,
+      "teamId": 3,
+      "teamRootFolderId": 123
+    },
+    {
+      "username": "perf_026_678",
+      "rootFolderId": 52,
+      "folderId": 56,
+      "textFileId": 996,
+      "bigFileId": 1018,
+      "teamId": 3,
+      "teamRootFolderId": 123
+    },
+    {
+      "username": "perf_027_34l",
+      "rootFolderId": 51,
+      "folderId": 55,
+      "textFileId": 994,
+      "bigFileId": 1017,
+      "teamId": 3,
+      "teamRootFolderId": 123
+    },
+    {
+      "username": "perf_028_erv",
+      "rootFolderId": 57,
+      "folderId": 59,
+      "textFileId": 1012,
+      "bigFileId": 1021,
+      "teamId": 3,
+      "teamRootFolderId": 123
+    },
+    {
+      "username": "perf_029_19z",
+      "rootFolderId": 60,
+      "folderId": 62,
+      "textFileId": 1014,
+      "bigFileId": 1022,
+      "teamId": 3,
+      "teamRootFolderId": 123
+    },
+    {
+      "username": "perf_030_vjn",
+      "rootFolderId": 58,
+      "folderId": 61,
+      "textFileId": 1015,
+      "bigFileId": 1025,
+      "teamId": 4,
+      "teamRootFolderId": 124
+    },
+    {
+      "username": "perf_031_i4e",
+      "rootFolderId": 63,
+      "folderId": 64,
+      "textFileId": 1020,
+      "bigFileId": 1023,
+      "teamId": 4,
+      "teamRootFolderId": 124
+    },
+    {
+      "username": "perf_032_n16",
+      "rootFolderId": 65,
+      "folderId": 68,
+      "textFileId": 1253,
+      "bigFileId": 1271,
+      "teamId": 4,
+      "teamRootFolderId": 124
+    },
+    {
+      "username": "perf_033_4k9",
+      "rootFolderId": 67,
+      "folderId": 70,
+      "textFileId": 1255,
+      "bigFileId": 1277,
+      "teamId": 4,
+      "teamRootFolderId": 124
+    },
+    {
+      "username": "perf_034_625",
+      "rootFolderId": 69,
+      "folderId": 73,
+      "textFileId": 1254,
+      "bigFileId": 1273,
+      "teamId": 4,
+      "teamRootFolderId": 124
+    },
+    {
+      "username": "perf_035_a5b",
+      "rootFolderId": 66,
+      "folderId": 71,
+      "textFileId": 1258,
+      "bigFileId": 1275,
+      "teamId": 4,
+      "teamRootFolderId": 124
+    },
+    {
+      "username": "perf_036_zko",
+      "rootFolderId": 72,
+      "folderId": 75,
+      "textFileId": 1265,
+      "bigFileId": 1279,
+      "teamId": 4,
+      "teamRootFolderId": 124
+    },
+    {
+      "username": "perf_037_ic0",
+      "rootFolderId": 76,
+      "folderId": 78,
+      "textFileId": 1269,
+      "bigFileId": 1278,
+      "teamId": 4,
+      "teamRootFolderId": 124
+    },
+    {
+      "username": "perf_038_3at",
+      "rootFolderId": 79,
+      "folderId": 80,
+      "textFileId": 1274,
+      "bigFileId": 1280,
+      "teamId": 4,
+      "teamRootFolderId": 124
+    },
+    {
+      "username": "perf_039_xo9",
+      "rootFolderId": 74,
+      "folderId": 77,
+      "textFileId": 1263,
+      "bigFileId": 1276,
+      "teamId": 4,
+      "teamRootFolderId": 124
+    },
+    {
+      "username": "perf_040_34h",
+      "rootFolderId": 82,
+      "folderId": 87,
+      "textFileId": 1513,
+      "bigFileId": 1533,
+      "teamId": 5,
+      "teamRootFolderId": 125
+    },
+    {
+      "username": "perf_041_dq1",
+      "rootFolderId": 84,
+      "folderId": 89,
+      "textFileId": 1510,
+      "bigFileId": 1530,
+      "teamId": 5,
+      "teamRootFolderId": 125
+    },
+    {
+      "username": "perf_042_b1g",
+      "rootFolderId": 83,
+      "folderId": 86,
+      "textFileId": 1520,
+      "bigFileId": 1531,
+      "teamId": 5,
+      "teamRootFolderId": 125
+    },
+    {
+      "username": "perf_043_swh",
+      "rootFolderId": 81,
+      "folderId": 88,
+      "textFileId": 1506,
+      "bigFileId": 1527,
+      "teamId": 5,
+      "teamRootFolderId": 125
+    },
+    {
+      "username": "perf_044_72x",
+      "rootFolderId": 85,
+      "folderId": 90,
+      "textFileId": 1515,
+      "bigFileId": 1532,
+      "teamId": 5,
+      "teamRootFolderId": 125
+    },
+    {
+      "username": "perf_045_k26",
+      "rootFolderId": 92,
+      "folderId": 94,
+      "textFileId": 1524,
+      "bigFileId": 1534,
+      "teamId": 5,
+      "teamRootFolderId": 125
+    },
+    {
+      "username": "perf_046_vpj",
+      "rootFolderId": 91,
+      "folderId": 93,
+      "textFileId": 1522,
+      "bigFileId": 1536,
+      "teamId": 5,
+      "teamRootFolderId": 125
+    },
+    {
+      "username": "perf_047_3l9",
+      "rootFolderId": 95,
+      "folderId": 96,
+      "textFileId": 1529,
+      "bigFileId": 1535,
+      "teamId": 5,
+      "teamRootFolderId": 125
+    },
+    {
+      "username": "perf_048_2qp",
+      "rootFolderId": 97,
+      "folderId": 99,
+      "textFileId": 1754,
+      "bigFileId": 1780,
+      "teamId": 5,
+      "teamRootFolderId": 125
+    },
+    {
+      "username": "perf_049_eyr",
+      "rootFolderId": 100,
+      "folderId": 107,
+      "textFileId": 1773,
+      "bigFileId": 1785,
+      "teamId": 5,
+      "teamRootFolderId": 125
+    },
+    {
+      "username": "perf_050_c2c",
+      "rootFolderId": 98,
+      "folderId": 103,
+      "textFileId": 1778,
+      "bigFileId": 1790,
+      "teamId": 6,
+      "teamRootFolderId": 126
+    },
+    {
+      "username": "perf_051_nst",
+      "rootFolderId": 102,
+      "folderId": 108,
+      "textFileId": 1771,
+      "bigFileId": 1787,
+      "teamId": 6,
+      "teamRootFolderId": 126
+    },
+    {
+      "username": "perf_052_el2",
+      "rootFolderId": 105,
+      "folderId": 109,
+      "textFileId": 1775,
+      "bigFileId": 1788,
+      "teamId": 6,
+      "teamRootFolderId": 126
+    },
+    {
+      "username": "perf_053_ge8",
+      "rootFolderId": 101,
+      "folderId": 106,
+      "textFileId": 1781,
+      "bigFileId": 1789,
+      "teamId": 6,
+      "teamRootFolderId": 126
+    },
+    {
+      "username": "perf_054_c4h",
+      "rootFolderId": 104,
+      "folderId": 110,
+      "textFileId": 1783,
+      "bigFileId": 1792,
+      "teamId": 6,
+      "teamRootFolderId": 126
+    },
+    {
+      "username": "perf_055_jlq",
+      "rootFolderId": 111,
+      "folderId": 112,
+      "textFileId": 1786,
+      "bigFileId": 1793,
+      "teamId": 6,
+      "teamRootFolderId": 126
+    },
+    {
+      "username": "perf_056_a4c",
+      "rootFolderId": 113,
+      "folderId": 114,
+      "textFileId": 1907,
+      "bigFileId": 1914,
+      "teamId": 6,
+      "teamRootFolderId": 126
+    },
+    {
+      "username": "perf_057_asm",
+      "rootFolderId": 116,
+      "folderId": 119,
+      "textFileId": 1916,
+      "bigFileId": 1919,
+      "teamId": 6,
+      "teamRootFolderId": 126
+    },
+    {
+      "username": "perf_058_tpg",
+      "rootFolderId": 115,
+      "folderId": 118,
+      "textFileId": 1911,
+      "bigFileId": 1918,
+      "teamId": 6,
+      "teamRootFolderId": 126
+    },
+    {
+      "username": "perf_059_kv4",
+      "rootFolderId": 117,
+      "folderId": 120,
+      "textFileId": 1917,
+      "bigFileId": 1920,
+      "teamId": 6,
+      "teamRootFolderId": 126
+    }
+  ],
+  "note": "QA 후속 스택(sc-qa, 이 브랜치 이미지)의 시드. 시드 중 업로드 실패 없음"
+}

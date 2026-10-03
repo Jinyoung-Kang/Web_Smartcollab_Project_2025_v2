@@ -1,5 +1,5 @@
 // 입력 퍼징 — 모든 API 에 비정상 ID·쿼리·본문을 넣어 5xx, 내부 정보 노출, 오류 형식 불일치를 찾습니다.
-// 실행: node qa/scripts/api-fuzz.mjs
+// 실행: node qa/scripts/api-fuzz.mjs (결과 폴더는 QA_OUT, 기본 qa/results)
 import { writeFileSync } from 'node:fs'
 import { Client, PASSWORD, table } from './lib.mjs'
 
@@ -164,7 +164,7 @@ for (const p of ['/api/nope', '/api/files', '/api/files/', '/api//files/1', '/ap
 }
 
 writeFileSync(
-  new URL('../results/api-fuzz.md', import.meta.url),
+  `${process.env.QA_OUT ?? 'qa/results'}/api-fuzz.md`,
   `# 입력 퍼징 결과 (${new Date().toISOString()})\n\n요청 ${total}건, 상태 코드 분포 ${JSON.stringify(counts)}\n\n문제 ${findings.length}건\n\n${table(findings, ['problems', 'who', 'req', 'label', 'status', 'body'])}\n`,
 )
 console.log(`requests=${total} status=${JSON.stringify(counts)} findings=${findings.length}`)

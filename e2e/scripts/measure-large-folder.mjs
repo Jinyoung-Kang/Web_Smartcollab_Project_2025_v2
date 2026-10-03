@@ -4,6 +4,8 @@
 //   (서버 쪽 비용은 별도로 측정: 5,000개 목록 API 76~86ms — 병목 아님).
 // - 측정: ① 첫 표시(주소 이동 → 첫 묶음의 마지막 행이 그려질 때까지) ② '크기' 정렬 클릭 ③ '모두 선택' 클릭
 //   (② ③은 클릭부터 다음 프레임까지) ④ JS 힙 사용량. 결과는 docs/measurements/large-folder.json
+// - 폴더 목록이 묶음으로 나뉜 뒤(IMP-02) 서버는 한 번에 최대 1,000개를 주고 정렬도 서버가 합니다. 이 스크립트는 받은 항목을
+//   그리는 비용만 보려고 n 개를 한 응답에 담아 주며, 정렬 클릭은 같은 가짜 응답을 다시 받아 그리는 시간까지 포함합니다.
 import { chromium } from '@playwright/test'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -22,6 +24,8 @@ await page.getByRole('button', { name: '로그인', exact: true }).click()
 await page.waitForURL(/\/drive/)
 const me = await (await page.request.get(`${base}/api/auth/me`)).json()
 const real = await (await page.request.get(`${base}/api/folders/${me.rootFolderId}`)).json()
+// 목록 요청에는 정렬·묶음 매개변수가 붙으므로 경로로 고릅니다 [IMP-02]
+const isRootListing = (url) => url.pathname === `/api/folders/${me.rootFolderId}`
 const sample = real.items.find((i) => i.type === 'file')
 
 const clickTime = (code) => page.evaluate(async (c) => {
@@ -35,8 +39,8 @@ const results = []
 for (let run = 1; run <= runs; run++) {
   for (const n of [1000, 5000]) {
     const items = Array.from({ length: n }, (_, i) => ({ ...sample, id: 900000 + i, name: `보고서-${String(i).padStart(5, '0')}.txt` }))
-    const body = JSON.stringify({ ...real, items })
-    await page.route(`**/api/folders/${me.rootFolderId}`, (r) => r.fulfill({ status: 200, contentType: 'application/json', body }))
+    const body = JSON.stringify({ ...real, items, itemCount: n, nextCursor: null })
+    await page.route(isRootListing, (r) => r.fulfill({ status: 200, contentType: 'application/json', body }))
     const t0 = Date.now()
     await page.goto(`${base}/drive`)
     await page.getByText(`보고서-${String(Math.min(n, FIRST_BATCH) - 1).padStart(5, '0')}.txt`).waitFor({ state: 'attached' })
@@ -47,7 +51,7 @@ for (let run = 1; run <= runs; run++) {
     const heapMb = await page.evaluate(() => Math.round((performance.memory?.usedJSHeapSize ?? 0) / 1048576))
     results.push({ run, items: n, jsonKb: Math.round(body.length / 1024), renderedRows, firstRenderMs, sortMs, selectAllMs, heapMb })
     console.log(results.at(-1))
-    await page.unroute(`**/api/folders/${me.rootFolderId}`)
+    await page.unroute(isRootListing)
   }
 }
 await browser.close()
