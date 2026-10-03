@@ -1,8 +1,10 @@
 package com.smartcollab.file;
 
+import jakarta.persistence.LockModeType;
 import com.smartcollab.user.User;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,6 +19,11 @@ public interface FileRepository extends JpaRepository<FileEntity, Long> {
     /** 권한 판단에 필요한 폴더까지 한 번에 읽습니다. */
     @Query("select f from FileEntity f join fetch f.folder where f.id = :id")
     Optional<FileEntity> findWithFolder(@Param("id") Long id);
+
+    /** 내용 변경(저장·복원)과 서명을 한 파일 안에서 차례로 처리하려고 파일 행을 잠급니다 [S-17]. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select f from FileEntity f join fetch f.folder where f.id = :id")
+    Optional<FileEntity> lockWithFolder(@Param("id") Long id);
 
     @Query("select f from FileEntity f join fetch f.owner where f.folder.id = :folderId and f.deleted = false")
     List<FileEntity> findActiveInFolder(@Param("folderId") Long folderId);

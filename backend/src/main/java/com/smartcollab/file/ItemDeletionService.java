@@ -3,14 +3,17 @@ package com.smartcollab.file;
 import com.smartcollab.access.AccessPolicy;
 import com.smartcollab.folder.Folder;
 import com.smartcollab.folder.FolderRepository;
+import com.smartcollab.folder.FolderStructureLock;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.realtime.RealtimeEvents;
 import com.smartcollab.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -23,6 +26,9 @@ import java.util.function.Predicate;
  *   <li>팀 폴더의 변경 알림은 지운 항목 수와 상관없이 폴더당 한 번만 보냅니다.</li>
  *   <li>파일은 휴지통으로, 폴더는 안의 폴더·파일과 함께 휴지통으로 옮깁니다(단건 API 와 같은 규칙) [UX-06].
  *       파일을 먼저 처리합니다 — 폴더를 휴지통에 넣는 일괄 UPDATE 가 영속성 컨텍스트를 비우기 때문입니다.</li>
+ *   <li>고른 폴더 안에 있는 항목(함께 고른 하위 폴더·파일)은 따로 처리하지 않고 그 폴더와 함께 휴지통으로 갑니다 [S-15].
+ *       이전에는 상위 폴더를 먼저 처리하면 하위 항목이 이미 휴지통에 있어 404 로 전체가 취소됐고, 반대 순서면 하위 항목이
+ *       따로 휴지통에 남아 상위 폴더를 복원해도 돌아오지 않았습니다.</li>
  * </ul>
  */
 @Service
@@ -35,10 +41,15 @@ public class ItemDeletionService {
     private final AccessPolicy accessPolicy;
     private final TrashService trash;
     private final ApplicationEventPublisher events;
+    private final FolderStructureLock structureLock;
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public DriveDtos.DeleteResponse delete(DriveDtos.DeleteRequest req, Long userId) {
         List<DriveDtos.ItemRef> refs = req.items().stream().distinct().toList();
+        List<Long> selectedFolders = refs.stream().filter(r -> r.type().equals("folder")).map(DriveDtos.ItemRef::id).toList();
+        // 폴더를 휴지통에 넣는 동안 그 아래에 다른 요청이 폴더를 만들거나 옮기지 못하게 저장 공간을 먼저 잠급니다 [S-06]
+        structureLock.lockScopesOf(selectedFolders);
+        Set<Long> insideSelected = subtreesOf(selectedFolders);
         Set<RealtimeEvents.FolderChanged> changes = new LinkedHashSet<>();
 
         int trashed = 0;
@@ -46,27 +57,43 @@ public class ItemDeletionService {
             if (!ref.type().equals("file")) continue;
             FileEntity file = files.findWithFolder(ref.id()).filter(Predicate.not(FileEntity::isDeleted))
                     .orElseThrow(() -> ApiException.notFound("파일"));
+            trashed++;
+            if (insideSelected.contains(file.getFolder().getId())) continue;   // 고른 폴더와 함께 휴지통으로 [S-15]
             accessPolicy.requireFileDelete(file, userId);
             file.moveToTrash(users.getReferenceById(userId));
             changed(changes, file.getFolder());
-            trashed++;
         }
 
         int trashedFolders = 0;
         for (DriveDtos.ItemRef ref : refs) {
             if (!ref.type().equals("folder")) continue;
             Folder folder = folders.findById(ref.id()).orElseThrow(() -> ApiException.notFound("폴더"));
+            trashedFolders++;
+            if (folder.getParent() != null && insideSelected.contains(folder.getParent().getId())) continue;   // [S-15]
             accessPolicy.requireDelete(folder, userId);
             if (folder.isRoot()) {
                 throw ApiException.badRequest("최상위 폴더는 삭제할 수 없습니다.");
             }
             changed(changes, folder.getParent());
             trash.moveFolderToTrash(folder, userId);
-            trashedFolders++;
         }
 
         changes.forEach(events::publishEvent);
         return new DriveDtos.DeleteResponse(trashed, trashedFolders);
+    }
+
+    /**
+     * 고른 폴더들과 그 아래 모든 폴더의 ID. 이 안에 있는 항목은 고른 폴더와 함께 휴지통으로 갑니다. 고른 폴더를 지울 수 없으면
+     * (권한·존재) 그 폴더를 처리할 때 요청 전체가 취소되므로, 안쪽 항목의 권한은 따로 보지 않습니다.
+     */
+    private Set<Long> subtreesOf(List<Long> folderIds) {
+        Set<Long> ids = new HashSet<>();
+        for (Long id : folderIds) {
+            if (!ids.contains(id)) {   // 이미 다른 고른 폴더 아래라면 그 하위도 이미 들어 있습니다
+                folders.findSubtree(id).forEach(row -> ids.add(row.getId()));
+            }
+        }
+        return ids;
     }
 
     private static void changed(Set<RealtimeEvents.FolderChanged> changes, Folder folder) {

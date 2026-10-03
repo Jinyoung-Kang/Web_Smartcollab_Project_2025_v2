@@ -3,6 +3,7 @@ package com.smartcollab.file;
 import com.smartcollab.access.AccessPolicy;
 import com.smartcollab.folder.Folder;
 import com.smartcollab.folder.FolderRepository;
+import com.smartcollab.folder.FolderStructureLock;
 import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.tx.TransactionRunner;
@@ -14,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,6 +47,7 @@ public class TrashService {
     private final AppProperties props;
     private final ApplicationEventPublisher events;
     private final TransactionRunner tx;
+    private final FolderStructureLock structureLock;
 
     /** 자동 비우기에서 한 트랜잭션으로 지우는 파일 수 [PERF-05] */
     static final int PURGE_BATCH = 500;
@@ -103,8 +106,9 @@ public class TrashService {
      * 폴더를 하위 폴더·파일과 함께 복원합니다 [UX-06]. 원래 상위 폴더가 휴지통에 있으면(따로 지운 뒤 상위 폴더도 지운 경우)
      * 그 스토리지의 최상위 폴더로 복원합니다.
      */
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public DriveDtos.RestoreResponse restoreFolder(Long folderId, Long userId) {
+        structureLock.lockScopesOf(List.of(folderId));   // 복원과 영구 삭제·자동 비우기가 엇갈리지 않게 [S-06]
         Folder folder = folders.findById(folderId).orElseThrow(() -> ApiException.notFound("휴지통의 폴더"));
         accessPolicy.requireTrashedFolderManage(folder, userId);
         boolean relocated = folder.getParent().isInTrash();
@@ -128,16 +132,18 @@ public class TrashService {
         cleanup.purgeFiles(List.of(file.getId()));
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void deleteFolderPermanently(Long folderId, Long userId) {
+        structureLock.lockScopesOf(List.of(folderId));
         Folder folder = folders.findById(folderId).orElseThrow(() -> ApiException.notFound("휴지통의 폴더"));
         accessPolicy.requireTrashedFolderManage(folder, userId);
         cleanup.deleteFolderTree(folderId);
     }
 
     /** @return 지운 항목 수 (파일 + 폴더) */
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public int empty(Long teamId, Long userId) {
+        structureLock.lockScope(teamId, userId);   // 그 사이 복원된 폴더를 지우지 않게 [S-06]
         List<Long> fileIds;
         List<Long> folderIds;
         if (teamId == null) {
@@ -179,8 +185,17 @@ public class TrashService {
         int purgedFolders = 0;
         for (Long folderId : folderIds) {
             try {
-                tx.write(() -> cleanup.deleteFolderTree(folderId));
-                purgedFolders++;
+                // 대상을 고른 뒤 복원됐을 수 있어, 잠근 뒤 아직 휴지통에 있는지 다시 확인합니다 [S-06]
+                boolean purgedThis = tx.writeReadCommitted(() -> {
+                    structureLock.lockScopesOf(List.of(folderId));
+                    Folder folder = folders.findById(folderId).orElse(null);
+                    if (folder == null || !folder.isTrashRoot() || folder.getDeletedAt().isAfter(cutoff)) {
+                        return false;
+                    }
+                    cleanup.deleteFolderTree(folderId);
+                    return true;
+                });
+                if (purgedThis) purgedFolders++;
             } catch (RuntimeException e) {
                 log.error("Trash purge of folder {} failed; will retry at the next run", folderId, e);
             }

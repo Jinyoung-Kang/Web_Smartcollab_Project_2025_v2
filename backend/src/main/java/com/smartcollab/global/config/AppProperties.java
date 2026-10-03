@@ -39,7 +39,11 @@ public record AppProperties(
         }
     }
 
-    public record Files(long textEditMaxBytes, int trashRetentionDays) {
+    /**
+     * @param maxFolderDepth 최상위 아래 폴더 깊이 상한 [S-05]
+     * @param maxCopyFolders 한 번에 복사할 수 있는 폴더 수 [S-04]
+     */
+    public record Files(long textEditMaxBytes, int trashRetentionDays, int maxFolderDepth, int maxCopyFolders) {
     }
 
     /** @param translationCharsPerUserPerDay 한 사용자가 하루에 번역할 수 있는 글자 수 (DeepL 월 사용량 보호) [SEC-07] */
@@ -47,8 +51,12 @@ public record AppProperties(
                             int sharePasswordPerLinkPer10Minutes, int signupPerHour, long translationCharsPerUserPerDay) {
     }
 
-    /** 저장 공간 한도 (옛 버전·휴지통 포함 실제 저장량 기준) */
-    public record Quota(DataSize personal, DataSize team) {
+    /**
+     * 저장 공간 한도 (옛 버전·휴지통 포함 실제 저장량 기준)
+     *
+     * @param teamsPerUser 한 사람이 팀장인 팀 수 상한 — 팀마다 한도를 받으므로 팀 수도 제한합니다 [S-10]
+     */
+    public record Quota(DataSize personal, DataSize team, int teamsPerUser) {
     }
 
     public record Deepl(String apiKey, String baseUrl) {

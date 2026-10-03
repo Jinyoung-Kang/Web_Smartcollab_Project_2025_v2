@@ -50,6 +50,21 @@ class SlidingWindowRateLimiterTest {
     }
 
     @Test
+    @DisplayName("[S-02] 키마다 자기 창이 지나면 정리된다 — 24시간 창이 한 번 쓰였다고 10분 창의 키까지 24시간 붙잡지 않는다")
+    void evictsEachKeyByItsOwnWindow() {
+        MutableClock clock = new MutableClock();
+        SlidingWindowRateLimiter limiter = new SlidingWindowRateLimiter(clock);
+        limiter.tryAcquire("login-account:short", 10, Duration.ofMinutes(10));
+        limiter.tryAcquire("translation:long", 1, 100, Duration.ofDays(1));
+        clock.now = clock.now.plus(Duration.ofMinutes(11));
+        limiter.evictStale();
+        assertThat(limiter.trackedKeys()).isEqualTo(1);
+        clock.now = clock.now.plus(Duration.ofDays(1));
+        limiter.evictStale();
+        assertThat(limiter.trackedKeys()).isZero();
+    }
+
+    @Test
     @DisplayName("[SEC-07] 요청마다 무게(글자 수 등)를 매겨, 창 안의 합계가 한도를 넘지 않을 때만 허용한다")
     void weightedBudget() {
         MutableClock clock = new MutableClock();
@@ -62,6 +77,20 @@ class SlidingWindowRateLimiterTest {
         assertThat(limiter.tryAcquire("other", 100, 100, day)).isTrue();
         clock.now = clock.now.plus(day).plusSeconds(1);
         assertThat(limiter.tryAcquire("t", 100, 100, day)).isTrue();
+    }
+
+    @Test
+    @DisplayName("[S-16] 쓰지 못한 요청의 무게를 돌려주면 그만큼 다시 쓸 수 있고, 없는 키·무게는 무시한다")
+    void releaseReturnsWeight() {
+        SlidingWindowRateLimiter limiter = new SlidingWindowRateLimiter(new MutableClock());
+        Duration day = Duration.ofDays(1);
+        assertThat(limiter.tryAcquire("t", 30, 100, day)).isTrue();
+        assertThat(limiter.tryAcquire("t", 70, 100, day)).isTrue();
+        limiter.release("t", 70);
+        limiter.release("t", 999);      // 그런 기록 없음
+        limiter.release("none", 10);    // 그런 키 없음
+        assertThat(limiter.tryAcquire("t", 70, 100, day)).isTrue();
+        assertThat(limiter.tryAcquire("t", 1, 100, day)).isFalse();
     }
 
     @Test

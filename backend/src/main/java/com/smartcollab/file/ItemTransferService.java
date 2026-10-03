@@ -2,8 +2,11 @@ package com.smartcollab.file;
 
 import com.smartcollab.access.AccessPolicy;
 import com.smartcollab.folder.Folder;
+import com.smartcollab.folder.FolderDepthPolicy;
+import com.smartcollab.folder.FolderStructureLock;
 import com.smartcollab.folder.FolderRepository;
 import com.smartcollab.global.error.ApiException;
+import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.global.error.ErrorCode;
 import com.smartcollab.realtime.RealtimeEvents;
 import com.smartcollab.global.tx.TransactionRunner;
@@ -14,6 +17,7 @@ import com.smartcollab.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayDeque;
@@ -55,15 +59,22 @@ public class ItemTransferService {
     private final ApplicationEventPublisher events;
     private final TransactionRunner tx;
     private final StorageQuota quota;
+    private final FolderDepthPolicy depthPolicy;
+    private final FolderStructureLock structureLock;
+    private final AppProperties props;
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void move(DriveDtos.TransferRequest req, Long userId) {
+        // 순환 검사·휴지통 확인을 최신 데이터로 하도록 저장 공간을 먼저 잠급니다(A→B·B→A 동시 이동 순환) [S-06]
+        List<Long> lockIds = new ArrayList<>(List.of(req.targetFolderId()));
+        req.items().stream().filter(r -> r.type().equals("folder")).forEach(r -> lockIds.add(r.id()));
+        structureLock.lockScopesOf(lockIds);
         Folder target = getFolder(req.targetFolderId());
         accessPolicy.requireEdit(target, userId);
         Set<Folder> touched = new LinkedHashSet<>();
         touched.add(target);
 
-        for (DriveDtos.ItemRef ref : req.items()) {
+        for (DriveDtos.ItemRef ref : req.items().stream().distinct().toList()) {
             if (ref.type().equals("folder")) {
                 Folder folder = getFolder(ref.id());
                 if (folder.isRoot()) {
@@ -72,10 +83,11 @@ public class ItemTransferService {
                 accessPolicy.requireRead(folder, userId);   // 휴지통의 폴더는 없는 것처럼 [UX-06]
                 accessPolicy.requireEdit(folder.getParent(), userId);
                 requireSameScope(folder, target);
-                boolean cycle = folders.findSubtree(folder.getId()).stream().anyMatch(r -> r.getId().equals(target.getId()));
-                if (cycle) {
+                List<FolderRepository.SubtreeRow> subtree = folders.findSubtree(folder.getId());
+                if (subtree.stream().anyMatch(r -> r.getId().equals(target.getId()))) {
                     throw ApiException.badRequest("폴더를 자기 자신이나 하위 폴더 안으로 옮길 수 없습니다.");
                 }
+                depthPolicy.requireRoomUnder(target, FolderDepthPolicy.heightOf(subtree));
                 touched.add(folder.getParent());
                 folder.moveUnder(target);
             } else {
@@ -107,7 +119,7 @@ public class ItemTransferService {
                 storage.copy(file.sourceKey(), file.targetKey());
                 copied.add(file.targetKey());
             }
-            tx.write(() -> {
+            tx.writeReadCommitted(() -> {
                 apply(plan, userId);
                 return null;
             });
@@ -128,15 +140,23 @@ public class ItemTransferService {
         List<FolderCopy> folderCopies = new ArrayList<>();
         List<FileCopy> fileCopies = new ArrayList<>();
         int count = 0;
-        for (DriveDtos.ItemRef ref : req.items()) {
+        int folderCount = 0;
+        // 같은 항목을 여러 번 넣어 복사본을 불리지 못하게 중복을 없앱니다 [S-04]
+        for (DriveDtos.ItemRef ref : req.items().stream().distinct().toList()) {
             if (ref.type().equals("folder")) {
                 Folder source = getFolder(ref.id());
                 accessPolicy.requireRead(source, userId);
-                boolean cycle = folders.findSubtree(source.getId()).stream().anyMatch(r -> r.getId().equals(target.getId()));
-                if (cycle) {
+                List<FolderRepository.SubtreeRow> subtree = folders.findSubtree(source.getId());
+                if (subtree.stream().anyMatch(r -> r.getId().equals(target.getId()))) {
                     throw ApiException.badRequest("폴더를 자기 자신이나 하위 폴더 안으로 복사할 수 없습니다.");
                 }
-                FolderCopy tree = planFolderTree(source, uniqueName(source.isRoot() ? "복사된 폴더" : source.getName(), takenNames));
+                // 엔티티를 읽기 전에 개수부터 확인합니다 (파일 수만 세던 때는 요청 몇 번으로 폴더 수백만 개를 만들 수 있었음) [S-04]
+                folderCount += subtree.size();
+                if (folderCount > props.files().maxCopyFolders()) {
+                    throw ApiException.badRequest("한 번에 복사할 수 있는 폴더는 " + props.files().maxCopyFolders() + "개까지입니다.");
+                }
+                depthPolicy.requireRoomUnder(target, FolderDepthPolicy.heightOf(subtree));
+                FolderCopy tree = planFolderTree(source, subtree, uniqueName(source.isRoot() ? "복사된 폴더" : source.getName(), takenNames));
                 folderCopies.add(tree);
                 count += tree.fileCount();
             } else {
@@ -156,9 +176,8 @@ public class ItemTransferService {
     }
 
     /** 원본 폴더 트리를 너비 우선으로 계획합니다. 폴더 목록은 CTE 1회, 파일은 IN 조회 1회로 읽습니다. */
-    private FolderCopy planFolderTree(Folder sourceRoot, String rootName) {
-        List<Long> subtreeIds = folders.findSubtree(sourceRoot.getId()).stream()
-                .map(FolderRepository.SubtreeRow::getId).toList();
+    private FolderCopy planFolderTree(Folder sourceRoot, List<FolderRepository.SubtreeRow> subtree, String rootName) {
+        List<Long> subtreeIds = subtree.stream().map(FolderRepository.SubtreeRow::getId).toList();
         Map<Long, List<Folder>> childrenOf = new HashMap<>();
         List<Long> copiedFolderIds = new ArrayList<>();
         for (Folder f : folders.findAllById(subtreeIds)) {
@@ -195,6 +214,7 @@ public class ItemTransferService {
     }
 
     private void apply(CopyPlan plan, Long userId) {
+        structureLock.lockScopesOf(List.of(plan.targetFolderId()));   // 대상이 그 사이 휴지통에 들어갔으면 아래 권한 확인에서 404 [S-06]
         Folder target = getFolder(plan.targetFolderId());
         accessPolicy.requireEdit(target, userId);
         quota.lockAndCheckRoom(StorageQuota.Scope.of(target), plan.totalBytes());

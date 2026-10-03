@@ -37,7 +37,7 @@ import java.util.List;
 @Configuration
 public class SecurityConfig {
 
-    static final String CSP = String.join("; ",
+    public static final String CSP = String.join("; ",
             "default-src 'self'",
             "script-src 'self'",
             // 인라인 스타일도 막습니다 [SEC-12]. React 의 style 속성은 DOM API(CSSOM)로 적용되어 영향을 받지 않습니다.

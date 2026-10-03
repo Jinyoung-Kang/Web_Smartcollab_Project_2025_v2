@@ -70,6 +70,23 @@ class RequestBodyLimitTest extends IntegrationTest {
         s.upload(s.rootFolderId, "big.bin", new byte[OVER_LIMIT]).andExpect(status().isCreated());
     }
 
+    @Test
+    @DisplayName("[S-18] 업로드 경로가 아닌 multipart 요청은 본문을 해석하기 전에 415 로 거절한다 (로그인 없이 큰 본문을 끝까지 읽히던 문제)")
+    void multipartOutsideUploadIsRejected() throws Exception {
+        String boundary = "sc-boundary";
+        String body = "--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"a.bin\"\r\n"
+                + "Content-Type: application/octet-stream\r\n\r\n" + "a".repeat(OVER_LIMIT) + "\r\n--" + boundary + "--\r\n";
+        HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/public/shares/no-such-token/unlock"))
+                .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+
+        HttpResponse<String> res = http.send(request, HttpResponse.BodyHandlers.ofString());
+
+        assertThat(res.statusCode()).isEqualTo(415);
+        assertThat(res.body()).contains("\"code\":\"UNSUPPORTED_MEDIA_TYPE\"");
+    }
+
     private HttpRequest unlock(HttpRequest.BodyPublisher body) {
         return HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/public/shares/no-such-token/unlock"))
                 .header("Content-Type", "application/json")

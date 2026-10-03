@@ -33,7 +33,7 @@ class TranslationServiceTest {
 
     @BeforeEach
     void setUp() {
-        AppProperties props = new AppProperties(null, null, null, null, new AppProperties.Files(2048, 30),
+        AppProperties props = new AppProperties(null, null, null, null, new AppProperties.Files(2048, 30, 50, 1000),
                 new AppProperties.RateLimit(10, 20, 10, 50, 5, DAILY_CHARS), null, null, null, null);
         service = new TranslationService(content, deepl, new SlidingWindowRateLimiter(), props);
         when(deepl.enabled()).thenReturn(true);
@@ -78,6 +78,19 @@ class TranslationServiceTest {
 
         when(content.readUtf8Content(anyLong(), anyLong(), anyLong())).thenReturn("가".repeat(100));
         assertThat(service.translate(1L, 7L, "EN").text()).isEqualTo("번역");   // 하루 분량 전부가 남아 있음
+    }
+
+    @Test
+    @DisplayName("[S-16] DeepL 호출이 실패하면 그 요청의 분량을 돌려준다")
+    void refundsBudgetWhenUpstreamFails() {
+        when(content.readUtf8Content(anyLong(), anyLong(), anyLong())).thenReturn("가".repeat(100));
+        when(deepl.translate(anyString(), anyString()))
+                .thenThrow(new ApiException(ErrorCode.UPSTREAM_ERROR, "번역 서비스 호출에 실패했습니다."))
+                .thenReturn(new DeepLTranslationClient.Translation("번역", "KO"));
+
+        assertThatThrownBy(() -> service.translate(1L, 7L, "EN"))
+                .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.UPSTREAM_ERROR));
+        assertThat(service.translate(1L, 7L, "EN").text()).isEqualTo("번역");   // 이전: 실패한 호출이 하루 분량을 다 써서 429
     }
 
     @Test

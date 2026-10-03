@@ -8,7 +8,6 @@ import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * 슬라이딩 윈도(로그) 방식의 인메모리 요청 제한기.
@@ -21,8 +20,6 @@ import java.util.concurrent.atomic.AtomicLong;
 public class SlidingWindowRateLimiter {
 
     private final ConcurrentHashMap<String, Window> windows = new ConcurrentHashMap<>();
-    /** 지금까지 쓰인 가장 긴 창. 정리할 때 이보다 최근 기록이 있는 키는 남깁니다 (고정값이면 긴 창의 기록이 일찍 지워짐). */
-    private final AtomicLong longestWindowMillis = new AtomicLong(Duration.ofMinutes(10).toMillis());
     private final Clock clock;
 
     public SlidingWindowRateLimiter() {
@@ -48,10 +45,10 @@ public class SlidingWindowRateLimiter {
     public boolean tryAcquire(String key, long weight, long limit, Duration window) {
         long now = clock.millis();
         long windowStart = now - window.toMillis();
-        longestWindowMillis.accumulateAndGet(window.toMillis(), Math::max);
         boolean[] allowed = {false};
         windows.compute(key, (k, existing) -> {
             Window w = existing == null ? new Window() : existing;
+            w.windowMillis = Math.max(w.windowMillis, window.toMillis());
             w.expireUpTo(windowStart);
             if (w.total + weight <= limit) {
                 w.add(now, weight);
@@ -62,17 +59,31 @@ public class SlidingWindowRateLimiter {
         return allowed[0];
     }
 
+    /**
+     * 허용됐지만 실제로는 자원을 쓰지 못한 요청(예: 번역 서비스 호출 실패)의 무게를 돌려줍니다 [S-16].
+     * 같은 무게의 가장 최근 기록 하나를 지웁니다 — 같은 키의 요청이 겹쳐도 합계는 정확하고, 지워지는 기록의 시각만 조금 다를 수 있습니다.
+     */
+    public void release(String key, long weight) {
+        windows.computeIfPresent(key, (k, w) -> {
+            w.removeNewest(weight);
+            return w;
+        });
+    }
+
     /** 성공한 로그인 등으로 기록을 초기화합니다. */
     public void reset(String key) {
         windows.remove(key);
     }
 
-    /** 오래된 키를 정리해 메모리가 계속 늘지 않게 합니다. */
+    /**
+     * 창이 지난 키를 정리해 메모리가 계속 늘지 않게 합니다. 키마다 자기 창으로 판단합니다 — 예전에는 "지금까지 쓰인 가장 긴 창"
+     * 하나로 판단해, 번역(24시간)이 한 번 쓰이면 로그인·가입 키까지 모두 24시간 남았습니다 [S-02].
+     */
     @Scheduled(fixedDelay = 5 * 60 * 1000)
     public void evictStale() {
-        long threshold = clock.millis() - longestWindowMillis.get();
+        long now = clock.millis();
         for (String key : windows.keySet()) {
-            windows.computeIfPresent(key, (k, w) -> w.newestAt() <= threshold ? null : w);
+            windows.computeIfPresent(key, (k, w) -> w.newestAt() <= now - w.windowMillis ? null : w);
         }
     }
 
@@ -84,6 +95,8 @@ public class SlidingWindowRateLimiter {
     private static final class Window {
         private final Deque<long[]> entries = new ArrayDeque<>();
         private long total;
+        /** 이 키에 쓰인 창(같은 키는 같은 창을 씀). 정리 기준 */
+        private long windowMillis;
 
         void add(long at, long weight) {
             entries.addLast(new long[]{at, weight});
@@ -93,6 +106,17 @@ public class SlidingWindowRateLimiter {
         void expireUpTo(long windowStart) {
             while (!entries.isEmpty() && entries.peekFirst()[0] <= windowStart) {
                 total -= entries.pollFirst()[1];
+            }
+        }
+
+        void removeNewest(long weight) {
+            var it = entries.descendingIterator();
+            while (it.hasNext()) {
+                if (it.next()[1] == weight) {
+                    it.remove();
+                    total -= weight;
+                    return;
+                }
             }
         }
 

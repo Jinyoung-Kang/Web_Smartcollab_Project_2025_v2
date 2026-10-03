@@ -8,6 +8,7 @@ import com.smartcollab.global.error.ErrorCode;
 import com.smartcollab.global.security.JwtTokenService;
 import com.smartcollab.global.security.SecurityEventLog;
 import com.smartcollab.global.security.SlidingWindowRateLimiter;
+import com.smartcollab.user.DemoAccounts;
 import com.smartcollab.user.Role;
 import com.smartcollab.user.User;
 import com.smartcollab.user.UserRepository;
@@ -20,6 +21,7 @@ import org.springframework.util.StringUtils;
 import java.time.Duration;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +35,8 @@ public class AuthService {
     private final AppProperties props;
 
     /** 존재하지 않는 아이디로 로그인할 때도 BCrypt 비교를 수행해 응답 시간으로 계정 존재 여부를 추측하지 못하게 합니다. */
+    private static final Pattern USERNAME = Pattern.compile(AuthDtos.USERNAME_REGEX);
+
     private volatile String dummyHash;
 
     /** 외부 요청의 가입. 한 IP 에서 계정을 대량으로 만드는 것을 막습니다 [SEC-05]. */
@@ -41,6 +45,9 @@ public class AuthService {
         if (!rateLimiter.tryAcquire("signup:" + clientIp, props.rateLimit().signupPerHour(), Duration.ofHours(1))) {
             SecurityEventLog.rateLimited("signup-ip", clientIp);
             throw new ApiException(ErrorCode.RATE_LIMITED, "가입 요청이 너무 많습니다. 잠시 후 다시 시도하세요.");
+        }
+        if (DemoAccounts.isReserved(req.username())) {   // [S-19] 체험 데이터 생성은 아래 signUp(req) 를 직접 씁니다
+            throw ApiException.conflict("체험 계정용으로 예약된 아이디라 가입할 수 없습니다.");
         }
         return signUp(req);
     }
@@ -75,6 +82,13 @@ public class AuthService {
         if (!rateLimiter.tryAcquire("login:" + clientIp, props.rateLimit().loginPerMinute(), Duration.ofMinutes(1))) {
             SecurityEventLog.rateLimited("login-ip", clientIp);
             throw new ApiException(ErrorCode.RATE_LIMITED, "로그인 시도가 너무 많습니다. 1분 뒤 다시 시도하세요.");
+        }
+        // 가입할 수 없는 형식의 아이디는 사용자 조회·계정 단위 시도 기록 없이 실패시킵니다. DB 콜레이션이 악센트를 무시해
+        // "dèmo1" 같은 변형이 같은 계정에 맞으면서 시도 제한 키는 달라 계정 단위 제한을 우회할 수 있었습니다 [S-03].
+        if (!USERNAME.matcher(username).matches()) {
+            passwordEncoder.matches(password, dummyHash());   // 존재하는 아이디와 응답 시간을 맞춤
+            SecurityEventLog.loginFailed(clientIp);
+            throw new ApiException(ErrorCode.INVALID_CREDENTIALS);
         }
         // 아이디 비교는 DB 콜레이션(대소문자 구분 없음)과 같게 소문자로 묶습니다.
         String accountKey = "login-account:" + username.strip().toLowerCase(Locale.ROOT);

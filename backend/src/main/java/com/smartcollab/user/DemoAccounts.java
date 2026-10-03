@@ -15,6 +15,8 @@ import java.util.stream.Collectors;
  * <p>체험 계정은 비밀번호가 공개되어 여러 방문자가 함께 쓰므로, 다른 방문자의 체험을 망가뜨리는 작업
  * (탈퇴·팀 삭제·팀장 위임·팀 나가기·체험 계정 내보내기)을 막고, 데이터는 매일 초기화합니다 [SEC-06].
  * 데모 모드가 아니면 같은 이름의 계정도 일반 계정으로 취급합니다.</p>
+ * <p>체험 계정 아이디는 데모 모드와 상관없이 가입에 쓸 수 없습니다 [S-19]. 나중에 데모 모드를 켜면 같은 아이디의 실사용자가
+ * 체험 계정으로 취급되어 매일 초기화(삭제)되기 때문입니다.</p>
  */
 @Component
 public class DemoAccounts {
@@ -33,8 +35,12 @@ public class DemoAccounts {
     }
 
     public boolean isDemo(User user) {
-        // 아이디 비교는 DB 콜레이션(대소문자 구분 없음)과 같게 소문자로 합니다.
-        return enabled && user != null && USERNAMES.contains(user.getUsername().toLowerCase(Locale.ROOT));
+        return enabled && user != null && isReserved(user.getUsername());
+    }
+
+    /** 체험 계정용으로 예약된 아이디인지. DB 콜레이션(대소문자 구분 없음)과 같게 소문자로 비교합니다. */
+    public static boolean isReserved(String username) {
+        return username != null && USERNAMES.contains(username.toLowerCase(Locale.ROOT));
     }
 
     /** 체험 계정이면 거절합니다. reason 예: "체험 계정은 탈퇴할 수 없습니다." */

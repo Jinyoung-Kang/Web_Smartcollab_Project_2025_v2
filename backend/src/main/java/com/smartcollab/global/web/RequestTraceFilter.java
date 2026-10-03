@@ -31,6 +31,7 @@ public class RequestTraceFilter extends OncePerRequestFilter {
     public static final String MDC_KEY = GlobalExceptionHandler.REQUEST_ID;
 
     private static final Pattern VALID_ID = Pattern.compile("[A-Za-z0-9._-]{8,64}");
+    private static final Pattern SHARE_TOKEN = Pattern.compile("^(/api/public/shares/)[^/]+");
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
@@ -46,12 +47,18 @@ public class RequestTraceFilter extends OncePerRequestFilter {
         } finally {
             String path = request.getRequestURI().substring(request.getContextPath().length());
             if (isTraced(path)) {
+                path = maskSecrets(path);
                 Object userId = request.getAttribute(CookieAuthenticationFilter.USER_ID_ATTRIBUTE);
                 log.info("{} {} {} {}ms user={} ip={}", request.getMethod(), path, response.getStatus(),
                         (System.nanoTime() - started) / 1_000_000, userId == null ? "-" : userId, ClientIp.of(request));
             }
             MDC.remove(MDC_KEY);
         }
+    }
+
+    /** 공유 링크 토큰은 그 자체로 접근 권한(비밀번호 없는 링크라면 누구나 내려받음)이라 접근 기록에 남기지 않습니다 [S-07]. */
+    static String maskSecrets(String path) {
+        return SHARE_TOKEN.matcher(path).replaceFirst("$1***");
     }
 
     private static boolean isTraced(String path) {

@@ -112,7 +112,7 @@ public class DemoDataSeeder {
         User deleter = signUp(DemoAccounts.ACCOUNTS.get(2), password);
 
         // 팀 구성: 초대 → 수락 과정을 그대로 거칩니다.
-        TeamDtos.TeamSummary team = teamService.create("SmartCollab 데모 팀", leader.getId());
+        TeamDtos.TeamSummary team = teamService.createDemoTeam("SmartCollab 데모 팀", leader.getId());
         joinTeam(team.id(), leader, editor);
         joinTeam(team.id(), leader, deleter);
         TeamMember deleterMember = members.findByTeamIdAndUserId(team.id(), deleter.getId()).orElseThrow();
@@ -154,7 +154,7 @@ public class DemoDataSeeder {
         fileService.moveToTrash(old.id(), leader.getId());
 
         // 알림: 다른 팀에서 온 초대(수락/거절 대기)
-        TeamDtos.TeamSummary review = teamService.create("디자인 리뷰", editor.getId());
+        TeamDtos.TeamSummary review = teamService.createDemoTeam("디자인 리뷰", editor.getId());
         teamService.invite(review.id(), leader.getUsername(), editor.getId());
 
         // 데모 첫 화면이 읽은 알림으로 어수선하지 않도록 처리 완료된 알림은 읽음으로 표시

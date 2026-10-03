@@ -87,6 +87,9 @@ app:
   files:
     text-edit-max-bytes: ${TEXT_EDIT_MAX_BYTES:2097152}
     trash-retention-days: ${TRASH_RETENTION_DAYS:30}
+    # 폴더 깊이 상한(최상위 아래 단계 수)과 한 번에 복사하는 폴더 수 상한 [S-04·S-05]
+    max-folder-depth: ${MAX_FOLDER_DEPTH:50}
+    max-copy-folders: ${MAX_COPY_FOLDERS:1000}
     # 보관 기간이 지난 휴지통 파일을 비우는 시각. 서버(컨테이너) 시간대가 UTC 여도 이 시간대 기준으로 실행합니다.
     trash-purge-cron: ${TRASH_PURGE_CRON:0 0 4 * * *}
     trash-purge-zone: ${TRASH_PURGE_ZONE:Asia/Seoul}
@@ -105,6 +108,8 @@ app:
   quota:
     personal: ${QUOTA_PERSONAL:1GB}
     team: ${QUOTA_TEAM:5GB}
+    # 한 사람이 팀장인 팀 수 상한(팀마다 위 한도를 받으므로) [S-10]
+    teams-per-user: ${MAX_TEAMS_PER_USER:10}
   deepl:
     api-key: ${DEEPL_API_KEY:}
     base-url: ${DEEPL_API_URL:https://api-free.deepl.com}

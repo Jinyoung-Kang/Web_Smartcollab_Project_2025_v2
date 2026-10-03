@@ -62,6 +62,30 @@ class ItemDeletionTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("[S-15] 상위 폴더와 그 안의 폴더·파일을 함께 골라도, 고른 순서와 상관없이 상위 폴더와 함께 휴지통으로 옮긴다")
+    void itemsInsideSelectedFolderGoWithIt() throws Exception {
+        for (boolean parentFirst : new boolean[]{true, false}) {
+            Api.Session s = api().signUp(parentFirst ? "nestpf" : "nestcf");
+            long parent = s.createFolder(s.rootFolderId, "상위");
+            long child = s.createFolder(parent, "하위");
+            long inner = s.uploadText(child, "안.txt", "x");
+            List<Map<String, Object>> items = parentFirst
+                    ? List.of(ref("folder", parent), ref("folder", child), ref("file", inner))
+                    : List.of(ref("file", inner), ref("folder", child), ref("folder", parent));
+
+            s.postJson("/api/items/delete", Map.of("items", items))   // 이전: 상위 폴더가 먼저면 404 로 전체 취소
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.trashedFiles").value(1))
+                    .andExpect(jsonPath("$.trashedFolders").value(2));
+            s.get("/api/trash").andExpect(jsonPath("$", hasSize(1)));   // 이전: 하위 항목이 따로 휴지통에 남음(3개)
+
+            s.post("/api/trash/folders/{id}/restore", parent).andExpect(status().isOk());
+            s.get("/api/folders/{id}", child).andExpect(jsonPath("$.items", hasSize(1)));
+            s.get("/api/trash").andExpect(jsonPath("$", hasSize(0)));
+        }
+    }
+
+    @Test
     @DisplayName("팀 폴더의 변경 알림은 지운 항목 수와 상관없이 폴더당 한 번만 보낸다")
     void publishesOneChangePerFolder() throws Exception {
         Api.Session leader = api().signUp("bulkteam");

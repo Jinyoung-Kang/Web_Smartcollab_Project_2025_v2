@@ -1,0 +1,3 @@
+# 운영 프로필의 필수 DB 설정 확인 [S-14]
+org.springframework.boot.EnvironmentPostProcessor=\
+com.smartcollab.global.config.ProductionSettings

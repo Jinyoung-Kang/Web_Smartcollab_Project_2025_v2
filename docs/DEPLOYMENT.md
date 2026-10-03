@@ -10,13 +10,15 @@ open http://localhost:8080
 
 `DEMO_ENABLED=true` 와 `DEMO_PASSWORD` 를 넣으면 체험용 계정(demo1~3)·팀·문서가 만들어집니다.
 
+> 체험 모드에서는 `demo1~3` 계정과 그 데이터가 매일 초기화됩니다. 이 아이디는 가입에 쓸 수 없지만(2026-10 이후), 그 전에 같은 아이디로 가입한 실사용자가 있는 DB 라면 체험 모드를 켜기 전에 확인하세요.
+
 ## 2. 환경 변수
 
 | 변수 | 필수 | 기본값 | 설명 |
 |---|---|---|---|
 | `SPRING_PROFILES_ACTIVE` | 운영 | – | `prod` 이면 Azure 저장소·보안 쿠키·Swagger 비활성 |
-| `DB_URL` | ✔ | `jdbc:mysql://localhost:3306/smartcollab…` | MySQL 8 JDBC URL (`serverTimezone=UTC` 권장) |
-| `DB_USERNAME` / `DB_PASSWORD` | ✔ | – | DB 계정 |
+| `DB_URL` | ✔ | 개발 `jdbc:mysql://localhost:3306/smartcollab…` / `prod` 는 없음 | MySQL 8 JDBC URL (`serverTimezone=UTC` 권장) |
+| `DB_USERNAME` / `DB_PASSWORD` | ✔ | 개발 `smartcollab` / `prod` 는 없음 | DB 계정. `prod` 에서 셋 중 하나라도 없으면 DB 에 접속하기 전에 기동을 멈춥니다 |
 | `JWT_SECRET` | ✔(운영) | 개발 시 임시 키 | 32바이트 이상 무작위 문자열 |
 | `JWT_TTL` | | `8h` | 로그인 유지 시간 |
 | `STORAGE_TYPE` | | `local` (`prod` 는 `azure`) | `local` \| `azure` |
@@ -29,6 +31,8 @@ open http://localhost:8080
 | `MAX_REQUEST_BODY_SIZE` | | `6MB` | 업로드를 뺀 요청 본문(JSON) 한도. `TEXT_EDIT_MAX_BYTES` 를 올리면 그 2배 이상으로 함께 올리세요 |
 | `TRASH_RETENTION_DAYS` | | `30` | 휴지통 보관 기간 |
 | `QUOTA_PERSONAL` / `QUOTA_TEAM` | | `1GB` / `5GB` | 저장 공간 한도 (옛 버전·휴지통 포함) |
+| `MAX_TEAMS_PER_USER` | | `10` | 한 사람이 팀장인 팀 수 (팀마다 저장 한도를 받으므로) |
+| `MAX_FOLDER_DEPTH` / `MAX_COPY_FOLDERS` | | `50` / `1000` | 폴더 깊이(최상위 아래 단계) / 한 번에 복사하는 폴더 수 |
 | `SIGNUP_RATE_PER_HOUR` | | `5` | IP 당 시간당 가입 횟수 |
 | `DEMO_QUOTA` | | `50MB` | 체험 계정·체험 팀의 저장 한도 |
 | `DEMO_RESET_CRON` / `DEMO_RESET_ZONE` | | `0 0 5 * * *` / `Asia/Seoul` | 체험 데이터 초기화 시각 |

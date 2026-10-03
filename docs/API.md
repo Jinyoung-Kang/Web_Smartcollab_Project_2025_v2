@@ -10,7 +10,7 @@
 | CSRF | 쿠키로 인증된 `POST/PUT/PATCH/DELETE` 는 `XSRF-TOKEN` 쿠키 값을 `X-XSRF-TOKEN` 헤더로 보내야 합니다. 토큰은 `GET /api/auth/csrf` 로 받습니다. |
 | 오류 형식 | RFC 9457 `application/problem+json` — `{ "status", "title", "detail", "code", "requestId", "errors"? }` |
 | 요청 추적 | 모든 응답에 `X-Request-Id` 헤더. 오류 본문의 `requestId` 와 서버 로그의 추적 ID 가 같습니다 (프록시가 보낸 값은 `[A-Za-z0-9._-]{8,64}` 일 때만 이어 씀) |
-| 본문 크기 | 파일 업로드를 뺀 요청 본문은 6MB 까지 (넘으면 413 `PAYLOAD_TOO_LARGE`) |
+| 본문 크기 | 파일 업로드를 뺀 요청 본문은 6MB 까지 (넘으면 413 `PAYLOAD_TOO_LARGE`). multipart 는 업로드 경로에서만 받습니다(다른 경로는 415 `UNSUPPORTED_MEDIA_TYPE`) |
 | 시각 | ISO-8601 UTC (`2026-09-27T02:40:00Z`) |
 | 권한 없음 | 읽을 수 없는 대상은 `404`(존재 여부 비공개), 읽을 수 있지만 권한이 부족하면 `403` |
 
@@ -26,6 +26,7 @@
 | `LINK_EXPIRED` | 410 | 만료·소진·휴지통 파일의 공유 링크 |
 | `PAYLOAD_TOO_LARGE` | 413 | 업로드·편집·요청 본문 한도 초과 |
 | `QUOTA_EXCEEDED` | 413 | 저장 공간 한도 초과 (개인 1GB·팀 5GB 기본, 옛 버전·휴지통 포함) |
+| `UNSUPPORTED_MEDIA_TYPE` | 415 | 업로드 경로가 아닌 곳으로 보낸 multipart 요청 (본문을 읽기 전에 거절) |
 | `RATE_LIMITED` | 429 | 요청 제한 초과 (로그인·가입·공유 비밀번호 시도, 사용자별 하루 번역 분량) |
 | `FEATURE_DISABLED` | 503 | 서버에 설정되지 않은 기능 (번역 키 없음, 로컬 저장소에서 Office 미리보기 등) |
 
@@ -36,7 +37,7 @@
 | Method | Path | 설명 |
 |---|---|---|
 | GET | `/api/auth/csrf` | CSRF 토큰 발급 — 쿠키와 같은 값을 돌려주므로 그대로 `X-XSRF-TOKEN` 헤더에 사용 |
-| POST | `/api/auth/signup` | 가입 후 바로 로그인 (201) |
+| POST | `/api/auth/signup` | 가입 후 바로 로그인 (201). 체험 계정용 아이디(`demo1~3`, 대소문자 무관)는 409 |
 | POST | `/api/auth/login` | 로그인 (IP 당 분당 10회 제한) |
 | POST | `/api/auth/logout` | 쿠키 삭제 |
 | GET | `/api/auth/me` | 내 정보 + 개인 루트 폴더 ID |
@@ -48,13 +49,13 @@
 |---|---|---|
 | GET | `/api/folders/{id}` | 폴더 내용 · 경로 · 이 폴더에서의 내 권한 |
 | GET | `/api/folders/tree?teamId=` | 폴더 트리 (쿼리 1회) |
-| POST | `/api/folders` | 폴더 만들기 `{parentId, name}` |
+| POST | `/api/folders` | 폴더 만들기 `{parentId, name}`. 최상위 아래 50단계를 넘으면 400 |
 | PATCH | `/api/folders/{id}` | 이름 바꾸기 |
 | DELETE | `/api/folders/{id}` | 안의 폴더·파일과 함께 휴지통으로 (30일 뒤 자동 영구 삭제) |
 | POST | `/api/files/upload?folderId=` | 업로드 (multipart `file`) |
 | GET | `/api/files/{id}` | 파일 정보(이름·크기·미리보기 종류) — 채팅에 공유된 파일 미리보기용, 휴지통에 있거나 읽을 수 없으면 404 |
 | GET | `/api/files/{id}/download` | 다운로드 (스트리밍) |
-| GET | `/api/files/{id}/view` | 미리보기 (이미지·PDF·텍스트만 inline) |
+| GET | `/api/files/{id}/view` | 미리보기 (이미지·PDF·텍스트만 inline). PDF 를 뺀 파일 응답은 CSP 에 `sandbox` 가 붙음 |
 | GET | `/api/files/{id}/office-preview-url` | Office 미리보기용 10분 SAS URL (Azure 저장소일 때) |
 | PATCH | `/api/files/{id}` | 이름 바꾸기 |
 | DELETE | `/api/files/{id}` | 휴지통으로 이동 |
@@ -64,8 +65,8 @@
 | POST | `/api/files/{id}/signatures` | 현재 버전에 서명 |
 | GET | `/api/files/search?q=&teamId=` | 이름 검색 (최대 100건, 경로 포함) |
 | GET | `/api/files/usage?teamId=` | 파일 수·크기(휴지통 제외), 실제 저장량 `storedBytes`(옛 버전·휴지통 포함)·한도 `quotaBytes` |
-| POST | `/api/items/move` · `/api/items/copy` | `{items:[{type,id}], targetFolderId}` |
-| POST | `/api/items/delete` | `{items:[{type,id}]}` — 파일·폴더를 휴지통으로(폴더는 안의 폴더·파일과 함께). 한 트랜잭션(하나라도 실패하면 아무것도 지우지 않음), 최대 200개. 응답 `{trashedFiles, trashedFolders}` |
+| POST | `/api/items/move` · `/api/items/copy` | `{items:[{type,id}], targetFolderId}`. 같은 항목은 한 번만 처리. 옮기거나 복사한 뒤 가장 깊은 폴더가 50단계를 넘거나, 한 번에 복사하는 폴더가 1,000개를 넘으면 400 |
+| POST | `/api/items/delete` | `{items:[{type,id}]}` — 파일·폴더를 휴지통으로(폴더는 안의 폴더·파일과 함께). 한 트랜잭션(하나라도 실패하면 아무것도 지우지 않음), 최대 200개. 고른 폴더 안의 항목을 함께 고르면 그 폴더와 함께 휴지통으로 감. 응답 `{trashedFiles, trashedFolders}`(고른 항목 수) |
 | GET / DELETE | `/api/trash?teamId=` | 휴지통 목록(파일·폴더, `type`·폴더는 `fileCount`) / 비우기 |
 | POST | `/api/trash/{fileId}/restore` | 파일 복원 |
 | DELETE | `/api/trash/{fileId}` | 파일 영구 삭제 |
@@ -83,11 +84,11 @@
 
 | Method | Path | 설명 |
 |---|---|---|
-| GET / POST | `/api/teams` | 내 팀 목록 / 팀 만들기 |
+| GET / POST | `/api/teams` | 내 팀 목록 / 팀 만들기 (팀장인 팀이 10개면 409, 체험 계정은 403) |
 | GET / DELETE | `/api/teams/{id}` | 팀 상세(멤버·내 권한·루트 폴더) / 팀 삭제 |
 | GET | `/api/teams/{id}/presence` | 접속 중인 멤버 |
 | POST | `/api/teams/{id}/invitations` | 초대 `{username}` |
-| POST | `/api/invitations/{id}/accept` · `/reject` | 초대 응답 |
+| POST | `/api/invitations/{id}/accept` · `/reject` | 초대 응답. 편집 권한은 초대한 사람이 편집할 수 있을 때만 받음. 초대한 사람이 더 이상 초대할 수 없으면 수락은 409(거절로 정리) |
 | PUT | `/api/teams/{id}/members/{memberId}/permissions` | 권한 변경 (팀장) |
 | DELETE | `/api/teams/{id}/members/{memberId}` | 내보내기 (팀장) |
 | POST | `/api/teams/{id}/leader/{memberId}` | 팀장 위임 |
@@ -103,7 +104,7 @@
 |---|---|---|---|
 | GET / POST | `/api/files/{id}/share-links` | 필요 | 링크 목록 / 만들기 `{password?, expiresInHours?, downloadLimit?}` |
 | DELETE | `/api/share-links/{linkId}` | 필요 | 링크 해제 |
-| GET | `/api/public/shares/{token}` | 불필요 | 파일명·크기·조건 |
+| GET | `/api/public/shares/{token}` | 불필요 | 파일명·크기·조건. 링크를 만든 사람이 그 파일을 더 이상 공유할 수 없으면 410(링크는 남아 권한이 돌아오면 다시 동작) |
 | POST | `/api/public/shares/{token}/unlock` | 불필요 | 비밀번호 확인 → 5분짜리 `grant` |
 | GET | `/api/public/shares/{token}/download?grant=` | 불필요 | 다운로드 (횟수 1 차감) |
 
@@ -119,3 +120,4 @@
 - 엔드포인트: `ws(s)://<host>/ws` — 핸드셰이크에 인증 쿠키 필요
 - 전송: `SEND /app/teams/{teamId}/chat` 본문 `{ "content": "…" }` 또는 `{ "fileId": 12 }` (팀 파일 공유)
 - 구독 목적지와 권한: [ARCHITECTURE.md §5.3](ARCHITECTURE.md#53-실시간--커밋-후-이벤트)
+- 한 연결에서 같은 목적지는 한 번만 구독할 수 있고, 연결당 구독은 500개까지입니다. 어기면 서버가 ERROR 프레임을 보내고 연결을 닫습니다.

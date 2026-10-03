@@ -27,6 +27,7 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.Locale;
 
 @Service
@@ -198,7 +199,16 @@ public class FileService {
     }
 
     FileEntity getActive(Long fileId) {
-        FileEntity file = files.findWithFolder(fileId).orElseThrow(() -> ApiException.notFound("파일"));
+        return active(files.findWithFolder(fileId));
+    }
+
+    /** 파일 행을 잠그고 읽습니다. 트랜잭션에서 이 파일을 처음 읽을 때 불러야 최신 상태를 얻습니다 [S-17]. */
+    FileEntity lockActive(Long fileId) {
+        return active(files.lockWithFolder(fileId));
+    }
+
+    private static FileEntity active(Optional<FileEntity> found) {
+        FileEntity file = found.orElseThrow(() -> ApiException.notFound("파일"));
         if (file.isInTrash()) {
             throw ApiException.notFound("파일");
         }

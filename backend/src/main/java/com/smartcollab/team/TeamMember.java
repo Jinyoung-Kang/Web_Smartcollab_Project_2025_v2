@@ -67,9 +67,12 @@ public class TeamMember {
         return new TeamMember(team, user, true, true, true, true);
     }
 
-    /** 초대를 수락한 새 멤버의 기본 권한: 편집만 허용. */
-    public static TeamMember member(Team team, User user) {
-        return new TeamMember(team, user, false, true, false, false);
+    /**
+     * 초대를 수락한 새 멤버: 삭제·초대 권한 없이, 편집 권한은 초대한 사람이 편집할 수 있을 때만 줍니다.
+     * 이전에는 항상 편집 권한이라, 편집 권한 없이 초대 권한만 받은 멤버가 편집 권한 계정을 들일 수 있었습니다 [S-08].
+     */
+    public static TeamMember invitedBy(TeamMember inviter, User user) {
+        return new TeamMember(inviter.getTeam(), user, false, inviter.mayEdit(), false, false);
     }
 
     public void updatePermissions(boolean canEdit, boolean canDelete, boolean canInvite) {

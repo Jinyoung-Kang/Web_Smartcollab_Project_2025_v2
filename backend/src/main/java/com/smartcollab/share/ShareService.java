@@ -115,10 +115,14 @@ public class ShareService {
                 file.getActiveVersion().getSize());
     }
 
-    /** 존재하고, 만료·소진되지 않았고, 파일이 휴지통에 있지 않은 링크만 사용할 수 있습니다. */
+    /**
+     * 존재하고, 만료·소진되지 않았고, 파일이 휴지통에 있지 않고, 만든 사람이 지금도 그 파일을 공유할 수 있는 링크만 사용할 수 있습니다.
+     * 만든 사람이 팀에서 나가면 링크는 지우지 않고 동작만 멈춥니다 — 다시 권한이 생기면 다시 동작합니다 [S-09].
+     */
     private ShareLink usable(String token) {
         ShareLink link = links.findByToken(token).orElseThrow(() -> ApiException.notFound("공유 링크"));
-        if (link.isExpired(Instant.now()) || link.isExhausted() || link.getFile().isInTrash()) {
+        if (link.isExpired(Instant.now()) || link.isExhausted() || link.getFile().isInTrash()
+                || !accessPolicy.canShare(link.getFile(), link.getOwner().getId())) {
             throw new ApiException(ErrorCode.LINK_EXPIRED);
         }
         return link;

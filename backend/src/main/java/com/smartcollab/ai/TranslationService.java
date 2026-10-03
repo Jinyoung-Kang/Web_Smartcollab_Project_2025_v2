@@ -16,7 +16,7 @@ import java.util.Map;
 /**
  * 문서 번역. 외부 서비스(DeepL)의 월 사용량을 쓰므로 사용자마다 하루 번역 글자 수를 제한합니다 [SEC-07].
  * 권한 확인(문서 읽기)을 가장 먼저 합니다 — 볼 수 없는 파일이면 번역 설정과 상관없이 404 입니다.
- * 번역을 쓸 수 없거나 문서가 너무 길어 거절되는 요청은 분량을 쓰지 않습니다.
+ * 번역을 쓸 수 없거나 문서가 너무 길어 거절되는 요청은 분량을 쓰지 않고, 번역 서비스 호출이 실패하면 쓴 분량을 돌려줍니다 [S-16].
  */
 @Service
 @RequiredArgsConstructor
@@ -42,11 +42,18 @@ public class TranslationService {
             throw new ApiException(ErrorCode.PAYLOAD_TOO_LARGE, "번역은 " + DeepLTranslationClient.MAX_CHARS + "자 이하 문서만 가능합니다.");
         }
         long dailyChars = props.rateLimit().translationCharsPerUserPerDay();
-        if (!rateLimiter.tryAcquire("translate:" + userId, text.length(), dailyChars, Duration.ofDays(1))) {
+        String budgetKey = "translate:" + userId;
+        if (!rateLimiter.tryAcquire(budgetKey, text.length(), dailyChars, Duration.ofDays(1))) {
             throw new ApiException(ErrorCode.RATE_LIMITED, "하루 번역 분량(" + NumberFormat.getIntegerInstance(Locale.KOREA).format(dailyChars)
                     + "자)을 넘었습니다. 24시간 안에 번역한 분량이 줄어들면 다시 번역할 수 있습니다.");
         }
-        DeepLTranslationClient.Translation t = translator.translate(text, deeplTarget);
+        DeepLTranslationClient.Translation t;
+        try {
+            t = translator.translate(text, deeplTarget);
+        } catch (RuntimeException e) {
+            rateLimiter.release(budgetKey, text.length());
+            throw e;
+        }
         return new AiController.TranslationResponse(t.text(), deeplTarget, t.detectedSourceLanguage());
     }
 }
