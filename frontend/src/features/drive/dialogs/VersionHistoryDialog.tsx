@@ -23,25 +23,26 @@ export function VersionHistoryDialog({ file, permissions, onClose }: {
   const confirm = useConfirm()
   const versions = useQuery({ queryKey: ['versions', file?.id], queryFn: () => fileApi.versions(file!.id), enabled: !!file })
 
-  const refresh = () => {
-    void qc.invalidateQueries({ queryKey: ['versions', file?.id] })
-    void qc.invalidateQueries({ queryKey: ['file-content', file?.id] })
+  // 요청을 보낸 파일의 ID 를 변수로 넘깁니다. 닫은 뒤에 끝나도 그 파일의 캐시를 갱신합니다 [FB-11].
+  const refresh = (fileId: number) => {
+    void qc.invalidateQueries({ queryKey: ['versions', fileId] })
+    void qc.invalidateQueries({ queryKey: ['file-content', fileId] })
     void qc.invalidateQueries({ queryKey: ['folder'] })
   }
 
   const restore = useMutation({
-    mutationFn: (versionId: number) => fileApi.restore(file!.id, versionId),
-    onSuccess: () => {
-      refresh()
+    mutationFn: ({ fileId, versionId }: { fileId: number; versionId: number }) => fileApi.restore(fileId, versionId),
+    onSuccess: (_, { fileId }) => {
+      refresh(fileId)
       toast.success('선택한 버전을 현재 버전으로 되돌렸습니다.')
     },
     onError: (e: Error) => toast.error(e.message),
   })
 
   const sign = useMutation({
-    mutationFn: () => fileApi.sign(file!.id),
-    onSuccess: () => {
-      refresh()
+    mutationFn: (fileId: number) => fileApi.sign(fileId),
+    onSuccess: (_, fileId) => {
+      refresh(fileId)
       toast.success('현재 버전에 서명했습니다.')
     },
     onError: (e: Error) => toast.error(e.message),
@@ -53,7 +54,7 @@ export function VersionHistoryDialog({ file, permissions, onClose }: {
       message: `${when} 버전이 현재 버전이 됩니다. 이후 버전도 기록에 그대로 남으며, 기존 서명은 무효가 됩니다.`,
       confirmLabel: '되돌리기',
     })
-    if (ok) restore.mutate(versionId)
+    if (ok && file) restore.mutate({ fileId: file.id, versionId })
   }
 
   return (
@@ -64,7 +65,7 @@ export function VersionHistoryDialog({ file, permissions, onClose }: {
       description={file?.name}
       size="lg"
       footer={
-        <Button variant="primary" onClick={() => sign.mutate()} loading={sign.isPending}>
+        <Button variant="primary" onClick={() => file && sign.mutate(file.id)} loading={sign.isPending}>
           <Signature className="size-4" /> 현재 버전에 서명
         </Button>
       }

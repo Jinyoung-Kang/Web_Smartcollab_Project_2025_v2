@@ -19,18 +19,28 @@ const EXPIRY_OPTIONS = [
 
 /**
  * 공유 링크 만들기·관리. v1 은 링크를 만들기만 할 수 있었고, 만든 링크를 보거나 회수할 방법이 없었습니다.
+ * 내용은 파일마다 새로 그립니다(key) — 이전에는 A 파일에 입력하다 닫은 비밀번호(가려진 칸)·기간·횟수가 B 파일의 링크에
+ * 조용히 적용됐고 [FB-03], 닫은 뒤 끝난 요청이 엉뚱한 캐시 키를 갱신했습니다 [FB-11].
  */
 export function ShareDialog({ file, onClose }: { file: Item | null; onClose: () => void }) {
+  return (
+    <Dialog open={!!file} onClose={onClose} title="공유 링크" description={file?.name} size="lg">
+      {file && <ShareLinks key={file.id} fileId={file.id} />}
+    </Dialog>
+  )
+}
+
+function ShareLinks({ fileId }: { fileId: number }) {
   const qc = useQueryClient()
   const toast = useToast()
   const [password, setPassword] = useState('')
   const [expiry, setExpiry] = useState(3)
   const [limit, setLimit] = useState('')
-  const links = useQuery({ queryKey: ['share-links', file?.id], queryFn: () => shareApi.list(file!.id), enabled: !!file })
+  const links = useQuery({ queryKey: ['share-links', fileId], queryFn: () => shareApi.list(fileId) })
 
   const create = useMutation({
     mutationFn: () =>
-      shareApi.create(file!.id, {
+      shareApi.create(fileId, {
         password: password || undefined,
         expiresInHours: EXPIRY_OPTIONS[expiry]?.hours,
         downloadLimit: limit ? Number(limit) : undefined,
@@ -38,7 +48,7 @@ export function ShareDialog({ file, onClose }: { file: Item | null; onClose: () 
     onSuccess: async (link) => {
       setPassword('')
       setLimit('')
-      await qc.invalidateQueries({ queryKey: ['share-links', file?.id] })
+      await qc.invalidateQueries({ queryKey: ['share-links', fileId] })
       await copy(link.path)
     },
     onError: (e: Error) => toast.error(e.message),
@@ -47,9 +57,10 @@ export function ShareDialog({ file, onClose }: { file: Item | null; onClose: () 
   const revoke = useMutation({
     mutationFn: (id: number) => shareApi.revoke(id),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['share-links', file?.id] })
+      void qc.invalidateQueries({ queryKey: ['share-links', fileId] })
       toast.success('링크를 해제했습니다. 이제 이 주소로는 내려받을 수 없습니다.')
     },
+    onError: (e: Error) => toast.error(e.message),
   })
 
   const copy = async (path: string) => {
@@ -68,7 +79,7 @@ export function ShareDialog({ file, onClose }: { file: Item | null; onClose: () 
   }
 
   return (
-    <Dialog open={!!file} onClose={onClose} title="공유 링크" description={file?.name} size="lg">
+    <>
       <form onSubmit={submit} className="grid gap-3 rounded-xl bg-slate-50 p-4 sm:grid-cols-3">
         <label>
           <span className="label">비밀번호 (선택)</span>
@@ -126,6 +137,6 @@ export function ShareDialog({ file, onClose }: { file: Item | null; onClose: () 
           </li>
         ))}
       </ul>
-    </Dialog>
+    </>
   )
 }
