@@ -8,12 +8,13 @@ import com.smartcollab.file.DriveDtos;
 import com.smartcollab.file.FileContentService;
 import com.smartcollab.file.FileService;
 import com.smartcollab.folder.FolderDtos;
-import com.smartcollab.folder.RootFolders;
 import com.smartcollab.folder.FolderService;
+import com.smartcollab.folder.RootFolders;
 import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.notification.NotificationRepository;
 import com.smartcollab.share.ShareDtos;
 import com.smartcollab.share.ShareService;
+import com.smartcollab.signature.SignatureService;
 import com.smartcollab.team.TeamDtos;
 import com.smartcollab.team.TeamMember;
 import com.smartcollab.team.TeamMemberRepository;
@@ -63,6 +64,7 @@ public class DemoDataSeeder {
     private final RootFolders rootFolders;
     private final FileService fileService;
     private final FileContentService contentService;
+    private final SignatureService signatureService;
     private final ChatService chatService;
     private final ShareService shareService;
     private final NotificationRepository notifications;
@@ -130,9 +132,9 @@ public class DemoDataSeeder {
 
         DriveDtos.ItemResponse kickoff = upload(minutes, "킥오프 회의.md", KICKOFF_V1, leader);
         save(kickoff.id(), KICKOFF_V2, editor);
-        contentService.sign(kickoff.id(), leader.getId());                // v2 에 서명
+        signatureService.sign(kickoff.id(), leader.getId());                // v2 에 서명
         save(kickoff.id(), KICKOFF_V3, deleter);                           // 새 버전 → v2 서명은 무효
-        contentService.sign(kickoff.id(), leader.getId());                // v3 에 다시 서명
+        signatureService.sign(kickoff.id(), leader.getId());                // v3 에 다시 서명
         upload(minutes, "주간 회의 메모.txt", WEEKLY_MEMO, deleter);
 
         DriveDtos.ItemResponse sketch = upload(design, "화면 스케치.png", sketchPng(), deleter);

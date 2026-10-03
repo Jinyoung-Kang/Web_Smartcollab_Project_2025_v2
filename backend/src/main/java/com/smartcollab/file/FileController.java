@@ -110,13 +110,6 @@ public class FileController {
         return ResponseEntity.noContent().build();
     }
 
-    @Operation(summary = "현재 버전에 서명", description = "개인 파일은 소유자, 팀 파일은 팀장만 가능")
-    @PostMapping("/{fileId}/signatures")
-    public ResponseEntity<Void> sign(@PathVariable Long fileId, @CurrentUser AuthUser user) {
-        contentService.sign(fileId, user.id());
-        return ResponseEntity.status(HttpStatus.CREATED).build();
-    }
-
     @Operation(summary = "파일 이름 검색", description = "teamId 가 없으면 내 드라이브, 있으면 팀 스토리지에서 검색 (최대 100건)")
     @GetMapping("/search")
     public List<DriveDtos.SearchResult> search(@RequestParam("q") String query,
