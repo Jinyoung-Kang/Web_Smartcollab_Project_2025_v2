@@ -35,6 +35,8 @@ const q = (params: Record<string, string | number | undefined | null>) => {
 
 export const authApi = {
   me: () => http.get<Me>('/api/auth/me', { quiet401: true }),
+  /** 로그인 여부 — 로그인 전에도 200(콘솔에 401 오류가 찍히지 않음) [IMP-10] */
+  session: () => http.get<{ authenticated: boolean; user?: Me }>('/api/auth/session'),
   login: (username: string, password: string) => http.post<Me>('/api/auth/login', { username, password }),
   signup: (body: { username: string; password: string; passwordConfirm: string; name: string; email?: string }) =>
     http.post<Me>('/api/auth/signup', body),

@@ -39,3 +39,9 @@ FAIL [IMP-03] 이 탭이 일으킨 폴더 변경이면 다시 불러오지 않�
 
 ## [IMP-03] 백엔드 EventOriginTest (이벤트에 탭 ID 를 싣는 줄을 뺀 상태)
 FAIL [IMP-03] 요청의 X-Client-Id 가 그 요청이 일으킨 폴더 변경 이벤트에 실린다
+
+## [IMP-10] AuthSessionTest·AuthProvider.test (수정 전 — /api/auth/session 없음, 첫 확인에 /me 사용)
+FAIL [IMP-10] 로그인 전에는 200 과 authenticated=false
+FAIL [IMP-10] 로그인했으면 내 정보를 함께 돌려준다
+FAIL [IMP-10] 만료·위조된 쿠키면 200 과 authenticated=false 이고, 쿠키를 지운다
+FAIL 로그인 전 화면은 /me(401) 대신 오류 없는 로그인 상태 확인을 쓴다

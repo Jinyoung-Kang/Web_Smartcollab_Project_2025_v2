@@ -45,6 +45,7 @@ const config: PublicConfig = {
 function renderApp(path: string, { loggedIn = true } = {}) {
   if (loggedIn) vi.spyOn(authApi, 'me').mockResolvedValue(me)
   else vi.spyOn(authApi, 'me').mockRejectedValue(new ApiError(401, 'UNAUTHORIZED', '로그인이 필요합니다.'))
+  vi.spyOn(authApi, 'session').mockResolvedValue(loggedIn ? { authenticated: true, user: me } : { authenticated: false })
   vi.spyOn(configApi, 'get').mockResolvedValue(config)
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const router = createMemoryRouter(
@@ -74,6 +75,15 @@ function renderApp(path: string, { loggedIn = true } = {}) {
 const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 50)))
 
 afterEach(() => vi.restoreAllMocks())
+
+describe('처음 열 때 로그인 확인 [IMP-10]', () => {
+  it('로그인 전 화면은 /me(401) 대신 오류 없는 로그인 상태 확인을 쓴다', async () => {
+    renderApp('/login', { loggedIn: false })
+    await screen.findByLabelText('아이디')
+    expect(authApi.session).toHaveBeenCalled()
+    expect(authApi.me).not.toHaveBeenCalled()
+  })
+})
 
 describe('로그인 상태가 끝날 때 [BUG-09]', () => {
   it('로그아웃하면 로그인 화면이 보이고, 드라이브로 되돌아가지 않으며, 이전 사용자의 데이터를 남기지 않는다', async () => {
