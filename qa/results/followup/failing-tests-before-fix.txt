@@ -20,3 +20,9 @@ FAIL [IMP-02] 아무 값도 주지 않으면 500개까지만 주고 다음 커�
 FAIL [IMP-02] 잘못된 limit·커서·정렬 기준은 400 | java.lang.AssertionError: Status expected:<400> but was:<200>
 FAIL [IMP-02] limit 만큼 나눠 주고, 커서로 이어 받으면 빠짐·겹침 없이 끝까지 온다 (폴더 우선·자연 정렬) | com.jayway.jsonpath.PathNotFoundException: No results for path: $['itemCount']
 FAIL [IMP-02] 정렬 기준·방향을 서버가 적용한다 (폴더는 늘 앞) | org.opentest4j.AssertionFailedError:  Expecting actual:   ["폴더", "작은.bin", "중간.bin", "큰.bin"] to contain exactly (and in same order):   ["폴더
+
+## [IMP-02] 프론트 FileTable·DrivePage (수정 전 — 화면이 직접 정렬하고 전부 받음)
+FAIL 받은 순서 그대로 그린다 (정렬은 서버가 함)
+FAIL 정렬 머리글을 누르면 서버에 그 정렬로 다시 받아 오라고 알린다
+FAIL 받은 항목을 다 그렸는데 서버에 더 있으면, 남은 수를 보여 주고 더 보기가 다음 묶음을 불러온다
+FAIL 처음에는 이름 오름차순으로 첫 묶음을 요청하고, 정렬을 바꾸면 그 정렬로 서버에 다시 요청한다

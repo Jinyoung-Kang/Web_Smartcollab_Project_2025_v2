@@ -143,3 +143,32 @@ describe('FileTable — 행 안의 버튼 [FB-09]', () => {
     expect(onSelectionChange).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('FileTable — 서버에서 나눠 받는 목록 [IMP-02]', () => {
+  const button = (text: string) => screen.getByText(text, { selector: 'button' })
+
+  it('받은 순서 그대로 그린다 (정렬은 서버가 함)', () => {
+    render(<FileTable items={items} totalCount={3} sort={{ key: 'name', dir: 'asc' }} onSortChange={vi.fn()}
+      selected={new Set()} onSelectionChange={vi.fn()} onOpen={vi.fn()} onContextAction={vi.fn()} />)
+    const names = [...document.querySelectorAll('tbody tr[data-row]')].map((r) => r.querySelector('button')?.textContent)
+    expect(names).toEqual(['보고서 10.txt', '보고서 2.txt', '자료'])
+  })
+
+  it('정렬 머리글을 누르면 서버에 그 정렬로 다시 받아 오라고 알린다', async () => {
+    const onSortChange = vi.fn()
+    render(<FileTable items={items} totalCount={3} sort={{ key: 'name', dir: 'asc' }} onSortChange={onSortChange}
+      selected={new Set()} onSelectionChange={vi.fn()} onOpen={vi.fn()} onContextAction={vi.fn()} />)
+    await userEvent.click(screen.getByRole('button', { name: /크기/ }))
+    expect(onSortChange).toHaveBeenCalledWith({ key: 'size', dir: 'asc' })
+    await userEvent.click(screen.getByRole('button', { name: /이름/ }))
+    expect(onSortChange).toHaveBeenLastCalledWith({ key: 'name', dir: 'desc' })
+  })
+
+  it('받은 항목을 다 그렸는데 서버에 더 있으면, 남은 수를 보여 주고 더 보기가 다음 묶음을 불러온다', () => {
+    const onLoadMore = vi.fn()
+    render(<FileTable items={items} totalCount={10} hasMore onLoadMore={onLoadMore} sort={{ key: 'name', dir: 'asc' }}
+      onSortChange={vi.fn()} selected={new Set()} onSelectionChange={vi.fn()} onOpen={vi.fn()} onContextAction={vi.fn()} />)
+    fireEvent.click(button('나머지 7개 더 보기'))
+    expect(onLoadMore).toHaveBeenCalledOnce()
+  })
+})

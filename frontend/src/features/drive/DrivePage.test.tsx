@@ -183,3 +183,15 @@ describe('DrivePage — 지금 동작 고정 (구조 정리 전)', () => {
   })
 })
 
+describe('DrivePage — 폴더 목록 나눠 받기 [IMP-02]', () => {
+  it('처음에는 이름 오름차순으로 첫 묶음을 요청하고, 정렬을 바꾸면 그 정렬로 서버에 다시 요청한다', async () => {
+    renderDrive(true)
+    await screen.findByRole('button', { name: '회의록' })
+    expect(folderApi.contents).toHaveBeenCalledWith(10, expect.objectContaining({ sort: 'name', order: 'asc' }))
+
+    await userEvent.click(screen.getByRole('button', { name: /크기/ }))
+    await vi.waitFor(() =>
+      expect(folderApi.contents).toHaveBeenCalledWith(10, expect.objectContaining({ sort: 'size', order: 'asc' })))
+  })
+})
+
