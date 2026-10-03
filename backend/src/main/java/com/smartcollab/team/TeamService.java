@@ -2,9 +2,8 @@ package com.smartcollab.team;
 
 import com.smartcollab.access.Access;
 import com.smartcollab.access.AccessPolicy;
-import com.smartcollab.chat.ChatMessageRepository;
 import com.smartcollab.event.ChangeEvents;
-import com.smartcollab.file.DriveCleanupService;
+import com.smartcollab.event.DeletionEvents;
 import com.smartcollab.file.DriveDtos;
 import com.smartcollab.folder.Folder;
 import com.smartcollab.folder.FolderRepository;
@@ -35,10 +34,8 @@ public class TeamService {
     private final TeamMemberRepository members;
     private final InvitationRepository invitations;
     private final FolderRepository folders;
-    private final ChatMessageRepository chatMessages;
     private final UserRepository users;
     private final AccessPolicy accessPolicy;
-    private final DriveCleanupService cleanup;
     private final NotificationService notifications;
     private final ApplicationEventPublisher events;
     private final DemoAccounts demoAccounts;
@@ -217,7 +214,7 @@ public class TeamService {
     }
 
     /**
-     * 팀 삭제: 채팅 → 초대 → 팀 스토리지(폴더·파일·버전·서명·공유 링크) → 멤버 → 팀 순으로 지웁니다.
+     * 팀 삭제: 채팅 → 팀 스토리지(폴더·파일·버전·서명·공유 링크) → 초대 → 멤버 → 팀 순으로 지웁니다.
      * 저장소의 실제 파일은 커밋 이후에 삭제됩니다.
      */
     @Transactional
@@ -240,11 +237,8 @@ public class TeamService {
                 .filter(u -> !u.getId().equals(actorUserId))
                 .toList();
 
-        chatMessages.deleteByTeam(teamId);
+        events.publishEvent(new DeletionEvents.TeamDeleting(teamId));   // 채팅·팀 스토리지는 각 모듈이 정리 [A-02]
         invitations.deleteByTeam(teamId);
-        for (Folder root : folders.findTeamRoots(teamId)) {
-            cleanup.deleteFolderTree(root.getId());
-        }
         members.deleteByTeam(teamId);
         teams.deleteById(teamId);
 
