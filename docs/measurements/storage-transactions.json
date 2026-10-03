@@ -1,0 +1,10 @@
+{
+  "storageDelayMs": 1500,
+  "deleteDelayMsPerBlob": 300,
+  "trashedFiles": 5,
+  "connectionsHeldDuringTextSaveStorageWrite": 0,
+  "folderCreateLatencyMsWhileTextSaveWrites": 70,
+  "connectionsHeldDuringTextReadStorageRead": 0,
+  "connectionsHeldDuringPostCommitDelete": 0,
+  "emptyTrashResponseMs": 76
+}
