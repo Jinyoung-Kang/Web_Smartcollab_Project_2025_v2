@@ -1,6 +1,7 @@
 package com.smartcollab.realtime;
 
 import com.smartcollab.access.AccessPolicy;
+import com.smartcollab.global.security.RevokedUsers;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.messaging.Message;
@@ -51,7 +52,8 @@ class WebSocketSessionExpiryTest {
     @Test
     @DisplayName("로그인이 만료된 세션만 닫는다")
     void closesOnlyExpiredSessions() throws Exception {
-        WebSocketSessionExpiry expiry = new WebSocketSessionExpiry(Clock.fixed(NOW, ZoneOffset.UTC));
+        Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+        WebSocketSessionExpiry expiry = new WebSocketSessionExpiry(clock, new RevokedUsers(Duration.ofHours(8), clock));
         WebSocketHandler handler = expiry.decorate(mock(WebSocketHandler.class));
         WebSocketSession expired = openSession("expired", NOW.minusSeconds(1));
         WebSocketSession valid = openSession("valid", NOW.plus(Duration.ofHours(1)));
@@ -63,6 +65,24 @@ class WebSocketSessionExpiryTest {
         verify(expired).close(WebSocketSessionExpiry.LOGIN_EXPIRED);
         verify(valid, never()).close(any());
         assertThat(expiry.openSessions()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("[QA-07] 탈퇴한 계정의 세션은 로그인이 남아 있어도 닫는다")
+    void closesSessionsOfDeletedAccounts() throws Exception {
+        Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+        RevokedUsers revoked = new RevokedUsers(Duration.ofHours(8), clock);
+        WebSocketSessionExpiry expiry = new WebSocketSessionExpiry(clock, revoked);
+        WebSocketHandler handler = expiry.decorate(mock(WebSocketHandler.class));
+        WebSocketSession deleted = openSession("deleted", NOW.plus(Duration.ofHours(1)));   // 주체 ID 1
+        handler.afterConnectionEstablished(deleted);
+
+        expiry.closeExpired();
+        verify(deleted, never()).close(any());
+
+        revoked.revoke(1L);
+        expiry.closeExpired();
+        verify(deleted).close(WebSocketSessionExpiry.LOGIN_EXPIRED);
     }
 
     @Test

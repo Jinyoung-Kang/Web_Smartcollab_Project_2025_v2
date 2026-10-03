@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -42,11 +43,12 @@ public class JwtTokenService {
     private final JwtDecoder decoder;
     private final Duration ttl;
 
-    public JwtTokenService(AppProperties props, Environment env) {
+    public JwtTokenService(AppProperties props, Environment env, RevokedUsers revokedUsers) {
         SecretKey key = new SecretKeySpec(resolveSecret(props.jwt().secret(), env), "HmacSHA256");
         this.encoder = new NimbusJwtEncoder(new ImmutableSecret<>(key));
         NimbusJwtDecoder nimbus = NimbusJwtDecoder.withSecretKey(key).macAlgorithm(MacAlgorithm.HS256).build();
-        nimbus.setJwtValidator(JwtValidators.createDefaultWithIssuer(ISSUER));
+        // 서명·만료·발급자 확인에 더해, 탈퇴한 계정의 토큰을 거절합니다 [QA-07]
+        nimbus.setJwtValidator(new DelegatingOAuth2TokenValidator<>(JwtValidators.createDefaultWithIssuer(ISSUER), revokedUsers.validator()));
         this.decoder = nimbus;
         this.ttl = props.jwt().ttl() == null ? Duration.ofHours(8) : props.jwt().ttl();
     }
@@ -92,6 +94,11 @@ public class JwtTokenService {
     /** 인증 객체의 토큰 만료 시각. JWT 인증이 아니면 null. (WebSocket 세션은 연결 이후 토큰을 다시 검증하지 않으므로 따로 확인) */
     public static Instant expiresAt(Principal principal) {
         return principal instanceof JwtAuthenticationToken token ? token.getToken().getExpiresAt() : null;
+    }
+
+    /** 인증 객체의 사용자 ID. JWT 인증이 아니면 null. */
+    public static Long userIdOf(Principal principal) {
+        return principal instanceof JwtAuthenticationToken token ? RevokedUsers.subjectOf(token.getToken()) : null;
     }
 
     /** 인증 객체(HTTP·STOMP 공통)에서 사용자 정보를 꺼냅니다. */
