@@ -88,10 +88,22 @@ public class AccessPolicy {
     /** 외부 공유 링크는 파일 소유자 또는 팀장만 만들 수 있습니다 (팀 자료의 외부 유출 통제). */
     public Access requireShare(FileEntity file, Long userId) {
         Access access = requireFileRead(file, userId);
-        if (!file.isOwnedBy(userId) && !access.leader()) {
+        if (!mayShare(file, userId, access)) {
             throw ApiException.forbidden("파일을 올린 사람 또는 팀장만 공유 링크를 만들 수 있습니다.");
         }
         return access;
+    }
+
+    /**
+     * 이 사용자가 지금 이 파일의 공유 링크를 만들 수 있는지. 공유 링크를 쓸 때마다 링크를 만든 사람으로 다시 확인해,
+     * 팀에서 나간 사람이 만든 링크로 이후 팀이 고친 최신 버전이 계속 밖으로 나가지 않게 합니다 [S-09].
+     */
+    public boolean canShare(FileEntity file, Long userId) {
+        return mayShare(file, userId, accessTo(file.getFolder(), userId));
+    }
+
+    private static boolean mayShare(FileEntity file, Long userId, Access access) {
+        return access.canRead() && (file.isOwnedBy(userId) || access.leader());
     }
 
     /** 휴지통의 폴더를 복원·영구 삭제하려면 그 스토리지에서 삭제 권한이 있어야 합니다 [UX-06]. */

@@ -60,6 +60,33 @@ class ShareLinkTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("[S-09] 팀에서 나간 사람이 만든 공유 링크는 동작을 멈추고, 다시 팀에 들어오면 다시 동작한다(링크는 지우지 않음)")
+    void linksStopWorkingWhenCreatorLosesAccess() throws Exception {
+        Api.Session leader = api().signUp("shl");
+        Api.Session member = api().signUp("shm");
+        long[] team = leader.createTeam("공유 팀");
+        long memberId = joinTeam(leader, member, team[0]);
+        long file = member.uploadText(team[1], "팀 문서.md", "v1");
+        String token = com.jayway.jsonpath.JsonPath.read(Api.body(member.postJson("/api/files/{id}/share-links", Map.of(), file)), "$.token");
+        api().perform(MockMvcRequestBuilders.get("/api/public/shares/{t}", token)).andExpect(status().isOk());
+
+        leader.delete("/api/teams/{t}/members/{m}", team[0], memberId).andExpect(status().isNoContent());
+        api().perform(MockMvcRequestBuilders.get("/api/public/shares/{t}", token)).andExpect(status().isGone());
+        api().perform(MockMvcRequestBuilders.get("/api/public/shares/{t}/download", token)).andExpect(status().isGone());
+
+        joinTeam(leader, member, team[0]);
+        api().perform(MockMvcRequestBuilders.get("/api/public/shares/{t}", token)).andExpect(status().isOk());
+    }
+
+    private long joinTeam(Api.Session leader, Api.Session member, long teamId) throws Exception {
+        leader.postJson("/api/teams/{t}/invitations", Map.of("username", member.username), teamId).andExpect(status().isCreated());
+        long invitation = ((Number) Api.read(member.get("/api/notifications"), "$.items[0].invitationId")).longValue();
+        member.post("/api/invitations/{id}/accept", invitation).andExpect(status().isNoContent());
+        java.util.List<Number> ids = Api.read(leader.get("/api/teams/{t}", teamId), "$.members[?(@.username == '" + member.username + "')].memberId");
+        return ids.getFirst().longValue();
+    }
+
+    @Test
     @DisplayName("[BUG-01] 72바이트를 넘는 공유 비밀번호는 500 이 아니라 400")
     void sharePasswordOver72BytesIsRejected() throws Exception {
         Api.Session s = api().signUp("sharelong");
