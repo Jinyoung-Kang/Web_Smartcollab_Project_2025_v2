@@ -81,6 +81,19 @@ class TranslationServiceTest {
     }
 
     @Test
+    @DisplayName("[S-16] DeepL 호출이 실패하면 그 요청의 분량을 돌려준다")
+    void refundsBudgetWhenUpstreamFails() {
+        when(content.readUtf8Content(anyLong(), anyLong(), anyLong())).thenReturn("가".repeat(100));
+        when(deepl.translate(anyString(), anyString()))
+                .thenThrow(new ApiException(ErrorCode.UPSTREAM_ERROR, "번역 서비스 호출에 실패했습니다."))
+                .thenReturn(new DeepLTranslationClient.Translation("번역", "KO"));
+
+        assertThatThrownBy(() -> service.translate(1L, 7L, "EN"))
+                .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.UPSTREAM_ERROR));
+        assertThat(service.translate(1L, 7L, "EN").text()).isEqualTo("번역");   // 이전: 실패한 호출이 하루 분량을 다 써서 429
+    }
+
+    @Test
     @DisplayName("볼 수 없는 파일이면 번역 설정과 상관없이 404 (설정 정보를 먼저 드러내지 않음)")
     void checksAccessBeforeFeatureAvailability() {
         when(deepl.enabled()).thenReturn(false);

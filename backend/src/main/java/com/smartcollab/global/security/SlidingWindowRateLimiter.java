@@ -59,6 +59,17 @@ public class SlidingWindowRateLimiter {
         return allowed[0];
     }
 
+    /**
+     * 허용됐지만 실제로는 자원을 쓰지 못한 요청(예: 번역 서비스 호출 실패)의 무게를 돌려줍니다 [S-16].
+     * 같은 무게의 가장 최근 기록 하나를 지웁니다 — 같은 키의 요청이 겹쳐도 합계는 정확하고, 지워지는 기록의 시각만 조금 다를 수 있습니다.
+     */
+    public void release(String key, long weight) {
+        windows.computeIfPresent(key, (k, w) -> {
+            w.removeNewest(weight);
+            return w;
+        });
+    }
+
     /** 성공한 로그인 등으로 기록을 초기화합니다. */
     public void reset(String key) {
         windows.remove(key);
@@ -95,6 +106,17 @@ public class SlidingWindowRateLimiter {
         void expireUpTo(long windowStart) {
             while (!entries.isEmpty() && entries.peekFirst()[0] <= windowStart) {
                 total -= entries.pollFirst()[1];
+            }
+        }
+
+        void removeNewest(long weight) {
+            var it = entries.descendingIterator();
+            while (it.hasNext()) {
+                if (it.next()[1] == weight) {
+                    it.remove();
+                    total -= weight;
+                    return;
+                }
             }
         }
 

@@ -80,6 +80,20 @@ class SlidingWindowRateLimiterTest {
     }
 
     @Test
+    @DisplayName("[S-16] 쓰지 못한 요청의 무게를 돌려주면 그만큼 다시 쓸 수 있고, 없는 키·무게는 무시한다")
+    void releaseReturnsWeight() {
+        SlidingWindowRateLimiter limiter = new SlidingWindowRateLimiter(new MutableClock());
+        Duration day = Duration.ofDays(1);
+        assertThat(limiter.tryAcquire("t", 30, 100, day)).isTrue();
+        assertThat(limiter.tryAcquire("t", 70, 100, day)).isTrue();
+        limiter.release("t", 70);
+        limiter.release("t", 999);      // 그런 기록 없음
+        limiter.release("none", 10);    // 그런 키 없음
+        assertThat(limiter.tryAcquire("t", 70, 100, day)).isTrue();
+        assertThat(limiter.tryAcquire("t", 1, 100, day)).isFalse();
+    }
+
+    @Test
     @DisplayName("동시 요청에서도 한도를 정확히 지킨다")
     void concurrent() throws Exception {
         SlidingWindowRateLimiter limiter = new SlidingWindowRateLimiter();
