@@ -48,9 +48,12 @@ test('[UX-01] 주요 화면에 접근성 위반(WCAG 2.1 AA·모범 사례)이 �
 })
 
 // 출시 기준 QA 의 확장 점검(qa/results/a11y-extended.json)에서 찾은 위반: 팀 메뉴 안의 링크가 menuitem 이 아님(critical),
-// 접속 표시 점의 aria-label(역할 없는 span), 좁은 화면에서 이름 없는 로고 링크, 공유 받기 화면의 랜드마크 밖 내용, 없는 폴더 화면의 h1
-test('[QA-09~12] 팀 멤버·팀 메뉴·없는 폴더·공유 받기·좁은 화면에도 접근성 위반이 없다', async ({ page }) => {
+// 접속 표시 점의 aria-label(역할 없는 span), 좁은 화면에서 이름 없는 로고 링크, 공유 받기 화면의 랜드마크 밖 내용, 없는 폴더 화면의 h1,
+// 그리고 Lighthouse 가 잡은 "보이는 글자를 포함하지 않는 이름"(WCAG 2.5.3, axe 에서는 기본으로 꺼진 실험 규칙이라 따로 켭니다)
+test('[QA-09~13] 팀 멤버·팀 메뉴·없는 폴더·공유 받기·좁은 화면에도 접근성 위반이 없다', async ({ page }) => {
   await login(page, 'demo1')
+  const labelInName = await new AxeBuilder({ page }).withRules(['label-content-name-mismatch']).analyze()
+  expect(labelInName.violations.map((v) => `${v.id}: ${v.nodes[0]?.target.join(' ')}`), '보이는 글자와 접근 가능한 이름').toEqual([])
   await openDemoTeam(page)
   await page.getByRole('tab', { name: /멤버/ }).click()
   expect(await violations(page), '팀 멤버 목록').toEqual([])
