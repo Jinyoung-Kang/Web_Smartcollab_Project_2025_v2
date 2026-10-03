@@ -25,6 +25,17 @@ export function MoveCopyDialog({ open, mode, count, scopeTeamId, disabledFolderI
   const [target, setTarget] = useState<number | null>(null)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // 열 때마다 처음 상태로 [FB-04]. 이전에는 지난번에 고른 대상 폴더·스토리지가 남아, 다른 스토리지·자기 하위 폴더가
+  // 고른 채로 확인할 수 있었습니다(서버가 거절하지만 혼란). 렌더링 중에 이전 열림 상태와 비교해 바로 맞춥니다.
+  const [wasOpen, setWasOpen] = useState(open)
+  if (open !== wasOpen) {
+    setWasOpen(open)
+    if (open) {
+      setScope(scopeTeamId ?? 'personal')
+      setTarget(null)
+      setError(null)
+    }
+  }
   const teams = useQuery({ queryKey: ['teams'], queryFn: teamApi.list, enabled: open && mode === 'copy' })
   const effectiveScope = mode === 'move' ? (scopeTeamId ?? 'personal') : scope
   const tree = useQuery({
