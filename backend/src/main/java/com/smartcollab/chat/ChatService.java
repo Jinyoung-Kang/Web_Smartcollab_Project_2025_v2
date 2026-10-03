@@ -15,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -51,9 +50,8 @@ public class ChatService {
         TeamMember member = accessPolicy.requireMember(teamId, userId);
         ChatMessage message;
         if (req.fileId() != null) {
-            FileEntity file = files.findWithFolder(req.fileId())
-                    .filter(f -> !f.isInTrash() && Objects.equals(f.getFolder().teamId(), teamId))
-                    .orElseThrow(() -> ApiException.notFound("이 팀의 파일"));
+            FileEntity file = files.findWithFolder(req.fileId()).orElseThrow(() -> ApiException.notFound("이 팀의 파일"));
+            accessPolicy.requireTeamChatFile(file, teamId);
             message = ChatMessage.fileShare(member.getTeam(), member.getUser(), file.getId(), file.getName(), file.getSize());
         } else {
             String content = req.content() == null ? "" : req.content().strip();

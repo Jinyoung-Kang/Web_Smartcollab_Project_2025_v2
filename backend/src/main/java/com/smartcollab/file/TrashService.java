@@ -8,7 +8,6 @@ import com.smartcollab.folder.FolderStructureLock;
 import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.tx.TransactionRunner;
-import com.smartcollab.team.TeamMember;
 import com.smartcollab.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -204,10 +203,7 @@ public class TrashService {
     }
 
     private void requireTeamTrashAccess(Long teamId, Long userId) {
-        TeamMember member = accessPolicy.requireMember(teamId, userId);
-        if (!member.mayDelete()) {
-            throw ApiException.forbidden("팀 휴지통은 삭제 권한이 있는 멤버만 볼 수 있습니다.");
-        }
+        accessPolicy.requireTeamTrash(teamId, userId);
     }
 
     private FileEntity getTrashed(Long fileId) {

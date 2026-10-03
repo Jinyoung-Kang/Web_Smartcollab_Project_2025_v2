@@ -101,10 +101,7 @@ public class TeamService {
 
     @Transactional
     public void invite(Long teamId, String inviteeUsername, Long userId) {
-        TeamMember inviterMembership = accessPolicy.requireMember(teamId, userId);
-        if (!inviterMembership.mayInvite()) {
-            throw ApiException.forbidden("팀원 초대 권한이 없습니다.");
-        }
+        TeamMember inviterMembership = accessPolicy.requireInvite(teamId, userId);
         User invitee = users.findByUsername(inviteeUsername.strip())
                 .filter(u -> !u.isSystem())
                 .orElseThrow(() -> ApiException.notFound("초대할 사용자"));

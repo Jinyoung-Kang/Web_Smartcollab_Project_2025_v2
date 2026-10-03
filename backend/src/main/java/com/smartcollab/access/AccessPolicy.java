@@ -8,6 +8,8 @@ import com.smartcollab.team.TeamMemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.Objects;
+
 /**
  * 파일·폴더·팀 권한 판단을 한 곳에 모았습니다.
  * <p>v1 은 같은 규칙을 서비스 4곳에 따로 구현해 서로 달랐고, 다운로드·미리보기·버전 기록·채팅 기록 등
@@ -116,6 +118,44 @@ public class AccessPolicy {
             throw ApiException.forbidden("삭제 권한이 있어야 휴지통의 폴더를 복원하거나 영구 삭제할 수 있습니다.");
         }
         return access;
+    }
+
+    /** 서명: 개인 파일은 소유자, 팀 파일은 팀장만 할 수 있습니다 [A-06]. 읽을 수 없으면 404. */
+    public Access requireSign(FileEntity file, Long userId) {
+        Access access = requireFileRead(file, userId);
+        boolean allowed = access.isTeam() ? access.leader() : file.isOwnedBy(userId);
+        if (!allowed) {
+            throw ApiException.forbidden(access.isTeam() ? "팀 파일은 팀장만 서명할 수 있습니다." : "파일 소유자만 서명할 수 있습니다.");
+        }
+        return access;
+    }
+
+    /**
+     * 팀 채팅에 공유할 수 있는 파일인지: 그 팀 스토리지에 있고 휴지통에 있지 않아야 합니다(아니면 존재를 숨기고 404) [A-06].
+     * 보내는 사람이 팀 멤버인지는 {@link #requireMember} 로 따로 확인합니다.
+     */
+    public void requireTeamChatFile(FileEntity file, Long teamId) {
+        if (file.isInTrash() || !Objects.equals(file.getFolder().teamId(), teamId)) {
+            throw ApiException.notFound("이 팀의 파일");
+        }
+    }
+
+    /** 팀 휴지통(보기·복원·영구 삭제·비우기)은 삭제 권한이 있는 멤버만 [A-06] */
+    public TeamMember requireTeamTrash(Long teamId, Long userId) {
+        TeamMember member = requireMember(teamId, userId);
+        if (!member.mayDelete()) {
+            throw ApiException.forbidden("팀 휴지통은 삭제 권한이 있는 멤버만 볼 수 있습니다.");
+        }
+        return member;
+    }
+
+    /** 팀원 초대는 초대 권한이 있는 멤버(팀장 포함)만 [A-06] */
+    public TeamMember requireInvite(Long teamId, Long userId) {
+        TeamMember member = requireMember(teamId, userId);
+        if (!member.mayInvite()) {
+            throw ApiException.forbidden("팀원 초대 권한이 없습니다.");
+        }
+        return member;
     }
 
     public TeamMember requireMember(Long teamId, Long userId) {

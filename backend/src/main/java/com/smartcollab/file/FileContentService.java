@@ -173,11 +173,7 @@ public class FileContentService {
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public void sign(Long fileId, Long userId) {
         FileEntity file = fileService.lockActive(fileId);   // 저장·복원이 끝난 뒤의 현재 버전에 서명 [S-17]
-        Access access = accessPolicy.requireFileRead(file, userId);
-        boolean allowed = access.isTeam() ? access.leader() : file.isOwnedBy(userId);
-        if (!allowed) {
-            throw ApiException.forbidden(access.isTeam() ? "팀 파일은 팀장만 서명할 수 있습니다." : "파일 소유자만 서명할 수 있습니다.");
-        }
+        accessPolicy.requireSign(file, userId);
         FileVersion active = file.getActiveVersion();
         if (signatures.existsByFileVersionIdAndSignerId(active.getId(), userId)) {
             throw ApiException.conflict("이미 이 버전에 서명했습니다.");
