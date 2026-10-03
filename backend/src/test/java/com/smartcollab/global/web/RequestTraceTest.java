@@ -49,11 +49,21 @@ class RequestTraceTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("[S-07] 공유 링크 토큰은 그 자체로 접근 권한이라 접근 기록의 경로에서 가린다")
+    void masksShareTokensInAccessLog(CapturedOutput output) throws Exception {
+        String token = "Zk3v9QwLtYbN0pRs7uXa2cDe5fGh8iJk";
+        mvc.perform(get("/api/public/shares/{t}", token));
+        mvc.perform(get("/api/public/shares/{t}/download", token));
+        assertThat(output).doesNotContain(token);
+        assertThat(output).contains("GET /api/public/shares/*** 404").contains("GET /api/public/shares/***/download");
+    }
+
+    @Test
     @DisplayName("접근 기록에는 쿼리 문자열을 남기지 않는다 (공유 다운로드 허가 등 비밀값이 들어갈 수 있음)")
     void doesNotLogQueryStrings(CapturedOutput output) throws Exception {
         mvc.perform(get("/api/public/shares/no-such-token/download").param("grant", "SECRET-GRANT-VALUE"));
 
-        assertThat(output).contains("GET /api/public/shares/no-such-token/download 404");
+        assertThat(output).contains("GET /api/public/shares/***/download 404");
         assertThat(output).doesNotContain("SECRET-GRANT-VALUE");
     }
 
