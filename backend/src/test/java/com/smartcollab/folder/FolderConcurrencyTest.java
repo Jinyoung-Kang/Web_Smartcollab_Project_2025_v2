@@ -6,8 +6,8 @@ import com.smartcollab.file.TrashService;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.support.Api;
 import com.smartcollab.support.IntegrationTest;
+import com.smartcollab.support.TransactionRace;
 import com.smartcollab.user.UserRepository;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,13 +16,6 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -51,53 +44,14 @@ class FolderConcurrencyTest extends IntegrationTest {
     @Autowired
     TransactionTemplate tx;
 
-    final ExecutorService pool = Executors.newFixedThreadPool(2);
-
-    @AfterEach
-    void shutdown() {
-        pool.shutdownNow();
-    }
-
-    /**
-     * other 는 저장 공간 행을 잠근 채 change 를 실행하고 release 를 기다렸다 커밋합니다. 그 사이에 action 을 보내고,
-     * action 이 2초 안에 끝나면(잠그지 않음) 그 결과를, 막혀 있으면 상대를 커밋시킨 뒤의 결과를 돌려줍니다.
-     */
+    /** 다른 트랜잭션이 저장 공간 행을 잠근 채 change 를 실행해 붙든 동안 action 을 보냅니다 ({@link TransactionRace}). */
     private Throwable raceAgainst(long userId, Runnable change, Runnable action) throws Exception {
-        CountDownLatch changed = new CountDownLatch(1);
-        CountDownLatch release = new CountDownLatch(1);
-        Future<?> other = pool.submit(() -> tx.executeWithoutResult(st -> {
-            users.lockById(userId);
-            change.run();
-            folders.flush();
-            changed.countDown();
-            await(release);
-        }));
-        assertThat(changed.await(10, TimeUnit.SECONDS)).isTrue();
-        Future<Throwable> mine = pool.submit((Callable<Throwable>) () -> {
-            try {
-                action.run();
-                return null;
-            } catch (Throwable e) {
-                return e;
-            }
-        });
-        Throwable result;
-        try {
-            result = mine.get(2, TimeUnit.SECONDS);
-        } catch (TimeoutException waitingForLock) {
-            release.countDown();
-            result = mine.get(20, TimeUnit.SECONDS);
-        }
-        release.countDown();
-        other.get(20, TimeUnit.SECONDS);
-        return result;
-    }
-
-    private static void await(CountDownLatch latch) {
-        try {
-            latch.await(30, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+        try (TransactionRace race = new TransactionRace(tx)) {
+            return race.run(() -> {
+                users.lockById(userId);
+                change.run();
+                folders.flush();
+            }, action);
         }
     }
 

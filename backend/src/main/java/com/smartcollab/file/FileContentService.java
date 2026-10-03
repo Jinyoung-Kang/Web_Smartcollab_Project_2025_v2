@@ -17,6 +17,7 @@ import com.smartcollab.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayInputStream;
@@ -32,6 +33,9 @@ import java.util.stream.Collectors;
 
 /**
  * 텍스트 편집·버전 기록·버전 복원·서명.
+ * <p>한 파일의 내용 변경(저장·복원)과 서명은 파일 행 잠금으로 차례로 처리합니다 [S-17]. 서명은 잠근 뒤 읽은 현재 버전에 붙고,
+ * 뒤이은 내용 변경은 그 서명까지 무효로 합니다. 이전에는 서명이 잠그지 않아, 저장이 버전을 바꾸고 서명을 무효로 하는 사이에
+ * 끼어들면 밀려난 버전에 유효한 서명이 남았습니다.</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -84,6 +88,10 @@ public class FileContentService {
         User editor = users.findById(userId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
         // 새 버전은 저장 공간을 더 차지하므로 한도를 확인합니다 (반복 저장으로 버전을 한없이 쌓지 못하게) [SEC-05]
         quota.lockAndCheckRoom(StorageQuota.Scope.of(file.getFolder()), bytes.length);
+        // 서명·복원과 차례로 처리되도록 새 버전 행을 넣기 전에 파일 행을 잠급니다 [S-17]. 새 버전 INSERT 의 외래 키 확인이
+        // 파일 행에 공유 잠금을 걸고 뒤이은 UPDATE 가 배타 잠금으로 올리는 사이에, 서명이 기다리며 교착되지 않게 하려는 것입니다.
+        // (이미 읽은 엔티티는 갱신되지 않지만, 그 사이 다른 변경이 있었다면 @Version 확인이 409 로 막습니다.)
+        fileService.lockActive(fileId);
 
         String key = "versions/" + UUID.randomUUID();
         StoredBlob blob = blobLifecycle.putWithRollbackCleanup(key, new ByteArrayInputStream(bytes), bytes.length);
@@ -110,9 +118,9 @@ public class FileContentService {
                 .toList();
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void restore(Long fileId, Long versionId, Long userId) {
-        FileEntity file = fileService.getActive(fileId);
+        FileEntity file = fileService.lockActive(fileId);   // [S-17]
         accessPolicy.requireFileEdit(file, userId);
         FileVersion version = versions.findById(versionId)
                 .filter(v -> v.getFile().getId().equals(fileId))   // v1 은 다른 파일의 버전 ID 로도 복원이 가능했음
@@ -129,9 +137,9 @@ public class FileContentService {
      * 현재 버전에 서명합니다. 개인 파일은 소유자, 팀 파일은 팀장만 서명할 수 있습니다.
      * v1 은 "가장 최근에 만들어진 버전"에 서명해, 옛 버전을 복원한 뒤 서명하면 엉뚱한 버전에 서명됐습니다.
      */
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void sign(Long fileId, Long userId) {
-        FileEntity file = fileService.getActive(fileId);
+        FileEntity file = fileService.lockActive(fileId);   // 저장·복원이 끝난 뒤의 현재 버전에 서명 [S-17]
         Access access = accessPolicy.requireFileRead(file, userId);
         boolean allowed = access.isTeam() ? access.leader() : file.isOwnedBy(userId);
         if (!allowed) {
