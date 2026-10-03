@@ -13,6 +13,8 @@ const doc: TextContent = {
   name: '회의록.md', folderId: 5, content: '처음 내용', versionId: 1, editable: true, updatedAt: '2026-09-27T00:00:00Z',
 }
 
+let client: QueryClient
+
 function renderEditor() {
   vi.spyOn(fileApi, 'content').mockResolvedValue(doc)
   vi.spyOn(configApi, 'get').mockResolvedValue({ translationEnabled: false } as PublicConfig)
@@ -23,7 +25,7 @@ function renderEditor() {
     ],
     { initialEntries: ['/files/1/edit'] },
   )
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={client}>
       <ToastProvider>
@@ -71,6 +73,24 @@ describe('EditorPage — 저장하지 않은 변경 보호', () => {
 
     expect(await screen.findByText('드라이브 화면')).toBeInTheDocument()
     expect(screen.queryByText('저장하지 않은 변경이 있습니다')).not.toBeInTheDocument()
+  })
+})
+
+describe('EditorPage — 다시 불러오기 실패 [FB-02]', () => {
+  it('창으로 돌아올 때 하는 새로고침이 실패해도 편집 화면과 저장하지 않은 내용을 그대로 둔다', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+    await user.type(await screen.findByLabelText('문서 내용'), ' 추가')
+    vi.mocked(fileApi.content).mockRejectedValue(new ApiError(0, 'NETWORK', '네트워크에 연결할 수 없습니다.'))
+
+    await act(async () => {
+      await client.refetchQueries({ queryKey: ['file-content', 1] })
+      await new Promise((resolve) => setTimeout(resolve, 0))   // 쿼리 상태 알림은 다음 틱에 화면에 반영됩니다
+    })
+    expect(client.getQueryState(['file-content', 1])?.status).toBe('error')
+
+    expect(screen.queryByText('문서를 열 수 없습니다')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('문서 내용')).toHaveValue('처음 내용 추가')
   })
 })
 

@@ -51,15 +51,17 @@ export default function EditorPage() {
   const fileId = Number(useParams().fileId)
   const content = useQuery({ queryKey: ['file-content', fileId], queryFn: () => fileApi.content(fileId), staleTime: 0 })
 
+  // 처음 불러온 내용으로 편집을 시작합니다. 이후 서버 값이 바뀌어도 편집 중인 내용은 덮어쓰지 않습니다.
+  // 데이터가 있으면 오류보다 먼저 봅니다 — 창으로 돌아올 때 하는 새로고침이 실패해도(노트북을 열자마자 네트워크가
+  // 없을 때 등) 편집 화면과 저장하지 않은 내용을 그대로 둡니다 [FB-02]. 저장할 때 다시 서버와 맞춰 봅니다.
+  if (content.data) return <Editor key={fileId} fileId={fileId} initial={content.data} />
   if (content.error) {
     return (
       <EmptyState className="h-full" icon={FileSearch} title="문서를 열 수 없습니다" description={(content.error as Error).message}
         action={<Link to="/drive" className={buttonStyles('primary')}>내 드라이브로</Link>} />
     )
   }
-  if (!content.data) return <Spinner className="p-8" />
-  // 처음 불러온 내용으로 편집을 시작합니다. 이후 서버 값이 바뀌어도 편집 중인 내용은 덮어쓰지 않습니다.
-  return <Editor key={fileId} fileId={fileId} initial={content.data} />
+  return <Spinner className="p-8" />
 }
 
 function Editor({ fileId, initial }: { fileId: number; initial: TextContent }) {
