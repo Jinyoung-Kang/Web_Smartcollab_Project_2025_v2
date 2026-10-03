@@ -21,6 +21,10 @@ services:
   app:
     build: .
     image: smartcollab:local
+    # 메모리 한도. JVM 은 이 한도의 75% 를 힙으로 잡습니다(Dockerfile 의 MaxRAMPercentage). 한도가 없으면 Docker 호스트 전체
+    # 메모리를 기준으로 잡아, 다른 컨테이너와 함께 메모리가 모자랄 때 커널이 앱을 강제 종료했습니다(QA: 동시 100명 부하 중 OOMKilled).
+    # 2GB 에서는 같은 부하에 JVM 메모리가 최대 1,150MiB 였습니다 [IMP-06]
+    mem_limit: ${APP_MEM_LIMIT:-2g}
     depends_on:
       db:
         condition: service_healthy

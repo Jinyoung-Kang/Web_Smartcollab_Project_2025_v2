@@ -1,0 +1,10 @@
+# QA 후속 — 수정 전 실패 시험 기록
+
+## [QA-07] DeletedAccountTokenTest (커밋 "QA 후속: 탈퇴한 계정 토큰 거절 시험" 시점)
+FAIL [QA-07] 탈퇴한 계정의 토큰은 모든 API 에서 401 이다 (쿠키·Bearer) | Status expected:<401> but was:<200>
+PASS [QA-07] 탈퇴가 거절되면(비밀번호 오류) 토큰은 그대로 쓸 수 있다
+
+## [IMP-04·08] GlobalExceptionHandlerTest·HealthReadinessTest (처리기 자리에 현재 동작(일반 예외 처리)을 둔 상태)
+FAIL [IMP-08] 쿼리 시간 제한에 걸리면 503 SERVICE_UNAVAILABLE | expected: 503 but was: 500
+FAIL [IMP-04] DB 연결을 얻지 못하면 500 이 아니라 503 SERVICE_UNAVAILABLE 이고, 스택 없이 한 줄만 남긴다 | expected: 503 but was: 500
+FAIL [IMP-04] readiness 는 DB 상태를 포함하고 liveness 는 포함하지 않는다 | Expecting value to be true but was false

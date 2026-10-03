@@ -7,6 +7,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.QueryTimeoutException;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 
@@ -30,5 +32,30 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getStatusCode().value()).isEqualTo(409);
         assertThat(response.getBody().getDetail()).doesNotContain("someone@example.com");
         assertThat(output).contains("users.uk_users_email").doesNotContain("someone@example.com");
+    }
+
+    @Test
+    @DisplayName("[IMP-04] DB 연결을 얻지 못하면 500 이 아니라 503 SERVICE_UNAVAILABLE 이고, 스택 없이 한 줄만 남긴다")
+    void databaseUnavailableIs503(CapturedOutput output) {
+        CannotCreateTransactionException ex = new CannotCreateTransactionException("Could not open JPA EntityManager for transaction",
+                new org.hibernate.exception.JDBCConnectionException("Unable to acquire JDBC Connection",
+                        new java.sql.SQLTransientConnectionException("HikariPool-1 - Connection is not available, request timed out after 5000ms")));
+
+        ResponseEntity<ProblemDetail> response = new GlobalExceptionHandler().handleUnavailable(ex);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(503);
+        assertThat(response.getBody().getProperties()).containsEntry("code", "SERVICE_UNAVAILABLE");
+        assertThat(response.getHeaders().getFirst("Retry-After")).isEqualTo("5");
+        assertThat(output).contains("Database unavailable").doesNotContain("\tat org.");
+    }
+
+    @Test
+    @DisplayName("[IMP-08] 쿼리 시간 제한에 걸리면 503 SERVICE_UNAVAILABLE")
+    void queryTimeoutIs503() {
+        ResponseEntity<ProblemDetail> response = new GlobalExceptionHandler()
+                .handleUnavailable(new QueryTimeoutException("Statement cancelled due to timeout"));
+
+        assertThat(response.getStatusCode().value()).isEqualTo(503);
+        assertThat(response.getBody().getProperties()).containsEntry("code", "SERVICE_UNAVAILABLE");
     }
 }
