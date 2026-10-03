@@ -9,12 +9,12 @@ import { Button, IconButton } from '@/components/ui/Button'
 import { useConfirm } from '@/components/ui/Confirm'
 import { Avatar, Badge, Menu, MenuItem, Spinner } from '@/components/ui/misc'
 import { useToast } from '@/components/ui/Toast'
-import { useSubscription } from '@/realtime/RealtimeProvider'
 import { cn } from '@/lib/cn'
 import { ChatTab } from './ChatTab'
 import { InviteDialog, PermissionsDialog } from './MemberDialogs'
 import { useTeamActivity } from '@/realtime/TeamActivity'
 import { queryKeys } from '@/api/queryKeys'
+import { useTeamPresence } from './useTeamPresence'
 
 /**
  * @param visible 화면에 보이는지. 좁은 화면에서는 닫혀 있어도 그려 두므로, 보일 때만 채팅을 "보는 중"으로 칩니다 [FB-06].
@@ -22,18 +22,9 @@ import { queryKeys } from '@/api/queryKeys'
 export function TeamPanel({ teamId, visible = true, onClose }: { teamId: number; visible?: boolean; onClose?: () => void }) {
   const [tab, setTab] = useState<'chat' | 'members'>('chat')
   const team = useQuery({ queryKey: queryKeys.team(teamId), queryFn: () => teamApi.detail(teamId) })
-  const presence = useQuery({ queryKey: queryKeys.presence(teamId), queryFn: () => teamApi.presence(teamId) })
-  const qc = useQueryClient()
   const me = useMe()
   const { unread } = useTeamActivity()
-
-  // 접속 상태는 WebSocket 으로 갱신합니다 (구독 자체가 "접속 중" 표시가 됩니다).
-  useSubscription(`/topic/teams/${teamId}/presence`, (payload) => {
-    qc.setQueryData(queryKeys.presence(teamId), payload)
-  })
-
-  // 이 화면을 보고 있는 나는 항상 접속 중입니다. (내 구독이 서버에 등록되기 전에 조회가 끝나는 경쟁 조건 보정)
-  const online = new Set([...(presence.data?.online ?? []), me.username])
+  const online = useTeamPresence(teamId, me.username)
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">
@@ -146,7 +137,7 @@ function TeamMenu({ team }: { team: TeamDetail }) {
   )
 }
 
-function MembersTab({ team, online }: { team: TeamDetail; online: Set<string> }) {
+function MembersTab({ team, online }: { team: TeamDetail; online: ReadonlySet<string> }) {
   const me = useMe()
   const qc = useQueryClient()
   const toast = useToast()
