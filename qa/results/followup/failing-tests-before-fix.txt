@@ -8,3 +8,9 @@ PASS [QA-07] 탈퇴가 거절되면(비밀번호 오류) 토큰은 그대로 쓸
 FAIL [IMP-08] 쿼리 시간 제한에 걸리면 503 SERVICE_UNAVAILABLE | expected: 503 but was: 500
 FAIL [IMP-04] DB 연결을 얻지 못하면 500 이 아니라 503 SERVICE_UNAVAILABLE 이고, 스택 없이 한 줄만 남긴다 | expected: 503 but was: 500
 FAIL [IMP-04] readiness 는 DB 상태를 포함하고 liveness 는 포함하지 않는다 | Expecting value to be true but was false
+
+## [IMP-01] StorageUsageCounterTest (V4 열만 있고 집계·정리 로직은 없는 상태)
+FAIL [IMP-01] 한도 확인은 합산이 아니라 사용자 행의 사용량 집계를 쓴다 | java.lang.AssertionError: Status expected:<413> but was:<201>
+FAIL [IMP-01] 정리 작업은 어긋난 집계를 실제 합계로 바로잡고 고친 수를 돌려준다 | java.lang.AssertionError:  Expecting actual:   0 to be greater than or equal to:   2 
+FAIL [IMP-01] 같은 사용자가 동시에 업로드해도 집계를 잃지 않는다 | org.opentest4j.AssertionFailedError:  expected: 16120L  but was: 0L
+FAIL [IMP-01] 업로드·텍스트 저장·복사·휴지통·영구 삭제·폴더 삭제 뒤에도 집계는 실제 합계와 같다 (개인·팀) | org.opentest4j.AssertionFailedError:  expected: 3062L  but was: 0L
