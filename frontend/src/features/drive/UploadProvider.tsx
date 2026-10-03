@@ -9,6 +9,7 @@ import { formatBytes } from '@/lib/format'
 import { createTaskQueue } from './uploadQueue'
 import { cn } from '@/lib/cn'
 import { invalidateDriveChange } from '@/api/driveCache'
+import { validateUpload } from './validateUpload'
 
 interface UploadTask {
   id: number
@@ -70,12 +71,10 @@ export function UploadProvider({ children }: { children: ReactNode }) {
           status: 'queued',
           controller: new AbortController(),
         }
-        if (max && file.size > max) {
+        const refused = validateUpload(file, max)
+        if (refused) {
           task.status = 'error'
-          task.error = `최대 ${formatBytes(max)}까지 올릴 수 있습니다.`
-        } else if (file.size === 0) {
-          task.status = 'error'
-          task.error = '빈 파일은 올릴 수 없습니다.'
+          task.error = refused
         }
         return { task, file }
       })
