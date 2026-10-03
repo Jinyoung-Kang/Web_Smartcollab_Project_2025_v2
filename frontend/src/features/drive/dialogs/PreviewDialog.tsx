@@ -8,6 +8,7 @@ import { Button, buttonStyles } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { EmptyState, Spinner } from '@/components/ui/misc'
 import { formatBytes } from '@/lib/format'
+import { queryKeys } from '@/api/queryKeys'
 
 /**
  * 미리보기. 이미지·PDF 는 인증 쿠키로 바로 불러오고(v1: 파일 전체를 JS 메모리로 받아 blob URL 생성 후 해제하지 않음),
@@ -19,12 +20,12 @@ export function PreviewDialog({ file, onClose }: { file: Item | null; onClose: (
   const kind = file?.previewKind ?? 'NONE'
 
   const text = useQuery({
-    queryKey: ['file-content', file?.id],
+    queryKey: queryKeys.fileContent(file?.id),
     queryFn: () => fileApi.content(file!.id),
     enabled: !!file && kind === 'TEXT',
   })
   const office = useQuery({
-    queryKey: ['office-url', file?.id],
+    queryKey: queryKeys.officeUrl(file?.id),
     queryFn: () => fileApi.officePreviewUrl(file!.id),
     enabled: !!file && kind === 'OFFICE' && !!config?.officePreviewEnabled,
     staleTime: 5 * 60_000,

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router'
 import { ApiError, onUnauthorized } from '@/api/http'
 import { authApi, configApi } from '@/api/endpoints'
 import type { Me, PublicConfig } from '@/api/types'
+import { queryKeys } from '@/api/queryKeys'
 
 interface AuthState {
   me: Me | null
@@ -32,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [sessionExpired, setSessionExpired] = useState(false)
 
   const meQuery = useQuery({
-    queryKey: ['me'],
+    queryKey: queryKeys.me,
     queryFn: async () => {
       try {
         return await authApi.me()
@@ -46,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   })
 
   const setMe = (me: Me | null) => {
-    queryClient.setQueryData(['me'], me)
+    queryClient.setQueryData(queryKeys.me, me)
     if (me) setSessionExpired(false)
   }
 
@@ -62,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const completeSignOut = useCallback(() => {
     // 'me' 쿼리는 지우지 않고 값만 바꿉니다. queryClient.clear() 로 지우면 이 컴포넌트가 구독하던 쿼리가 캐시에서 떨어져 나가,
     // 데이터 라우터(주소가 바뀌어도 이 컴포넌트를 다시 그리지 않음)에서는 이전 사용자 정보가 계속 남았습니다.
-    queryClient.setQueryData(['me'], null)
+    queryClient.setQueryData(queryKeys.me, null)
     queryClient.removeQueries({ predicate: (query) => !SESSION_INDEPENDENT_QUERIES.has(String(query.queryKey[0])) })
     queryClient.getMutationCache().clear()
     setSigningOut(false)
@@ -72,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 로그인하지 않은 상태의 401(로그인 실패 등)은 세션 만료가 아니므로 무시합니다.
   useEffect(() => {
     onUnauthorized(() => {
-      if (queryClient.getQueryData(['me'])) endSession('expired')
+      if (queryClient.getQueryData(queryKeys.me)) endSession('expired')
     })
     return () => onUnauthorized(null)
   }, [queryClient, endSession])
@@ -110,5 +111,5 @@ export function useMe(): Me {
 }
 
 export function usePublicConfig(): PublicConfig | undefined {
-  return useQuery({ queryKey: ['config'], queryFn: configApi.get, staleTime: Infinity }).data
+  return useQuery({ queryKey: queryKeys.config, queryFn: configApi.get, staleTime: Infinity }).data
 }

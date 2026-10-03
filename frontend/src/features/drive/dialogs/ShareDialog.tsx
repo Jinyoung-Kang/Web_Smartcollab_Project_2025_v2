@@ -8,6 +8,7 @@ import { Dialog } from '@/components/ui/Dialog'
 import { Badge, Spinner } from '@/components/ui/misc'
 import { useToast } from '@/components/ui/Toast'
 import { formatDateTime } from '@/lib/format'
+import { queryKeys } from '@/api/queryKeys'
 
 const EXPIRY_OPTIONS = [
   { label: '만료 없음', hours: undefined },
@@ -36,7 +37,7 @@ function ShareLinks({ fileId }: { fileId: number }) {
   const [password, setPassword] = useState('')
   const [expiry, setExpiry] = useState(3)
   const [limit, setLimit] = useState('')
-  const links = useQuery({ queryKey: ['share-links', fileId], queryFn: () => shareApi.list(fileId) })
+  const links = useQuery({ queryKey: queryKeys.shareLinks(fileId), queryFn: () => shareApi.list(fileId) })
 
   const create = useMutation({
     mutationFn: () =>
@@ -48,7 +49,7 @@ function ShareLinks({ fileId }: { fileId: number }) {
     onSuccess: async (link) => {
       setPassword('')
       setLimit('')
-      await qc.invalidateQueries({ queryKey: ['share-links', fileId] })
+      await qc.invalidateQueries({ queryKey: queryKeys.shareLinks(fileId) })
       await copy(link.path)
     },
     onError: (e: Error) => toast.error(e.message),
@@ -57,7 +58,7 @@ function ShareLinks({ fileId }: { fileId: number }) {
   const revoke = useMutation({
     mutationFn: (id: number) => shareApi.revoke(id),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['share-links', fileId] })
+      void qc.invalidateQueries({ queryKey: queryKeys.shareLinks(fileId) })
       toast.success('링크를 해제했습니다. 이제 이 주소로는 내려받을 수 없습니다.')
     },
     onError: (e: Error) => toast.error(e.message),

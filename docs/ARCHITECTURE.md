@@ -190,9 +190,10 @@ sequenceDiagram
 
 ```
 frontend/src
-├── api/          fetch 래퍼(CSRF·ProblemDetail→ApiError·401 처리), 엔드포인트, XHR 업로드
+├── api/          fetch 래퍼(CSRF·ProblemDetail→ApiError·401 처리), 엔드포인트, XHR 업로드,
+│                 쿼리 키(queryKeys), 드라이브 변경 뒤 캐시 갱신(invalidateDriveChange)
 ├── auth/         로그인·가입, 인증 상태
-├── realtime/     STOMP 연결 1개(자동 재연결·구독 복원), 팀 이벤트 → 캐시 무효화
+├── realtime/     STOMP 연결 1개(자동 재연결·구독 복원), 팀 이벤트 → 캐시 무효화(순수 함수 teamEvents)
 ├── layout/       헤더·사이드바·반응형 셸
 ├── features/     drive · editor · team · notifications · share · account
 ├── components/ui 버튼, <dialog> 모달, 토스트, 확인창
@@ -201,7 +202,14 @@ frontend/src
 
 - 서버 상태는 TanStack Query 캐시에 두고, 실시간 이벤트는 캐시 무효화로만 반영합니다(단일 진실 공급원).
 - 모달은 네이티브 `<dialog>` + `showModal()` 로 포커스 가두기·ESC·배경 비활성을 브라우저에 맡깁니다.
-- 폴더가 바뀌면 `key` 로 화면 컴포넌트를 새로 만들어 선택·대화상자 상태를 초기화합니다(effect 로 상태를 되돌리지 않음).
+- 화면 컴포넌트는 배치만 맡고, 데이터·변경·규칙은 기능별 훅과 순수 함수로 둡니다(3차 점검 5단계).
+  - 드라이브: `useDriveFolder`·`useDriveSelection`·`useDriveMutations`·`useFileDrop`, 순수 `deleteTargets`·`validateUpload`
+  - 편집기: `useTextDocument`·`useUnsavedChangesGuard`·`useDocumentTools`(마지막 요청의 결과만), 순수 `draftFileName`
+  - 채팅: `useTeamChat`·`useChatScroll`·`useSharedFilePreview`·`useTeamPresence`, 순수 `groupChatMessages`·`validateChatMessage`
+  - 쿼리 키는 `api/queryKeys` 한 곳에서, 드라이브가 바뀐 뒤 다시 불러올 캐시는 `invalidateDriveChange` 한 곳에서 정합니다
+    (이전에는 다섯 곳이 서로 달라 지운 뒤 휴지통 목록이 최대 30초 늦게 바뀌었음).
+- 폴더가 바뀌면 선택·메뉴·대화상자만 초기화하고 화면은 그대로 둡니다(팀 패널의 채팅 입력·스크롤 유지, FB-07). 표는 폴더마다,
+  팀 패널은 팀마다 `key` 로 새로 그립니다. 대화상자는 대상 파일마다 내용을 새로 그려 이전 입력이 남지 않게 합니다(FB-03).
 - 넓은/좁은 화면용 패널을 CSS 로 숨기지 않고 `useMediaQuery` 로 한 쪽만 렌더링합니다(중복 요청 방지 — E2E 테스트가 발견).
 - 화면을 그리다 오류가 나면 데이터 라우터의 `errorElement`(`AppErrorPage`)가 한국어 안내를 보여 줍니다. 새 배포로 이전 화면 조각을 받지 못하면 새로고침을 안내합니다.
 - 로그아웃·탈퇴·세션 만료는 `AuthProvider.endSession` 하나를 거칩니다: 로그인 화면으로 이동한 뒤 사용자 정보를 비우고 이전 사용자의 캐시를 지웁니다(BUG-09).

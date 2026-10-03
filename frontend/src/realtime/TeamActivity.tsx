@@ -7,6 +7,8 @@ import { useMe } from '@/auth/AuthProvider'
 import { useToast } from '@/components/ui/Toast'
 import { useOnReconnect } from '@/lib/useOnReconnect'
 import { useRealtime, useSubscription } from './RealtimeProvider'
+import { queryKeys } from '@/api/queryKeys'
+import { applyNotification, applyTeamEvent, shouldMarkUnread, type TeamEvent } from './teamEvents'
 
 interface TeamActivityApi {
   unread: ReadonlySet<number>
@@ -16,17 +18,13 @@ interface TeamActivityApi {
 
 const Ctx = createContext<TeamActivityApi | null>(null)
 
-type TeamEvent =
-  | { type: 'FOLDER_CHANGED'; folderId: number }
-  | { type: 'MEMBERS_CHANGED' | 'TEAM_DELETED' | 'CHAT_CLEARED'; teamId: number }
-
 /** 현재 주소가 그 팀의 화면인지 (/teams/1 은 /teams/12 와 구분) */
 export function isTeamPath(pathname: string, teamId: number): boolean {
   return pathname === `/teams/${teamId}` || pathname.startsWith(`/teams/${teamId}/`)
 }
 
 export function appendChatMessage(qc: QueryClient, teamId: number, msg: ChatMessage) {
-  qc.setQueryData<InfiniteData<ChatPage, number | undefined>>(['chat', teamId], (data) => {
+  qc.setQueryData<InfiniteData<ChatPage, number | undefined>>(queryKeys.chat.of(teamId), (data) => {
     if (!data || data.pages.length === 0) return data
     const [latest, ...older] = data.pages
     if (!latest || latest.messages.some((m) => m.id === msg.id)) return data
@@ -45,7 +43,7 @@ export function TeamActivityProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { subscribe, connected } = useRealtime()
-  const teams = useQuery({ queryKey: ['teams'], queryFn: teamApi.list })
+  const teams = useQuery({ queryKey: queryKeys.teams, queryFn: teamApi.list })
   const [unread, setUnread] = useState<Set<number>>(new Set())
   const activeChat = useRef<number | null>(null)
   const pathRef = useRef(location.pathname)
@@ -62,35 +60,14 @@ export function TeamActivityProvider({ children }: { children: ReactNode }) {
       subscribe(`/topic/teams/${teamId}/chat`, (payload) => {
         const msg = payload as ChatMessage
         appendChatMessage(qc, teamId, msg)
-        if (msg.sender.username !== me.username && activeChat.current !== teamId) {
+        if (shouldMarkUnread(msg, me.username, activeChat.current, teamId)) {
           setUnread((prev) => new Set(prev).add(teamId))
         }
       }),
       subscribe(`/topic/teams/${teamId}/events`, (payload) => {
-        const event = payload as TeamEvent
-        switch (event.type) {
-          case 'FOLDER_CHANGED':
-            void qc.invalidateQueries({ queryKey: ['folder', event.folderId] })
-            void qc.invalidateQueries({ queryKey: ['tree', teamId] })
-            void qc.invalidateQueries({ queryKey: ['usage', teamId] })
-            void qc.invalidateQueries({ queryKey: ['trash', teamId] })
-            void qc.invalidateQueries({ queryKey: ['versions'] })
-            break
-          case 'MEMBERS_CHANGED':
-            void qc.invalidateQueries({ queryKey: ['team', teamId] })
-            void qc.invalidateQueries({ queryKey: ['teams'] })
-            break
-          case 'CHAT_CLEARED':
-            void qc.resetQueries({ queryKey: ['chat', teamId] })
-            break
-          case 'TEAM_DELETED':
-            void qc.invalidateQueries({ queryKey: ['teams'] })
-            qc.removeQueries({ queryKey: ['team', teamId] })
-            if (isTeamPath(pathRef.current, teamId)) {
-              toast.info('보고 있던 팀이 삭제되었습니다.')
-              navigate('/drive', { replace: true })
-            }
-            break
+        if (applyTeamEvent(qc, teamId, payload as TeamEvent) === 'team-deleted' && isTeamPath(pathRef.current, teamId)) {
+          toast.info('보고 있던 팀이 삭제되었습니다.')
+          navigate('/drive', { replace: true })
         }
       }),
     ])
@@ -101,23 +78,15 @@ export function TeamActivityProvider({ children }: { children: ReactNode }) {
   // (제외된 팀 토픽을 다시 구독하면 서버가 거절하며 연결을 닫습니다)
   // 채팅·알림은 실시간으로만 갱신되므로(채팅 캐시는 만료 없음) 끊긴 동안 온 것을 다시 받습니다 [FB-05].
   useOnReconnect(connected, () => {
-    void qc.invalidateQueries({ queryKey: ['teams'] })
-    void qc.invalidateQueries({ queryKey: ['chat'] })
-    void qc.invalidateQueries({ queryKey: ['notifications'] })
+    void qc.invalidateQueries({ queryKey: queryKeys.teams })
+    void qc.invalidateQueries({ queryKey: queryKeys.chat.all })
+    void qc.invalidateQueries({ queryKey: queryKeys.notifications })
   })
 
   useSubscription('/user/queue/notifications', (payload) => {
     const n = payload as AppNotification
-    void qc.invalidateQueries({ queryKey: ['notifications'] })
-    if (n.type === 'REMOVED_FROM_TEAM' && n.teamId) {
-      // 서버는 이미 이 팀의 실시간 구독을 해제했습니다. 보고 있던 팀 화면에서도 나갑니다.
-      qc.removeQueries({ queryKey: ['team', n.teamId] })
-      void qc.invalidateQueries({ queryKey: ['teams'] })
-      if (isTeamPath(pathRef.current, n.teamId)) navigate('/drive', { replace: true })
-    } else if (n.type !== 'TEAM_INVITE') {
-      void qc.invalidateQueries({ queryKey: ['teams'] })
-      if (n.teamId) void qc.invalidateQueries({ queryKey: ['team', n.teamId] })
-    }
+    const { removedFromTeam } = applyNotification(qc, n)
+    if (removedFromTeam && isTeamPath(pathRef.current, removedFromTeam)) navigate('/drive', { replace: true })
     toast.info(n.content)
   })
 

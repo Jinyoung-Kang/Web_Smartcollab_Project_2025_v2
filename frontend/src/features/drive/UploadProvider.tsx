@@ -8,6 +8,8 @@ import { IconButton } from '@/components/ui/Button'
 import { formatBytes } from '@/lib/format'
 import { createTaskQueue } from './uploadQueue'
 import { cn } from '@/lib/cn'
+import { invalidateDriveChange } from '@/api/driveCache'
+import { validateUpload } from './validateUpload'
 
 interface UploadTask {
   id: number
@@ -48,8 +50,7 @@ export function UploadProvider({ children }: { children: ReactNode }) {
       try {
         await uploadFile(task.folderId, file, (p) => patch(task.id, { progress: p }), task.controller.signal)
         patch(task.id, { status: 'done', progress: 1 })
-        void qc.invalidateQueries({ queryKey: ['folder', task.folderId] })
-        void qc.invalidateQueries({ queryKey: ['usage'] })
+        invalidateDriveChange(qc, { folderIds: [task.folderId] })
       } catch (e) {
         if (e instanceof ApiError && e.code === 'ABORTED') patch(task.id, { status: 'canceled' })
         else patch(task.id, { status: 'error', error: e instanceof ApiError ? e.message : '업로드 실패' })
@@ -70,12 +71,10 @@ export function UploadProvider({ children }: { children: ReactNode }) {
           status: 'queued',
           controller: new AbortController(),
         }
-        if (max && file.size > max) {
+        const refused = validateUpload(file, max)
+        if (refused) {
           task.status = 'error'
-          task.error = `최대 ${formatBytes(max)}까지 올릴 수 있습니다.`
-        } else if (file.size === 0) {
-          task.status = 'error'
-          task.error = '빈 파일은 올릴 수 없습니다.'
+          task.error = refused
         }
         return { task, file }
       })

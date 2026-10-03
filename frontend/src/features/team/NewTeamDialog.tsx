@@ -5,6 +5,7 @@ import { teamApi } from '@/api/endpoints'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { useToast } from '@/components/ui/Toast'
+import { queryKeys } from '@/api/queryKeys'
 
 export function NewTeamDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [name, setName] = useState('')
@@ -14,7 +15,7 @@ export function NewTeamDialog({ open, onClose }: { open: boolean; onClose: () =>
   const create = useMutation({
     mutationFn: () => teamApi.create(name.trim()),
     onSuccess: (team) => {
-      void qc.invalidateQueries({ queryKey: ['teams'] })
+      void qc.invalidateQueries({ queryKey: queryKeys.teams })
       toast.success(`'${team.name}' 팀을 만들었습니다.`)
       setName('')
       onClose()

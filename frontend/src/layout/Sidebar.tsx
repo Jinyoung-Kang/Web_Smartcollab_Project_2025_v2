@@ -9,6 +9,7 @@ import { StorageMeter } from '@/components/ui/StorageMeter'
 import { NewTeamDialog } from '@/features/team/NewTeamDialog'
 import { formatBytes } from '@/lib/format'
 import { cn } from '@/lib/cn'
+import { queryKeys } from '@/api/queryKeys'
 
 const navClass = (active: boolean) =>
   cn(
@@ -20,8 +21,8 @@ export function Sidebar() {
   const location = useLocation()
   const { unread } = useTeamActivity()
   const [creating, setCreating] = useState(false)
-  const teams = useQuery({ queryKey: ['teams'], queryFn: teamApi.list })
-  const usage = useQuery({ queryKey: ['usage', 'personal'], queryFn: () => fileApi.usage() })
+  const teams = useQuery({ queryKey: queryKeys.teams, queryFn: teamApi.list })
+  const usage = useQuery({ queryKey: queryKeys.usage.of('personal'), queryFn: () => fileApi.usage() })
 
   return (
     <nav aria-label="주 메뉴" className="flex h-full flex-col overflow-y-auto px-3 py-4">

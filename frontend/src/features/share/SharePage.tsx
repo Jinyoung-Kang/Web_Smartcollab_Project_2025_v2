@@ -9,6 +9,7 @@ import { Spinner } from '@/components/ui/misc'
 import { ItemIcon } from '@/lib/fileIcons'
 import { formatBytes, formatDateTime } from '@/lib/format'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
+import { queryKeys } from '@/api/queryKeys'
 
 /**
  * 공유 링크 페이지 (로그인 불필요).
@@ -17,7 +18,7 @@ import { useDocumentTitle } from '@/lib/useDocumentTitle'
  */
 export default function SharePage() {
   const token = useParams().token ?? ''
-  const info = useQuery({ queryKey: ['share', token], queryFn: () => shareApi.publicInfo(token), retry: false })
+  const info = useQuery({ queryKey: queryKeys.publicShare(token), queryFn: () => shareApi.publicInfo(token), retry: false })
   useDocumentTitle(info.data?.fileName ?? (info.isError ? '링크를 사용할 수 없음' : undefined))
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)

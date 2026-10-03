@@ -12,6 +12,8 @@ import { ItemIcon } from '@/lib/fileIcons'
 import { formatBytes, formatDateTime, formatRelative } from '@/lib/format'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { objectParticle } from '@/lib/josa'
+import { invalidateDriveChange } from '@/api/driveCache'
+import { queryKeys, scopeOf } from '@/api/queryKeys'
 
 const RETENTION_DAYS = 30
 
@@ -24,15 +26,10 @@ export default function TrashPage() {
   const qc = useQueryClient()
   const toast = useToast()
   const confirm = useConfirm()
-  const team = useQuery({ queryKey: ['team', teamId], queryFn: () => teamApi.detail(teamId!), enabled: !!teamId })
-  const trash = useQuery({ queryKey: ['trash', teamId ?? 'personal'], queryFn: () => trashApi.list(teamId) })
+  const team = useQuery({ queryKey: queryKeys.team(teamId), queryFn: () => teamApi.detail(teamId!), enabled: !!teamId })
+  const trash = useQuery({ queryKey: queryKeys.trash.of(scopeOf(teamId)), queryFn: () => trashApi.list(teamId) })
 
-  const refresh = () => {
-    void qc.invalidateQueries({ queryKey: ['trash'] })
-    void qc.invalidateQueries({ queryKey: ['folder'] })
-    void qc.invalidateQueries({ queryKey: ['tree'] })
-    void qc.invalidateQueries({ queryKey: ['usage'] })
-  }
+  const refresh = () => invalidateDriveChange(qc)
 
   // 폴더는 안의 폴더·파일과 함께 복원됩니다. 원래 상위 폴더가 휴지통에 있으면 최상위 폴더로 갑니다 [UX-06].
   const restore = useMutation({

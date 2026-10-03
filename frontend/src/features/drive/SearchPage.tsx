@@ -9,6 +9,7 @@ import { ItemIcon } from '@/lib/fileIcons'
 import { formatBytes, formatRelative } from '@/lib/format'
 import { PreviewDialog } from './dialogs/PreviewDialog'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
+import { queryKeys } from '@/api/queryKeys'
 
 /** 검색 결과. 하위 폴더까지 이름으로 찾고 파일이 있는 경로를 보여 줍니다. */
 export default function SearchPage() {
@@ -17,8 +18,8 @@ export default function SearchPage() {
   useDocumentTitle(q ? `‘${q}’ 검색` : '검색')
   const teamId = params.get('teamId') ? Number(params.get('teamId')) : undefined
   const [preview, setPreview] = useState<Item | null>(null)
-  const team = useQuery({ queryKey: ['team', teamId], queryFn: () => teamApi.detail(teamId!), enabled: !!teamId })
-  const results = useQuery({ queryKey: ['search', q, teamId], queryFn: () => fileApi.search(q, teamId), enabled: q.length > 0 })
+  const team = useQuery({ queryKey: queryKeys.team(teamId), queryFn: () => teamApi.detail(teamId!), enabled: !!teamId })
+  const results = useQuery({ queryKey: queryKeys.search(q, teamId), queryFn: () => fileApi.search(q, teamId), enabled: q.length > 0 })
 
   const base = teamId ? `/teams/${teamId}/folders` : '/drive'
 
