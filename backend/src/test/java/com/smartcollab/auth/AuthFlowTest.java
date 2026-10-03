@@ -12,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -198,6 +199,19 @@ class AuthFlowTest extends IntegrationTest {
                 })
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(api().toJson(Map.of("username", username, "password", password))));
+    }
+
+    @Test
+    @DisplayName("[S-19] 체험 계정 아이디(demo1~3)로는 대소문자와 상관없이 가입할 수 없다 — 나중에 체험 모드를 켜면 매일 초기화되기 때문")
+    void demoUsernamesAreReserved() throws Exception {
+        for (String username : List.of("demo1", "Demo2", "DEMO3")) {
+            api().perform(MockMvcRequestBuilders.post("/api/auth/signup").with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(api().toJson(Map.of("username", username, "password", Api.PASSWORD,
+                                    "passwordConfirm", Api.PASSWORD, "name", "가입자"))))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.detail").value(containsString("체험 계정")));
+        }
     }
 
     @Test

@@ -8,6 +8,7 @@ import com.smartcollab.global.error.ErrorCode;
 import com.smartcollab.global.security.JwtTokenService;
 import com.smartcollab.global.security.SecurityEventLog;
 import com.smartcollab.global.security.SlidingWindowRateLimiter;
+import com.smartcollab.user.DemoAccounts;
 import com.smartcollab.user.Role;
 import com.smartcollab.user.User;
 import com.smartcollab.user.UserRepository;
@@ -44,6 +45,9 @@ public class AuthService {
         if (!rateLimiter.tryAcquire("signup:" + clientIp, props.rateLimit().signupPerHour(), Duration.ofHours(1))) {
             SecurityEventLog.rateLimited("signup-ip", clientIp);
             throw new ApiException(ErrorCode.RATE_LIMITED, "가입 요청이 너무 많습니다. 잠시 후 다시 시도하세요.");
+        }
+        if (DemoAccounts.isReserved(req.username())) {   // [S-19] 체험 데이터 생성은 아래 signUp(req) 를 직접 씁니다
+            throw ApiException.conflict("체험 계정용으로 예약된 아이디라 가입할 수 없습니다.");
         }
         return signUp(req);
     }
