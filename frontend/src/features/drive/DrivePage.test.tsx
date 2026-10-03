@@ -34,6 +34,8 @@ const contents = (id: number): FolderContents => ({
   items: id === 10 ? [{ type: 'folder', id: 11, name: '회의록', ownerName: '김하늘', createdAt: '2026-09-01T00:00:00Z',
     updatedAt: '2026-09-01T00:00:00Z', previewKind: 'NONE', textEditable: false }] : [],
   permissions: { canEdit: true, canDelete: true, canInvite: true, leader: true },
+  nextCursor: null,
+  itemCount: id === 10 ? 1 : 0,
 })
 
 let client: QueryClient

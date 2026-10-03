@@ -5,6 +5,7 @@ import type {
   ChatPage,
   DeleteItemsResult,
   FolderContents,
+  FolderSortKey,
   Item,
   ItemRef,
   Me,
@@ -46,7 +47,9 @@ export const configApi = {
 }
 
 export const folderApi = {
-  contents: (folderId: number) => http.get<FolderContents>(`/api/folders/${folderId}`),
+  /** 폴더 내용 한 묶음 — 정렬은 서버가 하고, 다음 묶음은 nextCursor 로 [IMP-02] */
+  contents: (folderId: number, page: { sort: FolderSortKey; order: 'asc' | 'desc'; cursor?: string; limit?: number }) =>
+    http.get<FolderContents>(`/api/folders/${folderId}${q({ sort: page.sort, order: page.order, cursor: page.cursor, limit: page.limit })}`),
   tree: (teamId?: number) => http.get<{ roots: TreeNode[] }>(`/api/folders/tree${q({ teamId })}`),
   create: (parentId: number, name: string) => http.post<Item>('/api/folders', { parentId, name }),
   rename: (folderId: number, name: string) => http.patch<void>(`/api/folders/${folderId}`, { name }),
