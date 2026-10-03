@@ -63,6 +63,19 @@ class PreRoutingErrorFormatTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("[QA-08] 오류 처리 경로(/error)를 직접 부르면 없는 주소처럼 problem+json 404")
+    void directErrorPathIsNotFound() throws Exception {
+        HttpResponse<String> res = http.send(HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/error")).GET().build(),
+                HttpResponse.BodyHandlers.ofString());
+
+        assertThat(res.statusCode()).isEqualTo(404);
+        assertThat(res.headers().firstValue("Content-Type")).hasValueSatisfying(type -> assertThat(type).startsWith("application/problem+json"));
+        JsonNode body = json.readTree(res.body());
+        assertThat(body.path("code").asString()).isEqualTo("NOT_FOUND");
+        assertThat(body.path("requestId").asString()).isEqualTo(res.headers().firstValue(RequestTraceFilter.HEADER).orElseThrow());
+    }
+
+    @Test
     @DisplayName("[QA-08] 보안 방화벽이 거절한 요청(//·;)도 problem+json 400 과 추적 ID")
     void firewallRejectionIsProblemJson() throws Exception {
         Api.Session s = api().signUp("qa08f");

@@ -36,9 +36,7 @@ public class RequestTraceFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        String incoming = request.getHeader(HEADER);
-        String requestId = incoming != null && VALID_ID.matcher(incoming).matches()
-                ? incoming : UUID.randomUUID().toString().replace("-", "");
+        String requestId = requestIdFor(request);
         MDC.put(MDC_KEY, requestId);
         response.setHeader(HEADER, requestId);
         long started = System.nanoTime();
@@ -56,12 +54,18 @@ public class RequestTraceFilter extends OncePerRequestFilter {
         }
     }
 
+    /** 앞단 프록시가 준 ID 는 형식이 맞을 때만 이어 쓰고, 아니면 새로 만듭니다. 라우팅 전 거절(ProblemErrorReportValve)도 씁니다. */
+    static String requestIdFor(HttpServletRequest request) {
+        String incoming = request.getHeader(HEADER);
+        return incoming != null && VALID_ID.matcher(incoming).matches() ? incoming : UUID.randomUUID().toString().replace("-", "");
+    }
+
     /** 공유 링크 토큰은 그 자체로 접근 권한(비밀번호 없는 링크라면 누구나 내려받음)이라 접근 기록에 남기지 않습니다 [S-07]. */
     static String maskSecrets(String path) {
         return SHARE_TOKEN.matcher(path).replaceFirst("$1***");
     }
 
-    private static boolean isTraced(String path) {
+    static boolean isTraced(String path) {
         return path.startsWith("/api/") || path.equals("/ws") || path.startsWith("/ws/");
     }
 }

@@ -39,4 +39,22 @@ public enum ErrorCode {
     public String defaultMessage() {
         return defaultMessage;
     }
+
+    /**
+     * 상태 코드만 아는 곳(라우팅 전 거절·/error)에서 쓸 코드 [QA-08]. 상태가 같은 코드가 여럿이면 일반적인 쪽을 고르고,
+     * 따로 정하지 않은 상태는 4xx 면 INVALID_REQUEST, 5xx 면 INTERNAL_ERROR 입니다.
+     */
+    public static ErrorCode forStatus(int status) {
+        return switch (status) {
+            case 401 -> UNAUTHORIZED;
+            case 403 -> FORBIDDEN;
+            case 404 -> NOT_FOUND;
+            case 409 -> CONFLICT;
+            case 413 -> PAYLOAD_TOO_LARGE;
+            case 415 -> UNSUPPORTED_MEDIA_TYPE;
+            case 429 -> RATE_LIMITED;
+            case 503 -> SERVICE_UNAVAILABLE;
+            default -> status >= 500 ? INTERNAL_ERROR : INVALID_REQUEST;
+        };
+    }
 }
