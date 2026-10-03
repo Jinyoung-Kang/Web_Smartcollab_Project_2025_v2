@@ -2,8 +2,10 @@ package com.smartcollab.file;
 
 import com.smartcollab.access.AccessPolicy;
 import com.smartcollab.folder.Folder;
+import com.smartcollab.folder.FolderDepthPolicy;
 import com.smartcollab.folder.FolderRepository;
 import com.smartcollab.global.error.ApiException;
+import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.global.error.ErrorCode;
 import com.smartcollab.realtime.RealtimeEvents;
 import com.smartcollab.global.tx.TransactionRunner;
@@ -55,6 +57,8 @@ public class ItemTransferService {
     private final ApplicationEventPublisher events;
     private final TransactionRunner tx;
     private final StorageQuota quota;
+    private final FolderDepthPolicy depthPolicy;
+    private final AppProperties props;
 
     @Transactional
     public void move(DriveDtos.TransferRequest req, Long userId) {
@@ -63,7 +67,7 @@ public class ItemTransferService {
         Set<Folder> touched = new LinkedHashSet<>();
         touched.add(target);
 
-        for (DriveDtos.ItemRef ref : req.items()) {
+        for (DriveDtos.ItemRef ref : req.items().stream().distinct().toList()) {
             if (ref.type().equals("folder")) {
                 Folder folder = getFolder(ref.id());
                 if (folder.isRoot()) {
@@ -72,10 +76,11 @@ public class ItemTransferService {
                 accessPolicy.requireRead(folder, userId);   // 휴지통의 폴더는 없는 것처럼 [UX-06]
                 accessPolicy.requireEdit(folder.getParent(), userId);
                 requireSameScope(folder, target);
-                boolean cycle = folders.findSubtree(folder.getId()).stream().anyMatch(r -> r.getId().equals(target.getId()));
-                if (cycle) {
+                List<FolderRepository.SubtreeRow> subtree = folders.findSubtree(folder.getId());
+                if (subtree.stream().anyMatch(r -> r.getId().equals(target.getId()))) {
                     throw ApiException.badRequest("폴더를 자기 자신이나 하위 폴더 안으로 옮길 수 없습니다.");
                 }
+                depthPolicy.requireRoomUnder(target, FolderDepthPolicy.heightOf(subtree));
                 touched.add(folder.getParent());
                 folder.moveUnder(target);
             } else {
@@ -128,15 +133,23 @@ public class ItemTransferService {
         List<FolderCopy> folderCopies = new ArrayList<>();
         List<FileCopy> fileCopies = new ArrayList<>();
         int count = 0;
-        for (DriveDtos.ItemRef ref : req.items()) {
+        int folderCount = 0;
+        // 같은 항목을 여러 번 넣어 복사본을 불리지 못하게 중복을 없앱니다 [S-04]
+        for (DriveDtos.ItemRef ref : req.items().stream().distinct().toList()) {
             if (ref.type().equals("folder")) {
                 Folder source = getFolder(ref.id());
                 accessPolicy.requireRead(source, userId);
-                boolean cycle = folders.findSubtree(source.getId()).stream().anyMatch(r -> r.getId().equals(target.getId()));
-                if (cycle) {
+                List<FolderRepository.SubtreeRow> subtree = folders.findSubtree(source.getId());
+                if (subtree.stream().anyMatch(r -> r.getId().equals(target.getId()))) {
                     throw ApiException.badRequest("폴더를 자기 자신이나 하위 폴더 안으로 복사할 수 없습니다.");
                 }
-                FolderCopy tree = planFolderTree(source, uniqueName(source.isRoot() ? "복사된 폴더" : source.getName(), takenNames));
+                // 엔티티를 읽기 전에 개수부터 확인합니다 (파일 수만 세던 때는 요청 몇 번으로 폴더 수백만 개를 만들 수 있었음) [S-04]
+                folderCount += subtree.size();
+                if (folderCount > props.files().maxCopyFolders()) {
+                    throw ApiException.badRequest("한 번에 복사할 수 있는 폴더는 " + props.files().maxCopyFolders() + "개까지입니다.");
+                }
+                depthPolicy.requireRoomUnder(target, FolderDepthPolicy.heightOf(subtree));
+                FolderCopy tree = planFolderTree(source, subtree, uniqueName(source.isRoot() ? "복사된 폴더" : source.getName(), takenNames));
                 folderCopies.add(tree);
                 count += tree.fileCount();
             } else {
@@ -156,9 +169,8 @@ public class ItemTransferService {
     }
 
     /** 원본 폴더 트리를 너비 우선으로 계획합니다. 폴더 목록은 CTE 1회, 파일은 IN 조회 1회로 읽습니다. */
-    private FolderCopy planFolderTree(Folder sourceRoot, String rootName) {
-        List<Long> subtreeIds = folders.findSubtree(sourceRoot.getId()).stream()
-                .map(FolderRepository.SubtreeRow::getId).toList();
+    private FolderCopy planFolderTree(Folder sourceRoot, List<FolderRepository.SubtreeRow> subtree, String rootName) {
+        List<Long> subtreeIds = subtree.stream().map(FolderRepository.SubtreeRow::getId).toList();
         Map<Long, List<Folder>> childrenOf = new HashMap<>();
         List<Long> copiedFolderIds = new ArrayList<>();
         for (Folder f : folders.findAllById(subtreeIds)) {

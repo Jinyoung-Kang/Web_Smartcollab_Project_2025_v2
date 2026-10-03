@@ -33,7 +33,7 @@ class TranslationServiceTest {
 
     @BeforeEach
     void setUp() {
-        AppProperties props = new AppProperties(null, null, null, null, new AppProperties.Files(2048, 30),
+        AppProperties props = new AppProperties(null, null, null, null, new AppProperties.Files(2048, 30, 50, 1000),
                 new AppProperties.RateLimit(10, 20, 10, 50, 5, DAILY_CHARS), null, null, null, null);
         service = new TranslationService(content, deepl, new SlidingWindowRateLimiter(), props);
         when(deepl.enabled()).thenReturn(true);

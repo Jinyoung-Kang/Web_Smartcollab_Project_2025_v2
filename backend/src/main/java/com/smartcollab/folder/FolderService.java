@@ -28,6 +28,7 @@ public class FolderService {
     private final FileRepository files;
     private final UserRepository users;
     private final AccessPolicy accessPolicy;
+    private final FolderDepthPolicy depthPolicy;
     private final TrashService trash;
     private final ApplicationEventPublisher events;
 
@@ -59,6 +60,7 @@ public class FolderService {
     public DriveDtos.ItemResponse create(DriveDtos.CreateFolderRequest req, Long userId) {
         Folder parent = get(req.parentId());
         accessPolicy.requireEdit(parent, userId);
+        depthPolicy.requireRoomUnder(parent, 0);
         User creator = users.findById(userId).orElseThrow(() -> ApiException.notFound("사용자"));
         Folder folder = folders.save(Folder.childOf(parent, FileNames.validate(req.name()), creator));
         publishChanged(parent);

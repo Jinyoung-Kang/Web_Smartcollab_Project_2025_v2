@@ -39,7 +39,11 @@ public record AppProperties(
         }
     }
 
-    public record Files(long textEditMaxBytes, int trashRetentionDays) {
+    /**
+     * @param maxFolderDepth 최상위 아래 폴더 깊이 상한 [S-05]
+     * @param maxCopyFolders 한 번에 복사할 수 있는 폴더 수 [S-04]
+     */
+    public record Files(long textEditMaxBytes, int trashRetentionDays, int maxFolderDepth, int maxCopyFolders) {
     }
 
     /** @param translationCharsPerUserPerDay 한 사용자가 하루에 번역할 수 있는 글자 수 (DeepL 월 사용량 보호) [SEC-07] */
