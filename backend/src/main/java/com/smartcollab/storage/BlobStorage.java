@@ -2,7 +2,9 @@ package com.smartcollab.storage;
 
 import java.io.InputStream;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * 파일 바이트를 보관하는 저장소 추상화 (전략 패턴).
@@ -26,4 +28,12 @@ public interface BlobStorage {
     Optional<String> readOnlyUrl(String key, Duration ttl);
 
     String type();
+
+    /** 저장된 파일 하나: 키와 마지막 수정 시각 [IMP-05] */
+    record Listed(String key, Instant lastModified) {
+    }
+
+    /** 접두어 아래의 모든 파일을 나열합니다(고아 파일 정리용) [IMP-05] */
+    default void list(String prefix, Consumer<Listed> sink) {
+    }
 }

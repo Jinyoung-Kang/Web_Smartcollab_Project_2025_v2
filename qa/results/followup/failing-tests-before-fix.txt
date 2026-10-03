@@ -26,3 +26,9 @@ FAIL 받은 순서 그대로 그린다 (정렬은 서버가 함)
 FAIL 정렬 머리글을 누르면 서버에 그 정렬로 다시 받아 오라고 알린다
 FAIL 받은 항목을 다 그렸는데 서버에 더 있으면, 남은 수를 보여 주고 더 보기가 다음 묶음을 불러온다
 FAIL 처음에는 이름 오름차순으로 첫 묶음을 요청하고, 정렬을 바꾸면 그 정렬로 서버에 다시 요청한다
+
+## [IMP-05·08] OrphanBlobCleanerTest·AzureBlobStorageTest(목록)·TransactionTimeoutTest (수정 전 — 나열·정리·시간 제한 없음)
+PASS [IMP-08] 시간 제한을 넘는 쿼리는 DB 에서 취소되어 그 시간 즈음 실패한다 | 
+FAIL [IMP-08] 트랜잭션 기본 시간 제한은 30초다 | org.opentest4j.AssertionFailedError:  expected: 30  but was: -1
+FAIL [IMP-05] 접두어 아래의 키와 마지막 수정 시각을 나열한다 (고아 파일 정리용) | java.lang.AssertionError:  Expecting actual:   [] to contain exactly in any order:   ["list-fb5ac62a-37dc-41d2-9980-7e06de2da9f1/a",     "li
+FAIL [IMP-05] 유예 시간보다 오래된 고아 파일·임시 파일만 지우고, DB 가 가리키는 파일과 새 고아는 남긴다 | org.opentest4j.AssertionFailedError:  Expecting value to be false but was true
