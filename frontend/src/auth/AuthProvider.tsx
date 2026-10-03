@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
-import { ApiError, onUnauthorized } from '@/api/http'
+import { onUnauthorized } from '@/api/http'
 import { authApi, configApi } from '@/api/endpoints'
 import type { Me, PublicConfig } from '@/api/types'
 import { queryKeys } from '@/api/queryKeys'
@@ -34,13 +34,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const meQuery = useQuery({
     queryKey: queryKeys.me,
+    // 로그인 전에도 200 인 /session 으로 확인해, 첫 화면마다 401 이 콘솔 오류로 찍히지 않게 합니다 [IMP-10]
     queryFn: async () => {
-      try {
-        return await authApi.me()
-      } catch (e) {
-        if (e instanceof ApiError && e.status === 401) return null
-        throw e
-      }
+      const session = await authApi.session()
+      return session.authenticated ? (session.user ?? null) : null
     },
     staleTime: Infinity,
     retry: false,

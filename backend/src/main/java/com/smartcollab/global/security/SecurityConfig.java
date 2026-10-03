@@ -69,7 +69,7 @@ public class SecurityConfig {
                 .logout(l -> l.disable())
                 .requestCache(r -> r.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/login", "/api/auth/signup", "/api/auth/logout", "/api/auth/csrf").permitAll()
+                        .requestMatchers("/api/auth/login", "/api/auth/signup", "/api/auth/logout", "/api/auth/csrf", "/api/auth/session").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()

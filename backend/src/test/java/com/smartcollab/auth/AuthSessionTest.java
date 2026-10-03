@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -44,7 +45,7 @@ class AuthSessionTest extends IntegrationTest {
         api().perform(MockMvcRequestBuilders.get("/api/auth/session").cookie(new Cookie("SC_AUTH", "not-a-jwt")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.authenticated").value(false))
-                .andExpect(header().string("Set-Cookie", containsString("SC_AUTH=")));
+                .andExpect(header().stringValues("Set-Cookie", hasItem(containsString("SC_AUTH=;"))));
         api().perform(MockMvcRequestBuilders.get("/api/auth/me"))
                 .andExpect(status().isUnauthorized());
     }

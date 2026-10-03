@@ -53,4 +53,9 @@ public final class AuthDtos {
 
     public record CsrfResponse(String headerName, String token) {
     }
+
+    /** 로그인 여부와 (로그인했으면) 내 정보 [IMP-10] */
+    public record SessionResponse(boolean authenticated, MeResponse user) {
+        public static final SessionResponse ANONYMOUS = new SessionResponse(false, null);
+    }
 }
