@@ -74,7 +74,6 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
   const permissions = data?.permissions ?? { canEdit: false, canDelete: false, canInvite: false, leader: false }
   const items = useMemo(() => data?.items ?? [], [data])
   const selectedItems = useMemo(() => items.filter((i) => selected.has(itemKey(i))), [items, selected])
-  const single = selectedItems.length === 1 ? selectedItems[0] : undefined
 
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: ['folder', folderId] })
@@ -215,8 +214,8 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
                 setSelected(new Set([itemKey(item)]))
                 setMenu({ item, x: rect.right, y: rect.bottom })
               }}
-              onDeleteKey={() => askDelete(selectedItems)}
-              onRenameKey={() => single && permissions.canEdit && setDialog({ kind: 'rename', item: single })}
+              onDeleteKey={(targets) => askDelete(targets)}
+              onRenameKey={(item) => permissions.canEdit && setDialog({ kind: 'rename', item })}
             />
           )}
           {dragging && (

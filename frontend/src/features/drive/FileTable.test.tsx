@@ -87,3 +87,39 @@ describe('FileTable — 항목이 많은 폴더 [PERF-02]', () => {
     expect(rowCount()).toBe(200)
   })
 })
+
+describe('FileTable — 키보드 단축키의 대상 [FB-01]', () => {
+  // 정렬 결과: 자료(folder-3), 보고서 2.txt(file-2), 보고서 10.txt(file-1)
+  const row = (i: number) => {
+    const r = document.querySelectorAll<HTMLTableRowElement>('tbody tr[data-row]')[i]
+    if (!r) throw new Error(`행 ${i} 없음`)
+    return r
+  }
+  const setup = (selected: string[]) => {
+    const onDeleteKey = vi.fn()
+    const onRenameKey = vi.fn()
+    render(
+      <FileTable items={items} selected={new Set(selected)} onSelectionChange={vi.fn()} onOpen={vi.fn()}
+        onContextAction={vi.fn()} onDeleteKey={onDeleteKey} onRenameKey={onRenameKey} />,
+    )
+    return { onDeleteKey, onRenameKey }
+  }
+
+  it('선택하지 않은 행에서 Delete 를 누르면 이전 선택이 아니라 그 행만 지운다', () => {
+    const { onDeleteKey } = setup(['file-1'])
+    fireEvent.keyDown(row(1), { key: 'Delete' })
+    expect(onDeleteKey).toHaveBeenCalledWith([items[1]])
+  })
+
+  it('선택한 행에서 Delete 를 누르면 선택한 항목을 모두 지운다', () => {
+    const { onDeleteKey } = setup(['file-1', 'file-2'])
+    fireEvent.keyDown(row(1), { key: 'Delete' })
+    expect(onDeleteKey).toHaveBeenCalledWith([items[1], items[0]])
+  })
+
+  it('F2 는 이전 선택과 상관없이 키를 누른 행의 이름을 바꾼다', () => {
+    const { onRenameKey } = setup(['file-2'])
+    fireEvent.keyDown(row(2), { key: 'F2' })
+    expect(onRenameKey).toHaveBeenCalledWith(items[0])
+  })
+})

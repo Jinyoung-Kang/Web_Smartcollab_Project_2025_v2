@@ -21,8 +21,10 @@ interface FileTableProps {
   onSelectionChange: (next: Set<string>) => void
   onOpen: (item: Item) => void
   onContextAction: (item: Item, anchor: HTMLElement) => void
-  onDeleteKey?: () => void
-  onRenameKey?: () => void
+  /** Delete·Backspace — 지울 항목을 함께 넘깁니다 */
+  onDeleteKey?: (targets: Item[]) => void
+  /** F2 — 이름을 바꿀 항목 */
+  onRenameKey?: (item: Item) => void
 }
 
 const COLUMNS: { key: SortKey; label: string; className: string }[] = [
@@ -53,6 +55,14 @@ export function sortItems(items: Item[], key: SortKey, dir: 'asc' | 'desc'): Ite
     }
     return cmp === 0 ? collator.compare(a.name, b.name) : cmp * sign
   })
+}
+
+/**
+ * Delete 키의 대상 [FB-01]. 키를 누른 행이 선택에 들어 있으면 선택한 항목 모두(화면 순서), 아니면 그 행만입니다.
+ * 이전에는 선택을 바꾸자마자 콜백을 불러, 콜백이 쥔 이전 렌더링의 선택 목록(다른 항목)을 지웠습니다.
+ */
+export function deleteTargets(pressed: Item, selected: ReadonlySet<string>, ordered: Item[]): Item[] {
+  return selected.has(itemKey(pressed)) ? ordered.filter((i) => selected.has(itemKey(i))) : [pressed]
 }
 
 export function FileTable({ items, selected, onSelectionChange, onOpen, onContextAction, onDeleteKey, onRenameKey }: FileTableProps) {
@@ -102,11 +112,12 @@ export function FileTable({ items, selected, onSelectionChange, onOpen, onContex
       e.preventDefault()
       toggle(item, true)
     } else if (e.key === 'Delete' || e.key === 'Backspace') {
+      const targets = deleteTargets(item, selected, sorted)
       if (!selected.has(itemKey(item))) onSelectionChange(new Set([itemKey(item)]))
-      onDeleteKey?.()
+      onDeleteKey?.(targets)
     } else if (e.key === 'F2') {
       onSelectionChange(new Set([itemKey(item)]))
-      onRenameKey?.()
+      onRenameKey?.(item)
     } else if (e.key === 'Escape') {
       onSelectionChange(new Set())
     } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'a') {
