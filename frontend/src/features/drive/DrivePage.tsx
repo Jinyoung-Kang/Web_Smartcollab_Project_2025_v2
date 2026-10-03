@@ -127,7 +127,7 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
             <SelectionToolbar
               selected={selectedItems}
               canEdit={permissions.canEdit}
-              deleting={changes.remove.isPending}
+              deleting={changes.deleting}
               onClear={selection.clear}
               onRename={(item) => setDialog({ kind: 'rename', item })}
               onMove={() => setDialog({ kind: 'move' })}

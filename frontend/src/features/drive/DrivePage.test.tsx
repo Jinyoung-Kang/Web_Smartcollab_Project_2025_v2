@@ -103,6 +103,27 @@ describe('DrivePage — 변경 뒤 다시 불러오기', () => {
   })
 })
 
+describe('DrivePage — 다른 폴더로 옮긴 뒤 끝난 요청 (독립 검토)', () => {
+  it('지우는 동안 다른 폴더로 옮겨도, 끝나면 지운 폴더를 다시 불러온다 (이전: 지금 보는 폴더를 갱신)', async () => {
+    let finish: (r: { trashedFiles: number; trashedFolders: number }) => void = () => {}
+    vi.spyOn(itemApi, 'remove').mockReturnValue(new Promise((resolve) => { finish = resolve }))
+    const router = renderDrive(true)
+    const user = userEvent.setup()
+    await user.click(await screen.findByLabelText('회의록 선택'))
+    await user.keyboard('{Delete}')
+    const dialog = await screen.findByRole('dialog', { name: '1개 항목을 삭제할까요?' })
+    await user.click(within(dialog).getByRole('button', { name: '삭제' }))
+    await act(() => router.navigate('/teams/3/folders/11'))
+    await screen.findByText('하위 폴더')
+    const invalidate = vi.spyOn(client, 'invalidateQueries')
+
+    await act(async () => finish({ trashedFiles: 0, trashedFolders: 1 }))
+
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.folder.of(10) })
+    expect(invalidate).not.toHaveBeenCalledWith({ queryKey: queryKeys.folder.of(11) })
+  })
+})
+
 describe('DrivePage — 지금 동작 고정 (구조 정리 전)', () => {
   it('폴더 이름을 누르면 그 폴더로 들어간다', async () => {
     const router = renderDrive(true)

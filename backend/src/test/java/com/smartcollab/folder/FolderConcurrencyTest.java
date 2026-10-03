@@ -54,6 +54,20 @@ class FolderConcurrencyTest extends IntegrationTest {
         }
     }
 
+    /** parent 아래로 count 단계 사슬을 만들고 단계 순서대로 ID 를 돌려줍니다 */
+    private List<Long> chain(long parentId, long userId, int count) {
+        return tx.execute(st -> {
+            com.smartcollab.user.User user = users.getReferenceById(userId);
+            Folder p = folders.findById(parentId).orElseThrow();
+            List<Long> ids = new java.util.ArrayList<>();
+            for (int i = 1; i <= count; i++) {
+                p = folders.save(Folder.childOf(p, "단계" + i, user));
+                ids.add(p.getId());
+            }
+            return ids;
+        });
+    }
+
     private Long parentOf(long folderId) {
         return jdbc.queryForObject("select parent_folder_id from folders where folder_id = ?", Long.class, folderId);
     }
@@ -107,5 +121,21 @@ class FolderConcurrencyTest extends IntegrationTest {
 
         assertThat(result).isInstanceOf(ApiException.class);
         assertThat(jdbc.queryForObject("select count(*) from folders where parent_folder_id = ?", Integer.class, c)).isZero();
+    }
+
+    @Test
+    @DisplayName("[S-05] 복사하는 동안 대상 폴더가 깊은 곳으로 옮겨지면, 잠근 뒤 깊이를 다시 확인해 거절한다 (독립 검토)")
+    void copyRechecksDepthAfterLock() throws Exception {
+        Api.Session s = api().signUp("ccopydep");
+        List<Long> deep = chain(s.rootFolderId, s.userId, 49);
+        long target = s.createFolder(s.rootFolderId, "대상");
+        List<Long> tree = chain(s.rootFolderId, s.userId, 2);   // 높이 1 인 트리
+
+        Throwable result = raceAgainst(s.userId,
+                () -> folders.findById(target).orElseThrow().moveUnder(folders.findById(deep.get(48)).orElseThrow()),
+                () -> transfer.copy(new DriveDtos.TransferRequest(List.of(new DriveDtos.ItemRef("folder", tree.get(0))), target), s.userId));
+
+        assertThat(result).isInstanceOf(ApiException.class).hasMessageContaining("50단계");
+        assertThat(jdbc.queryForObject("select count(*) from folders where parent_folder_id = ?", Integer.class, target)).isZero();
     }
 }

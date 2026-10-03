@@ -92,6 +92,22 @@ class TeamWorkflowTest extends IntegrationTest {
                 .andExpect(jsonPath("$.detail").value("팀장으로 있는 팀은 10개까지 만들 수 있습니다. 쓰지 않는 팀을 삭제하거나 팀장을 넘기세요."));
     }
 
+    @Test
+    @DisplayName("[S-10] 팀장을 넘겨받아도 팀장인 팀이 10개를 넘을 수 없다 (위임으로 상한을 우회하던 문제)")
+    void delegationRespectsTeamCap() throws Exception {
+        Api.Session full = api().signUp("teamcapd");
+        for (int i = 1; i <= 10; i++) {
+            full.postJson("/api/teams", Map.of("name", "팀 " + i)).andExpect(status().isCreated());
+        }
+        Api.Session leader = api().signUp("teamcapl");
+        long[] team = leader.createTeam("넘길 팀");
+        long memberId = join(leader, full, team[0]);
+
+        leader.post("/api/teams/{t}/leader/{m}", team[0], memberId)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("새 팀장이 이미 팀장인 팀이 10개라 넘길 수 없습니다."));
+    }
+
     private boolean canEditOf(Api.Session viewer, long teamId, String username) throws Exception {
         java.util.List<Boolean> values = Api.read(viewer.get("/api/teams/{t}", teamId),
                 "$.members[?(@.username == '" + username + "')].canEdit");

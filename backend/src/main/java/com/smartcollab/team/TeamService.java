@@ -197,6 +197,12 @@ public class TeamService {
         if (next.getId().equals(current.getId())) {
             throw ApiException.badRequest("이미 팀장입니다.");
         }
+        // 팀을 만들 때와 같은 상한을 넘겨받을 때도 지킵니다 — 이전에는 위임으로 한 사람이 10개 넘게 이끌 수 있었습니다 [S-10].
+        users.lockById(next.getUser().getId());
+        int max = props.quota().teamsPerUser();
+        if (teams.countByOwnerId(next.getUser().getId()) >= max) {
+            throw ApiException.conflict("새 팀장이 이미 팀장인 팀이 " + max + "개라 넘길 수 없습니다.");
+        }
         Team team = teams.findWithOwner(teamId).orElseThrow(() -> ApiException.notFound("팀"));
         current.demoteFromLeader();
         next.promoteToLeader();
