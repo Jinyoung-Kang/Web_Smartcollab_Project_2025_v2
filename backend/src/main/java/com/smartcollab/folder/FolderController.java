@@ -33,8 +33,13 @@ public class FolderController {
 
     @Operation(summary = "폴더 내용", description = "하위 폴더·파일, 경로(breadcrumb), 이 폴더에서의 내 권한을 함께 반환합니다.")
     @GetMapping("/{folderId}")
-    public FolderDtos.FolderContents contents(@PathVariable Long folderId, @CurrentUser AuthUser user) {
-        return folderService.contents(folderId, user.id());
+    public FolderDtos.FolderContents contents(@PathVariable Long folderId,
+                                              @RequestParam(required = false) Integer limit,
+                                              @RequestParam(required = false) String cursor,
+                                              @RequestParam(required = false) String sort,
+                                              @RequestParam(required = false) String order,
+                                              @CurrentUser AuthUser user) {
+        return folderService.contents(folderId, FolderListing.request(limit, cursor, sort, order), user.id());
     }
 
     @Operation(summary = "폴더 트리", description = "teamId 가 없으면 내 드라이브, 있으면 팀 스토리지 전체 트리 (쿼리 1회)")

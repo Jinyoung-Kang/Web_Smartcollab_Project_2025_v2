@@ -35,6 +35,13 @@ public interface FolderRepository extends JpaRepository<Folder, Long> {
     @Query("select f from Folder f join fetch f.owner where f.parent.id = :parentId and f.trashRootId is null")
     List<Folder> findChildren(@Param("parentId") Long parentId);
 
+    /** 폴더 목록용 하위 폴더 열만(휴지통 제외) [IMP-02] */
+    @Query("""
+            select new com.smartcollab.folder.ListedFolder(f.id, f.name, o.name, f.createdAt)
+            from Folder f join f.owner o where f.parent.id = :parentId and f.trashRootId is null
+            """)
+    List<ListedFolder> findListedChildren(@Param("parentId") Long parentId);
+
     /** 개인 스토리지 전체 폴더 (트리·검색·사용량용, 쿼리 1회). 휴지통에 있는 폴더 트리는 빼고 */
     @Query("""
             select new com.smartcollab.folder.FolderNode(f.id, f.name, p.id)

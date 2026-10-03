@@ -5,7 +5,6 @@ import com.smartcollab.access.AccessPolicy;
 import com.smartcollab.access.PermissionsResponse;
 import com.smartcollab.event.ChangeEvents;
 import com.smartcollab.file.DriveDtos;
-import com.smartcollab.file.FileEntity;
 import com.smartcollab.file.FileRepository;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.util.FileNames;
@@ -18,7 +17,6 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -35,18 +33,25 @@ public class FolderService {
 
     @Transactional(readOnly = true)
     public FolderDtos.FolderContents contents(Long folderId, Long userId) {
+        return contents(folderId, FolderListing.Request.DEFAULT, userId);
+    }
+
+    /**
+     * 폴더 내용을 정렬해 한 묶음씩 돌려줍니다 [IMP-02]. 목록 열만 읽고(엔티티를 만들지 않음) 정렬한 뒤 요청한 위치부터 limit 개를 줍니다.
+     * 이전에는 항목 전부를 돌려줘 1만 개 폴더의 응답이 2.31MB 였습니다.
+     */
+    @Transactional(readOnly = true)
+    public FolderDtos.FolderContents contents(Long folderId, FolderListing.Request request, Long userId) {
         Folder folder = get(folderId);
         Access access = accessPolicy.requireRead(folder, userId);
 
-        List<DriveDtos.ItemResponse> items = new ArrayList<>();
-        folders.findChildren(folderId).stream()
-                .sorted(Comparator.comparing(Folder::getName, String.CASE_INSENSITIVE_ORDER))
-                .map(DriveDtos.ItemResponse::of)
-                .forEach(items::add);
-        files.findActiveInFolder(folderId).stream()
-                .sorted(Comparator.comparing(FileEntity::getName, String.CASE_INSENSITIVE_ORDER))
-                .map(DriveDtos.ItemResponse::of)
-                .forEach(items::add);
+        List<DriveDtos.ItemResponse> all = new ArrayList<>();
+        folders.findListedChildren(folderId).forEach(f -> all.add(DriveDtos.ItemResponse.of(f)));
+        files.findListedInFolder(folderId).forEach(f -> all.add(DriveDtos.ItemResponse.of(f)));
+        List<DriveDtos.ItemResponse> sorted = FolderListing.sort(all, request);
+        int from = Math.min(request.offset(), sorted.size());
+        int to = Math.min(from + request.limit(), sorted.size());
+        String nextCursor = to < sorted.size() ? FolderListing.encode(to) : null;
 
         List<FolderDtos.Breadcrumb> path = folders.findPath(folderId).stream()
                 .map(row -> new FolderDtos.Breadcrumb(row.getId(),
@@ -54,7 +59,8 @@ public class FolderService {
                 .toList();
         FolderDtos.FolderInfo info = new FolderDtos.FolderInfo(folder.getId(),
                 folder.isRoot() ? rootName(folder) : folder.getName(), folder.teamId(), folder.isRoot());
-        return new FolderDtos.FolderContents(info, path, items, PermissionsResponse.of(access));
+        return new FolderDtos.FolderContents(info, path, List.copyOf(sorted.subList(from, to)), PermissionsResponse.of(access),
+                nextCursor, sorted.size());
     }
 
     @Transactional(isolation = Isolation.READ_COMMITTED)

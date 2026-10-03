@@ -36,6 +36,13 @@ public interface FileRepository extends JpaRepository<FileEntity, Long> {
     @Query("select f from FileEntity f join fetch f.owner where f.folder.id = :folderId and f.deleted = false")
     List<FileEntity> findActiveInFolder(@Param("folderId") Long folderId);
 
+    /** 폴더 목록용 파일 열만(휴지통 제외) [IMP-02] */
+    @Query("""
+            select new com.smartcollab.file.ListedFile(f.id, f.name, f.size, o.name, f.createdAt, f.updatedAt)
+            from FileEntity f join f.owner o where f.folder.id = :folderId and f.deleted = false
+            """)
+    List<ListedFile> findListedInFolder(@Param("folderId") Long folderId);
+
     @Query("""
             select f from FileEntity f join fetch f.owner
             where f.folder.id in :folderIds and f.deleted = false and lower(f.name) like :pattern escape '!'
