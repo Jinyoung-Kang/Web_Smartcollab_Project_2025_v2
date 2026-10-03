@@ -68,12 +68,13 @@ export function Header({ onOpenMenu }: { onOpenMenu: () => void }) {
           <button
             onClick={toggle}
             aria-expanded={open}
-            // 보이는 글자(사용자 이름)를 이름에 포함합니다 — 음성으로 화면에 보이는 이름을 말해 누를 수 있게(WCAG 2.5.3) [QA-13]
-            aria-label={`${me.name} 내 계정`}
             className="flex items-center gap-2 rounded-full p-0.5 hover:bg-slate-100 sm:pr-3"
           >
+            {/* 이름은 보이는 글자(사용자 이름) + 숨긴 "내 계정"으로 만듭니다. aria-label("내 계정")로 덮으면 보이는 이름이
+                빠져, 화면에 보이는 이름을 말해 누르는 음성 조작이 안 됩니다(WCAG 2.5.3) [QA-13] */}
             <Avatar name={me.name} />
             <span className="hidden text-sm font-medium sm:inline">{me.name}</span>
+            <span className="sr-only">내 계정</span>
           </button>
         )}
       >
