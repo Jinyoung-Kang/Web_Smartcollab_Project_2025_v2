@@ -23,6 +23,7 @@ import { PreviewDialog } from './dialogs/PreviewDialog'
 import { ShareDialog } from './dialogs/ShareDialog'
 import { VersionHistoryDialog } from './dialogs/VersionHistoryDialog'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
+import { queryKeys } from '@/api/queryKeys'
 
 type DialogState =
   | { kind: 'none' }
@@ -36,7 +37,7 @@ type DialogState =
 /** /teams/:teamId → 팀 루트 폴더로 이동 */
 export function TeamRootRedirect() {
   const teamId = Number(useParams().teamId)
-  const team = useQuery({ queryKey: ['team', teamId], queryFn: () => teamApi.detail(teamId) })
+  const team = useQuery({ queryKey: queryKeys.team(teamId), queryFn: () => teamApi.detail(teamId) })
   if (team.error) return <Navigate to="/drive" replace />
   if (!team.data) return <div className="p-8"><Spinner /></div>
   return <Navigate to={`/teams/${teamId}/folders/${team.data.rootFolderId}`} replace />
@@ -57,7 +58,7 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
   const confirm = useConfirm()
   const uploads = useUploads()
 
-  const contents = useQuery({ queryKey: ['folder', folderId], queryFn: () => folderApi.contents(folderId) })
+  const contents = useQuery({ queryKey: queryKeys.folder.of(folderId), queryFn: () => folderApi.contents(folderId) })
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [dialog, setDialog] = useState<DialogState>({ kind: 'none' })
   const [menu, setMenu] = useState<{ item: Item; x: number; y: number } | null>(null)
@@ -86,9 +87,9 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
   const selectedItems = useMemo(() => items.filter((i) => selected.has(itemKey(i))), [items, selected])
 
   const refresh = () => {
-    void qc.invalidateQueries({ queryKey: ['folder', folderId] })
-    void qc.invalidateQueries({ queryKey: ['tree'] })
-    void qc.invalidateQueries({ queryKey: ['usage'] })
+    void qc.invalidateQueries({ queryKey: queryKeys.folder.of(folderId) })
+    void qc.invalidateQueries({ queryKey: queryKeys.tree.all })
+    void qc.invalidateQueries({ queryKey: queryKeys.usage.all })
   }
 
   // 선택한 항목을 한 요청으로 지웁니다. 하나라도 지울 수 없으면 아무것도 지우지 않습니다 [PERF-03].
@@ -318,7 +319,7 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
           }
           setSelected(new Set())
           refresh()
-          void qc.invalidateQueries({ queryKey: ['folder', target] })
+          void qc.invalidateQueries({ queryKey: queryKeys.folder.of(target) })
         }}
       />
       <ShareDialog file={dialog.kind === 'share' ? dialog.item : null} onClose={() => setDialog({ kind: 'none' })} />

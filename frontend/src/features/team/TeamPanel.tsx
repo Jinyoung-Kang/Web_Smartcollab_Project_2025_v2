@@ -14,21 +14,22 @@ import { cn } from '@/lib/cn'
 import { ChatTab } from './ChatTab'
 import { InviteDialog, PermissionsDialog } from './MemberDialogs'
 import { useTeamActivity } from '@/realtime/TeamActivity'
+import { queryKeys } from '@/api/queryKeys'
 
 /**
  * @param visible 화면에 보이는지. 좁은 화면에서는 닫혀 있어도 그려 두므로, 보일 때만 채팅을 "보는 중"으로 칩니다 [FB-06].
  */
 export function TeamPanel({ teamId, visible = true, onClose }: { teamId: number; visible?: boolean; onClose?: () => void }) {
   const [tab, setTab] = useState<'chat' | 'members'>('chat')
-  const team = useQuery({ queryKey: ['team', teamId], queryFn: () => teamApi.detail(teamId) })
-  const presence = useQuery({ queryKey: ['presence', teamId], queryFn: () => teamApi.presence(teamId) })
+  const team = useQuery({ queryKey: queryKeys.team(teamId), queryFn: () => teamApi.detail(teamId) })
+  const presence = useQuery({ queryKey: queryKeys.presence(teamId), queryFn: () => teamApi.presence(teamId) })
   const qc = useQueryClient()
   const me = useMe()
   const { unread } = useTeamActivity()
 
   // 접속 상태는 WebSocket 으로 갱신합니다 (구독 자체가 "접속 중" 표시가 됩니다).
   useSubscription(`/topic/teams/${teamId}/presence`, (payload) => {
-    qc.setQueryData(['presence', teamId], payload)
+    qc.setQueryData(queryKeys.presence(teamId), payload)
   })
 
   // 이 화면을 보고 있는 나는 항상 접속 중입니다. (내 구독이 서버에 등록되기 전에 조회가 끝나는 경쟁 조건 보정)
@@ -93,7 +94,7 @@ function TeamMenu({ team }: { team: TeamDetail }) {
     if (!ok) return
     try {
       await teamApi.leave(team.id)
-      await qc.invalidateQueries({ queryKey: ['teams'] })
+      await qc.invalidateQueries({ queryKey: queryKeys.teams })
       toast.success('팀에서 나왔습니다.')
       navigate('/drive')
     } catch (e) {
@@ -112,7 +113,7 @@ function TeamMenu({ team }: { team: TeamDetail }) {
     if (!ok) return
     try {
       await teamApi.remove(team.id)
-      await qc.invalidateQueries({ queryKey: ['teams'] })
+      await qc.invalidateQueries({ queryKey: queryKeys.teams })
       toast.success('팀을 삭제했습니다.')
       navigate('/drive')
     } catch (e) {
@@ -154,8 +155,8 @@ function MembersTab({ team, online }: { team: TeamDetail; online: Set<string> })
   const [editing, setEditing] = useState<Member | null>(null)
   const leader = team.myPermissions.leader
   const refresh = () => {
-    void qc.invalidateQueries({ queryKey: ['team', team.id] })
-    void qc.invalidateQueries({ queryKey: ['teams'] })
+    void qc.invalidateQueries({ queryKey: queryKeys.team(team.id) })
+    void qc.invalidateQueries({ queryKey: queryKeys.teams })
   }
 
   const action = useMutation({

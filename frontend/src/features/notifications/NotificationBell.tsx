@@ -8,6 +8,7 @@ import { EmptyState, Menu } from '@/components/ui/misc'
 import { useToast } from '@/components/ui/Toast'
 import { formatRelative } from '@/lib/format'
 import { cn } from '@/lib/cn'
+import { queryKeys } from '@/api/queryKeys'
 
 /**
  * 알림 목록. 새 알림은 WebSocket 개인 큐로 즉시 도착합니다 (v1: 10초마다 폴링).
@@ -16,8 +17,8 @@ export function NotificationBell() {
   const qc = useQueryClient()
   const toast = useToast()
   const navigate = useNavigate()
-  const { data } = useQuery({ queryKey: ['notifications'], queryFn: notificationApi.list, refetchInterval: 120_000 })
-  const invalidate = () => qc.invalidateQueries({ queryKey: ['notifications'] })
+  const { data } = useQuery({ queryKey: queryKeys.notifications, queryFn: notificationApi.list, refetchInterval: 120_000 })
+  const invalidate = () => qc.invalidateQueries({ queryKey: queryKeys.notifications })
   /** 알림 요청이 실패해도 조용히 넘어가지 않고 알립니다 [FB-08] */
   const run = (request: Promise<unknown>) => request.then(invalidate, (e: Error) => toast.error(e.message))
 
@@ -26,7 +27,7 @@ export function NotificationBell() {
       accept ? teamApi.acceptInvitation(n.invitationId!) : teamApi.rejectInvitation(n.invitationId!),
     onSuccess: (_, { n, accept }) => {
       void invalidate()
-      void qc.invalidateQueries({ queryKey: ['teams'] })
+      void qc.invalidateQueries({ queryKey: queryKeys.teams })
       void run(notificationApi.read(n.id))
       toast.success(accept ? '팀에 참여했습니다.' : '초대를 거절했습니다.')
       if (accept && n.teamId) navigate(`/teams/${n.teamId}`)

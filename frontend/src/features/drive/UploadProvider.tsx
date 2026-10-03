@@ -8,6 +8,7 @@ import { IconButton } from '@/components/ui/Button'
 import { formatBytes } from '@/lib/format'
 import { createTaskQueue } from './uploadQueue'
 import { cn } from '@/lib/cn'
+import { queryKeys } from '@/api/queryKeys'
 
 interface UploadTask {
   id: number
@@ -48,8 +49,8 @@ export function UploadProvider({ children }: { children: ReactNode }) {
       try {
         await uploadFile(task.folderId, file, (p) => patch(task.id, { progress: p }), task.controller.signal)
         patch(task.id, { status: 'done', progress: 1 })
-        void qc.invalidateQueries({ queryKey: ['folder', task.folderId] })
-        void qc.invalidateQueries({ queryKey: ['usage'] })
+        void qc.invalidateQueries({ queryKey: queryKeys.folder.of(task.folderId) })
+        void qc.invalidateQueries({ queryKey: queryKeys.usage.all })
       } catch (e) {
         if (e instanceof ApiError && e.code === 'ABORTED') patch(task.id, { status: 'canceled' })
         else patch(task.id, { status: 'error', error: e instanceof ApiError ? e.message : '업로드 실패' })

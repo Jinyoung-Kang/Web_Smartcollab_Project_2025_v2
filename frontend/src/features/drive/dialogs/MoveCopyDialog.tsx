@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { Spinner } from '@/components/ui/misc'
 import { cn } from '@/lib/cn'
+import { queryKeys } from '@/api/queryKeys'
 
 interface Props {
   open: boolean
@@ -36,10 +37,10 @@ export function MoveCopyDialog({ open, mode, count, scopeTeamId, disabledFolderI
       setError(null)
     }
   }
-  const teams = useQuery({ queryKey: ['teams'], queryFn: teamApi.list, enabled: open && mode === 'copy' })
+  const teams = useQuery({ queryKey: queryKeys.teams, queryFn: teamApi.list, enabled: open && mode === 'copy' })
   const effectiveScope = mode === 'move' ? (scopeTeamId ?? 'personal') : scope
   const tree = useQuery({
-    queryKey: ['tree', effectiveScope === 'personal' ? 'personal' : effectiveScope],
+    queryKey: queryKeys.tree.of(effectiveScope),
     queryFn: () => folderApi.tree(effectiveScope === 'personal' ? undefined : effectiveScope),
     enabled: open,
   })

@@ -8,6 +8,7 @@ import { useConfirm } from '@/components/ui/Confirm'
 import { Avatar, Badge, Spinner } from '@/components/ui/misc'
 import { useToast } from '@/components/ui/Toast'
 import { formatBytes, formatDateTime } from '@/lib/format'
+import { queryKeys } from '@/api/queryKeys'
 
 /**
  * 버전 기록 · 복원 · 서명. 각 버전의 SHA-256 앞자리로 내용이 같은지 한눈에 비교할 수 있습니다.
@@ -21,13 +22,13 @@ export function VersionHistoryDialog({ file, permissions, onClose }: {
   const qc = useQueryClient()
   const toast = useToast()
   const confirm = useConfirm()
-  const versions = useQuery({ queryKey: ['versions', file?.id], queryFn: () => fileApi.versions(file!.id), enabled: !!file })
+  const versions = useQuery({ queryKey: queryKeys.versions.of(file?.id), queryFn: () => fileApi.versions(file!.id), enabled: !!file })
 
   // 요청을 보낸 파일의 ID 를 변수로 넘깁니다. 닫은 뒤에 끝나도 그 파일의 캐시를 갱신합니다 [FB-11].
   const refresh = (fileId: number) => {
-    void qc.invalidateQueries({ queryKey: ['versions', fileId] })
-    void qc.invalidateQueries({ queryKey: ['file-content', fileId] })
-    void qc.invalidateQueries({ queryKey: ['folder'] })
+    void qc.invalidateQueries({ queryKey: queryKeys.versions.of(fileId) })
+    void qc.invalidateQueries({ queryKey: queryKeys.fileContent(fileId) })
+    void qc.invalidateQueries({ queryKey: queryKeys.folder.all })
   }
 
   const restore = useMutation({

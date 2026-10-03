@@ -13,6 +13,7 @@ import { useToast } from '@/components/ui/Toast'
 import { VersionHistoryDialog } from '@/features/drive/dialogs/VersionHistoryDialog'
 import { formatRelative } from '@/lib/format'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
+import { queryKeys } from '@/api/queryKeys'
 
 /**
  * 충돌로 버려질 편집본을 보관합니다. 클립보드가 막혀 있으면(권한·비보안 연결) 텍스트 파일로 내려받습니다.
@@ -49,7 +50,7 @@ type ToolResult =
  */
 export default function EditorPage() {
   const fileId = Number(useParams().fileId)
-  const content = useQuery({ queryKey: ['file-content', fileId], queryFn: () => fileApi.content(fileId), staleTime: 0 })
+  const content = useQuery({ queryKey: queryKeys.fileContent(fileId), queryFn: () => fileApi.content(fileId), staleTime: 0 })
 
   // 처음 불러온 내용으로 편집을 시작합니다. 이후 서버 값이 바뀌어도 편집 중인 내용은 덮어쓰지 않습니다.
   // 데이터가 있으면 오류보다 먼저 봅니다 — 창으로 돌아올 때 하는 새로고침이 실패해도(노트북을 열자마자 네트워크가
@@ -119,9 +120,9 @@ function Editor({ fileId, initial }: { fileId: number; initial: TextContent }) {
       setSavedAt(res.updatedAt)
       setSaved(draft)
       setConflict(false)
-      qc.setQueryData(['file-content', fileId], (old: TextContent | undefined) => old && { ...old, content: draft, versionId: res.versionId })
-      void qc.invalidateQueries({ queryKey: ['versions', fileId] })
-      void qc.invalidateQueries({ queryKey: ['folder'] })
+      qc.setQueryData(queryKeys.fileContent(fileId), (old: TextContent | undefined) => old && { ...old, content: draft, versionId: res.versionId })
+      void qc.invalidateQueries({ queryKey: queryKeys.versions.of(fileId) })
+      void qc.invalidateQueries({ queryKey: queryKeys.folder.all })
       toast.success('새 버전으로 저장했습니다.')
     } catch (e) {
       if (e instanceof ApiError && e.code === 'EDIT_CONFLICT') setConflict(true)
@@ -152,7 +153,7 @@ function Editor({ fileId, initial }: { fileId: number; initial: TextContent }) {
   const loadLatest = async () => {
     try {
       const keptIn = await keepDraft(draft, initial.name)
-      const latest = await qc.fetchQuery({ queryKey: ['file-content', fileId], queryFn: () => fileApi.content(fileId), staleTime: 0 })
+      const latest = await qc.fetchQuery({ queryKey: queryKeys.fileContent(fileId), queryFn: () => fileApi.content(fileId), staleTime: 0 })
       setDraft(latest.content)
       setSaved(latest.content)
       setBaseVersion(latest.versionId)
@@ -174,7 +175,7 @@ function Editor({ fileId, initial }: { fileId: number; initial: TextContent }) {
       setBaseVersion(res.versionId)
       setSavedAt(res.updatedAt)
       setSaved(draft)
-      qc.setQueryData(['file-content', fileId], { ...latest, content: draft, versionId: res.versionId })
+      qc.setQueryData(queryKeys.fileContent(fileId), { ...latest, content: draft, versionId: res.versionId })
       toast.success('내 내용으로 새 버전을 저장했습니다. 상대방의 버전은 버전 기록에 남아 있습니다.')
     } catch (e) {
       toast.error((e as Error).message)
@@ -299,7 +300,7 @@ function Editor({ fileId, initial }: { fileId: number; initial: TextContent }) {
         setHistoryOpen(false)
         // 버전 복원 후에는 최신 내용을 다시 불러옵니다 (변경 중이 아닐 때만)
         if (!dirty) {
-          void qc.fetchQuery({ queryKey: ['file-content', fileId], queryFn: () => fileApi.content(fileId), staleTime: 0 }).then((latest) => {
+          void qc.fetchQuery({ queryKey: queryKeys.fileContent(fileId), queryFn: () => fileApi.content(fileId), staleTime: 0 }).then((latest) => {
             setDraft(latest.content)
             setSaved(latest.content)
             setBaseVersion(latest.versionId)

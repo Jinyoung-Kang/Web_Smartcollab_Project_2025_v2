@@ -16,6 +16,7 @@ import { appendChatMessage, useTeamActivity } from '@/realtime/TeamActivity'
 import { ItemIcon } from '@/lib/fileIcons'
 import { formatBytes, formatDay, formatTime, sameDay } from '@/lib/format'
 import { cn } from '@/lib/cn'
+import { queryKeys } from '@/api/queryKeys'
 
 /**
  * 팀 채팅. 최근 30개부터 보여 주고 위로 스크롤하면 이전 메시지를 커서 기반으로 더 불러옵니다.
@@ -40,7 +41,7 @@ export function ChatTab({ teamId, team, active = true }: { teamId: number; team:
   const prevHeight = useRef(0)
 
   const chat = useInfiniteQuery({
-    queryKey: ['chat', teamId],
+    queryKey: queryKeys.chat.of(teamId),
     queryFn: ({ pageParam }) => chatApi.history(teamId, pageParam),
     initialPageParam: undefined as number | undefined,
     getNextPageParam: (last) => (last.hasMore ? last.messages[0]?.id : undefined),
@@ -112,7 +113,7 @@ export function ChatTab({ teamId, team, active = true }: { teamId: number; team:
     setUploading(true)
     try {
       const item = await uploadFile(team.rootFolderId, file, () => {})
-      void qc.invalidateQueries({ queryKey: ['folder', team.rootFolderId] })
+      void qc.invalidateQueries({ queryKey: queryKeys.folder.of(team.rootFolderId) })
       await send({ fileId: item.id })
     } catch (e) {
       toast.error((e as Error).message)
