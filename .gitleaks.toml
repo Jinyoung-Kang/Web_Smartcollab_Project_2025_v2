@@ -1,4 +1,4 @@
-# gitleaks 설정: 기본 규칙 + 예외 2건 (모두 테스트 코드의 공개·가짜 값)
+# gitleaks 설정: 기본 규칙 + 예외 3건 (모두 테스트 코드의 공개·가짜 값)
 [extend]
 useDefault = true
 
@@ -9,3 +9,7 @@ paths = ['''backend/src/test/java/com/smartcollab/storage/AzureBlobStorageTest\.
 [[allowlists]]
 description = "RequestTraceTest 의 테스트용 틀린 비밀번호 — 로그에 입력값이 남지 않는지 찾아보는 표식이며 실제 비밀번호가 아님"
 regexes = ['''^Wrong-Pass-4821$''']
+
+[[allowlists]]
+description = "RequestTraceTest 의 가짜 공유 링크 토큰 — 접근 기록에서 토큰이 가려지는지 찾아보는 표식이며 실제 링크가 아님 [S-07]"
+regexes = ['''^Zk3v9QwLtYbN0pRs7uXa2cDe5fGh8iJk$''']
