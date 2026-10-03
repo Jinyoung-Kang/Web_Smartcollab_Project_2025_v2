@@ -52,8 +52,9 @@ describe('request', () => {
   })
 
   it('[IMP-03] 요청에 이 탭의 ID 를 X-Client-Id 헤더로 보낸다 (실시간 이벤트에서 자기 변경을 알아보려고)', async () => {
+    document.cookie = 'XSRF-TOKEN=abc123'
     const { calls } = mockFetch([{ status: 204 }])
-    await request('POST', '/api/folders', { parentId: 1, name: 'x' })
+    await request('/api/folders', { method: 'POST', json: { parentId: 1, name: 'x' } })
     expect((calls[0]?.headers as Record<string, string>)['X-Client-Id']).toBe(CLIENT_ID)
     expect(CLIENT_ID).toMatch(/^[A-Za-z0-9-]{8,64}$/)
   })

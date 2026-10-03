@@ -25,6 +25,14 @@ public class WebFilterConfig {
         return registration;
     }
 
+    /** 요청을 보낸 탭의 ID 를 실시간 이벤트에 싣기 위해 [IMP-03] */
+    @Bean
+    FilterRegistrationBean<RequestOriginFilter> requestOriginFilter() {
+        FilterRegistrationBean<RequestOriginFilter> registration = new FilterRegistrationBean<>(new RequestOriginFilter());
+        registration.setOrder(TRACE_ORDER + 1);
+        return registration;
+    }
+
     @Bean
     FilterRegistrationBean<RequestBodyLimitFilter> requestBodyLimitFilter(AppProperties props, ObjectMapper mapper) {
         FilterRegistrationBean<RequestBodyLimitFilter> registration =

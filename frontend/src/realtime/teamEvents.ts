@@ -1,11 +1,12 @@
 import type { QueryClient } from '@tanstack/react-query'
+import { CLIENT_ID } from '@/api/clientId'
 import { invalidateDriveChange } from '@/api/driveCache'
 import { queryKeys } from '@/api/queryKeys'
 import type { AppNotification, ChatMessage } from '@/api/types'
 
 /** 팀 토픽(/topic/teams/{id}/events)으로 오는 변경 알림. 데이터 대신 "무엇이 바뀌었는지"만 옵니다. */
 export type TeamEvent =
-  | { type: 'FOLDER_CHANGED'; folderId: number }
+  | { type: 'FOLDER_CHANGED'; folderId: number; origin?: string }
   | { type: 'MEMBERS_CHANGED' | 'TEAM_DELETED' | 'CHAT_CLEARED'; teamId: number }
 
 /**
@@ -15,6 +16,8 @@ export type TeamEvent =
 export function applyTeamEvent(qc: QueryClient, teamId: number, event: TeamEvent): 'team-deleted' | undefined {
   switch (event.type) {
     case 'FOLDER_CHANGED':
+      // 이 탭이 일으킨 변경이면 변경 요청의 응답이 이미 다시 불러왔으므로 건너뜁니다(같은 목록을 두 번 받던 문제) [IMP-03]
+      if (event.origin === CLIENT_ID) return undefined
       invalidateDriveChange(qc, { folderIds: [event.folderId], scope: teamId })
       return undefined
     case 'MEMBERS_CHANGED':

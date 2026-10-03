@@ -36,3 +36,6 @@ FAIL [IMP-05] 유예 시간보다 오래된 고아 파일·임시 파일만 지�
 ## [IMP-03] 프론트 teamEvents·http (수정 전 — 탭 ID 없음, 자기 변경도 다시 불러옴)
 FAIL [IMP-03] 요청에 이 탭의 ID 를 X-Client-Id 헤더로 보낸다
 FAIL [IMP-03] 이 탭이 일으킨 폴더 변경이면 다시 불러오지 않는다, 다른 탭·사람이면 불러온다
+
+## [IMP-03] 백엔드 EventOriginTest (이벤트에 탭 ID 를 싣는 줄을 뺀 상태)
+FAIL [IMP-03] 요청의 X-Client-Id 가 그 요청이 일으킨 폴더 변경 이벤트에 실린다

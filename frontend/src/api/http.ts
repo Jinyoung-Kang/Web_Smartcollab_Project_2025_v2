@@ -1,3 +1,5 @@
+import { CLIENT_ID } from './clientId'
+
 /**
  * fetch 래퍼.
  * - 인증: HttpOnly 쿠키(SC_AUTH)는 브라우저가 자동으로 보냅니다 (credentials: same-origin).
@@ -82,7 +84,7 @@ const FALLBACK_MESSAGES: Record<number, string> = {
 
 export async function request<T>(path: string, options: RequestOptions = {}, retried = false): Promise<T> {
   const method = options.method ?? 'GET'
-  const headers: Record<string, string> = { Accept: 'application/json' }
+  const headers: Record<string, string> = { Accept: 'application/json', 'X-Client-Id': CLIENT_ID }
   let body: string | undefined
   if (options.json !== undefined) {
     headers['Content-Type'] = 'application/json'

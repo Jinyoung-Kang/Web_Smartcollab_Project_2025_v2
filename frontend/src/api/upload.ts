@@ -1,3 +1,4 @@
+import { CLIENT_ID } from './clientId'
 import { ApiError, csrfHeader, ensureCsrf, notifyUnauthorized, toApiError } from './http'
 import type { Item } from './types'
 
@@ -40,6 +41,7 @@ function send(folderId: number, file: File, onProgress: (ratio: number) => void,
     xhr.withCredentials = true
     Object.entries(csrfHeader()).forEach(([k, v]) => xhr.setRequestHeader(k, v))
     xhr.setRequestHeader('Accept', 'application/json')
+    xhr.setRequestHeader('X-Client-Id', CLIENT_ID)   // [IMP-03]
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) onProgress(e.loaded / e.total)
     }
