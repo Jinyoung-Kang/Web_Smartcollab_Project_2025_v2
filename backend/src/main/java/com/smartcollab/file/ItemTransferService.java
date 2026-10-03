@@ -3,6 +3,7 @@ package com.smartcollab.file;
 import com.smartcollab.access.AccessPolicy;
 import com.smartcollab.folder.Folder;
 import com.smartcollab.folder.FolderDepthPolicy;
+import com.smartcollab.folder.FolderStructureLock;
 import com.smartcollab.folder.FolderRepository;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.config.AppProperties;
@@ -16,6 +17,7 @@ import com.smartcollab.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayDeque;
@@ -58,10 +60,15 @@ public class ItemTransferService {
     private final TransactionRunner tx;
     private final StorageQuota quota;
     private final FolderDepthPolicy depthPolicy;
+    private final FolderStructureLock structureLock;
     private final AppProperties props;
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void move(DriveDtos.TransferRequest req, Long userId) {
+        // 순환 검사·휴지통 확인을 최신 데이터로 하도록 저장 공간을 먼저 잠급니다(A→B·B→A 동시 이동 순환) [S-06]
+        List<Long> lockIds = new ArrayList<>(List.of(req.targetFolderId()));
+        req.items().stream().filter(r -> r.type().equals("folder")).forEach(r -> lockIds.add(r.id()));
+        structureLock.lockScopesOf(lockIds);
         Folder target = getFolder(req.targetFolderId());
         accessPolicy.requireEdit(target, userId);
         Set<Folder> touched = new LinkedHashSet<>();
@@ -112,7 +119,7 @@ public class ItemTransferService {
                 storage.copy(file.sourceKey(), file.targetKey());
                 copied.add(file.targetKey());
             }
-            tx.write(() -> {
+            tx.writeReadCommitted(() -> {
                 apply(plan, userId);
                 return null;
             });
@@ -207,6 +214,7 @@ public class ItemTransferService {
     }
 
     private void apply(CopyPlan plan, Long userId) {
+        structureLock.lockScopesOf(List.of(plan.targetFolderId()));   // 대상이 그 사이 휴지통에 들어갔으면 아래 권한 확인에서 404 [S-06]
         Folder target = getFolder(plan.targetFolderId());
         accessPolicy.requireEdit(target, userId);
         quota.lockAndCheckRoom(StorageQuota.Scope.of(target), plan.totalBytes());

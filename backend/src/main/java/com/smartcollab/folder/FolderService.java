@@ -14,6 +14,7 @@ import com.smartcollab.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
@@ -29,6 +30,7 @@ public class FolderService {
     private final UserRepository users;
     private final AccessPolicy accessPolicy;
     private final FolderDepthPolicy depthPolicy;
+    private final FolderStructureLock structureLock;
     private final TrashService trash;
     private final ApplicationEventPublisher events;
 
@@ -56,8 +58,9 @@ public class FolderService {
         return new DriveDtos.FolderContents(info, path, items, DriveDtos.PermissionsResponse.of(access));
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public DriveDtos.ItemResponse create(DriveDtos.CreateFolderRequest req, Long userId) {
+        structureLock.lockScopesOf(List.of(req.parentId()));   // 휴지통에 들어가는 폴더 아래에 동시에 만들지 못하게 [S-06]
         Folder parent = get(req.parentId());
         accessPolicy.requireEdit(parent, userId);
         depthPolicy.requireRoomUnder(parent, 0);
@@ -79,8 +82,9 @@ public class FolderService {
     }
 
     /** 폴더를 하위 폴더·파일과 함께 휴지통으로 옮깁니다(30일 뒤 자동 영구 삭제) [UX-06]. 이전에는 즉시 영구 삭제였습니다. */
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void delete(Long folderId, Long userId) {
+        structureLock.lockScopesOf(List.of(folderId));
         Folder folder = get(folderId);
         accessPolicy.requireDelete(folder, userId);
         if (folder.isRoot()) {

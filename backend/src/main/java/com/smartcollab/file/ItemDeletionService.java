@@ -3,12 +3,14 @@ package com.smartcollab.file;
 import com.smartcollab.access.AccessPolicy;
 import com.smartcollab.folder.Folder;
 import com.smartcollab.folder.FolderRepository;
+import com.smartcollab.folder.FolderStructureLock;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.realtime.RealtimeEvents;
 import com.smartcollab.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.LinkedHashSet;
@@ -35,10 +37,13 @@ public class ItemDeletionService {
     private final AccessPolicy accessPolicy;
     private final TrashService trash;
     private final ApplicationEventPublisher events;
+    private final FolderStructureLock structureLock;
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public DriveDtos.DeleteResponse delete(DriveDtos.DeleteRequest req, Long userId) {
         List<DriveDtos.ItemRef> refs = req.items().stream().distinct().toList();
+        // 폴더를 휴지통에 넣는 동안 그 아래에 다른 요청이 폴더를 만들거나 옮기지 못하게 저장 공간을 먼저 잠급니다 [S-06]
+        structureLock.lockScopesOf(refs.stream().filter(r -> r.type().equals("folder")).map(DriveDtos.ItemRef::id).toList());
         Set<RealtimeEvents.FolderChanged> changes = new LinkedHashSet<>();
 
         int trashed = 0;

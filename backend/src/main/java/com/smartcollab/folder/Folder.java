@@ -14,6 +14,7 @@ import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.DynamicUpdate;
 
 import java.time.Instant;
 import java.util.Objects;
@@ -24,7 +25,12 @@ import java.util.Objects;
  * <p>v1 의 양방향 컬렉션(subFolders/files, cascade=ALL)은 N+1 조회와 의도치 않은 연쇄 삭제의 원인이어서 제거하고
  * 필요한 조회는 리포지토리 쿼리로 명시합니다.</p>
  */
+/*
+ * @DynamicUpdate: 바뀐 열만 UPDATE 합니다. 휴지통 표시(trash_root_id 등)는 일괄 UPDATE 로만 바뀌는데, 전체 열 UPDATE 이면
+ * 그 사이 이름을 바꾼 요청이 옛 값(표시 없음)으로 덮어써 휴지통 폴더 아래 "살아 있는" 폴더가 생겼습니다 [S-06].
+ */
 @Entity
+@DynamicUpdate
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "folders")

@@ -51,6 +51,10 @@ public interface FolderRepository extends JpaRepository<Folder, Long> {
             """)
     List<FolderNode> findTeamNodes(@Param("teamId") Long teamId);
 
+    /** 폴더가 속한 저장 공간 — 엔티티를 영속성 컨텍스트에 올리지 않습니다(잠그기 전에 쓰기 위함) [S-06] */
+    @Query("select new com.smartcollab.folder.FolderScope(o.id, t.id) from Folder f join f.owner o left join f.team t where f.id = :id")
+    java.util.Optional<FolderScope> findScope(@Param("id") Long id);
+
     /**
      * 루트부터 자신까지의 경로 (재귀 CTE, 쿼리 1회). v1 은 부모를 하나씩 지연 로딩해 깊이만큼 쿼리가 늘었습니다.
      */

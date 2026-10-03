@@ -96,7 +96,8 @@ class StorageCleanupTest {
         doAnswer(inv -> null).when(storage).copy(eq("files/source-1"), firstCopy.capture());
         doThrow(new BlobNotFoundException("files/source-2")).when(storage).copy(eq("files/source-2"), anyString());
         ItemTransferService service = new ItemTransferService(files, versions, folders, users, accessPolicy, blobLifecycle,
-                storage, events, tx, quota, mock(com.smartcollab.folder.FolderDepthPolicy.class), null);   // 파일만 복사 — 폴더 한도는 쓰지 않음
+                storage, events, tx, quota, mock(com.smartcollab.folder.FolderDepthPolicy.class),
+                mock(com.smartcollab.folder.FolderStructureLock.class), null);   // 파일만 복사 — 폴더 한도는 쓰지 않음
 
         DriveDtos.TransferRequest request = new DriveDtos.TransferRequest(
                 List.of(new DriveDtos.ItemRef("file", 1L), new DriveDtos.ItemRef("file", 2L)), 100L);
