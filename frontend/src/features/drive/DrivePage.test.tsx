@@ -1,9 +1,10 @@
-import { act, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { folderApi, itemApi } from '@/api/endpoints'
+import { ApiError } from '@/api/http'
 import { queryKeys } from '@/api/queryKeys'
 import type { FolderContents } from '@/api/types'
 import { ConfirmProvider } from '@/components/ui/Confirm'
@@ -15,7 +16,8 @@ vi.mock('@/auth/AuthProvider', () => ({
   useMe: () => ({ id: 1, username: 'demo1', name: '김하늘', rootFolderId: 1 }),
   usePublicConfig: () => ({ translationEnabled: false, officePreviewEnabled: false, maxUploadBytes: 1024, demo: { enabled: false, accounts: [] } }),
 }))
-vi.mock('./UploadProvider', () => ({ useUploads: () => ({ enqueue: () => {} }) }))
+const uploads = vi.hoisted(() => ({ enqueue: vi.fn() }))
+vi.mock('./UploadProvider', () => ({ useUploads: () => uploads }))
 vi.mock('@/features/team/TeamPanel', () => ({
   TeamPanel: ({ visible }: { teamId: number; visible?: boolean }) => {
     useEffect(() => {
@@ -36,14 +38,16 @@ const contents = (id: number): FolderContents => ({
 
 let client: QueryClient
 
-function renderDrive(wide: boolean) {
+function renderDrive(wide: boolean, path = '/teams/3/folders/10') {
   panel.mounts = 0
   window.matchMedia = ((query: string) => ({
     matches: wide, media: query, addEventListener: () => {}, removeEventListener: () => {},
   })) as unknown as typeof window.matchMedia
   vi.spyOn(folderApi, 'contents').mockImplementation(async (id: number) => contents(id))
-  const router = createMemoryRouter([{ path: '/teams/:teamId/folders/:folderId', element: <DrivePage /> }],
-    { initialEntries: ['/teams/3/folders/10'] })
+  const router = createMemoryRouter([
+    { path: '/teams/:teamId/folders/:folderId', element: <DrivePage /> },
+    { path: '/drive/:folderId', element: <DrivePage /> },
+  ], { initialEntries: [path] })
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={client}>
@@ -96,6 +100,65 @@ describe('DrivePage — 변경 뒤 다시 불러오기', () => {
     await screen.findByText('1개 항목을 휴지통으로 옮겼습니다.')
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.trash.all })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.folder.of(10) })
+  })
+})
+
+describe('DrivePage — 지금 동작 고정 (구조 정리 전)', () => {
+  it('폴더 이름을 누르면 그 폴더로 들어간다', async () => {
+    const router = renderDrive(true)
+    await userEvent.setup().click(await screen.findByRole('button', { name: '회의록' }))
+    expect(router.state.location.pathname).toBe('/teams/3/folders/11')
+  })
+
+  it('새 폴더는 지금 폴더 아래에 만들고 알린다', async () => {
+    const create = vi.spyOn(folderApi, 'create').mockResolvedValue(contents(12).items[0] ?? ({} as never))
+    renderDrive(true)
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: /새 폴더/ }))
+    const dialog = await screen.findByRole('dialog', { name: '새 폴더' })
+    const input = within(dialog).getByRole('textbox')
+    await user.clear(input)
+    await user.type(input, '기획')
+    await user.click(within(dialog).getByRole('button', { name: '만들기' }))
+
+    expect(await screen.findByText("'기획' 폴더를 만들었습니다.")).toBeInTheDocument()
+    expect(create).toHaveBeenCalledWith(10, '기획')
+  })
+
+  it('고른 항목을 이동하면 고른 대상 폴더로 옮기고 알린다', async () => {
+    vi.spyOn(folderApi, 'tree').mockResolvedValue({ roots: [{ id: 10, name: '데모 팀', children: [{ id: 20, name: '보관함', children: [] }] }] })
+    const move = vi.spyOn(itemApi, 'move').mockResolvedValue(undefined as never)
+    renderDrive(true)
+    const user = userEvent.setup()
+    await user.click(await screen.findByLabelText('회의록 선택'))
+    await user.click(screen.getByRole('button', { name: /이동/ }))
+    await user.click(await screen.findByRole('button', { name: '보관함' }))
+    await user.click(screen.getByRole('button', { name: '여기로 이동' }))
+
+    expect(await screen.findByText('1개 항목을 옮겼습니다.')).toBeInTheDocument()
+    expect(move).toHaveBeenCalledWith([{ type: 'folder', id: 11 }], 20)
+  })
+
+  it('파일을 끌어다 놓으면 지금 폴더로 올린다', async () => {
+    uploads.enqueue.mockClear()
+    renderDrive(true)
+    await screen.findByRole('button', { name: '회의록' })
+    const file = new File(['x'], '자료.txt', { type: 'text/plain' })
+    const region = screen.getByRole('button', { name: '회의록' }).closest('section')!
+    fireEvent.drop(region, { dataTransfer: { files: [file], types: ['Files'] } })
+    expect(uploads.enqueue).toHaveBeenCalledWith(10, [file])
+  })
+
+  it('주소의 스코프가 실제 폴더와 다르면 올바른 주소로 바로잡는다', async () => {
+    const router = renderDrive(true, '/drive/10')
+    await vi.waitFor(() => expect(router.state.location.pathname).toBe('/teams/3/folders/10'))
+  })
+
+  it('없거나 볼 수 없는 폴더면 안내한다', async () => {
+    renderDrive(true)
+    vi.mocked(folderApi.contents).mockRejectedValue(new ApiError(404, 'NOT_FOUND', '폴더를 찾을 수 없습니다.'))
+    await act(() => client.resetQueries())
+    expect(await screen.findByText('폴더를 찾을 수 없습니다')).toBeInTheDocument()
   })
 })
 
