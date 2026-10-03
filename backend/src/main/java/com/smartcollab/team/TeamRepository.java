@@ -19,6 +19,8 @@ public interface TeamRepository extends JpaRepository<Team, Long> {
     @Query("select t from Team t where t.id = :id")
     Optional<Team> lockById(@Param("id") Long id);
 
+    long countByOwnerId(Long ownerId);
+
     @Query("select t.id from Team t where t.owner.id = :ownerId")
     List<Long> findIdsOwnedBy(@Param("ownerId") Long ownerId);
 

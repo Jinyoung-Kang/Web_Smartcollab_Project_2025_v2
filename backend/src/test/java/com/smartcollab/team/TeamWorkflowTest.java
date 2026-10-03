@@ -82,6 +82,17 @@ class TeamWorkflowTest extends IntegrationTest {
         member.get("/api/trash?teamId={t}", team[0]).andExpect(jsonPath("$", hasSize(1)));
     }
 
+    @Test
+    @DisplayName("[S-10] 한 사람이 팀장인 팀은 10개까지 — 팀마다 저장 한도를 받아 계정 하나로 한도를 늘릴 수 있었음")
+    void teamCountPerLeaderIsLimited() throws Exception {
+        Api.Session s = api().signUp("teamcap");
+        for (int i = 1; i <= 10; i++) {
+            s.postJson("/api/teams", Map.of("name", "팀 " + i)).andExpect(status().isCreated());
+        }
+        s.postJson("/api/teams", Map.of("name", "팀 11")).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("팀장으로 있는 팀은 10개까지 만들 수 있습니다. 쓰지 않는 팀을 삭제하거나 팀장을 넘기세요."));
+    }
+
     private boolean canEditOf(Api.Session viewer, long teamId, String username) throws Exception {
         java.util.List<Boolean> values = Api.read(viewer.get("/api/teams/{t}", teamId),
                 "$.members[?(@.username == '" + username + "')].canEdit");

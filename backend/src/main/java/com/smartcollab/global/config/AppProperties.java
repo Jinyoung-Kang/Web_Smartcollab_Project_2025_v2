@@ -51,8 +51,12 @@ public record AppProperties(
                             int sharePasswordPerLinkPer10Minutes, int signupPerHour, long translationCharsPerUserPerDay) {
     }
 
-    /** 저장 공간 한도 (옛 버전·휴지통 포함 실제 저장량 기준) */
-    public record Quota(DataSize personal, DataSize team) {
+    /**
+     * 저장 공간 한도 (옛 버전·휴지통 포함 실제 저장량 기준)
+     *
+     * @param teamsPerUser 한 사람이 팀장인 팀 수 상한 — 팀마다 한도를 받으므로 팀 수도 제한합니다 [S-10]
+     */
+    public record Quota(DataSize personal, DataSize team, int teamsPerUser) {
     }
 
     public record Deepl(String apiKey, String baseUrl) {

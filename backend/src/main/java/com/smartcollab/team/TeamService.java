@@ -8,6 +8,7 @@ import com.smartcollab.file.DriveDtos;
 import com.smartcollab.folder.Folder;
 import com.smartcollab.folder.FolderRepository;
 import com.smartcollab.folder.TeamRoot;
+import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.error.ErrorCode;
 import com.smartcollab.notification.Notification;
@@ -41,11 +42,30 @@ public class TeamService {
     private final NotificationService notifications;
     private final ApplicationEventPublisher events;
     private final DemoAccounts demoAccounts;
+    private final AppProperties props;
 
-    /** 팀과 팀장 멤버십, 팀 루트 폴더를 함께 만듭니다. */
+    /**
+     * 팀과 팀장 멤버십, 팀 루트 폴더를 함께 만듭니다. 팀마다 저장 한도를 받으므로, 한 사람이 팀장인 팀 수를 제한하고
+     * 체험 계정은 새 팀을 만들 수 없습니다 [S-10]. 사용자 행을 먼저 잠가 동시 요청으로 상한을 넘지 않게 합니다.
+     */
     @Transactional
     public TeamDtos.TeamSummary create(String name, Long userId) {
-        User owner = users.findById(userId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
+        User owner = users.lockById(userId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
+        demoAccounts.forbidIfDemo(owner, "체험 계정은 새 팀을 만들 수 없습니다.");
+        int max = props.quota().teamsPerUser();
+        if (teams.countByOwnerId(userId) >= max) {
+            throw ApiException.conflict("팀장으로 있는 팀은 " + max + "개까지 만들 수 있습니다. 쓰지 않는 팀을 삭제하거나 팀장을 넘기세요.");
+        }
+        return createTeam(name, owner);
+    }
+
+    /** 데모 데이터 전용: 체험 계정의 데모 팀을 만듭니다(체험 계정 제한·팀 수 상한 없이). */
+    @Transactional
+    public TeamDtos.TeamSummary createDemoTeam(String name, Long userId) {
+        return createTeam(name, users.findById(userId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED)));
+    }
+
+    private TeamDtos.TeamSummary createTeam(String name, User owner) {
         Team team = teams.save(new Team(name.strip(), owner));
         TeamMember leader = members.save(TeamMember.leader(team, owner));
         Folder root = folders.save(Folder.teamRoot(team, owner));

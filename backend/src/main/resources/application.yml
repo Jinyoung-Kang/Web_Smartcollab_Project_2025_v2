@@ -108,6 +108,8 @@ app:
   quota:
     personal: ${QUOTA_PERSONAL:1GB}
     team: ${QUOTA_TEAM:5GB}
+    # 한 사람이 팀장인 팀 수 상한(팀마다 위 한도를 받으므로) [S-10]
+    teams-per-user: ${MAX_TEAMS_PER_USER:10}
   deepl:
     api-key: ${DEEPL_API_KEY:}
     base-url: ${DEEPL_API_URL:https://api-free.deepl.com}

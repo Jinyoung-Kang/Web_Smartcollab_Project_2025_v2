@@ -61,6 +61,12 @@ class DemoProtectionTest extends LimitedStorageIntegrationTest {
     }
 
     @Test
+    @DisplayName("[S-10] 체험 계정은 새 팀을 만들 수 없다 — 팀마다 저장 한도를 받아 한도를 우회할 수 있었음")
+    void demoAccountsCannotCreateTeams() throws Exception {
+        demo("demo3").postJson("/api/teams", java.util.Map.of("name", "체험 팀")).andExpect(status().isForbidden());
+    }
+
+    @Test
     @DisplayName("[SEC-06] 체험 계정에는 일반 계정보다 작은 저장 한도가 적용된다")
     void demoQuotaApplies() throws Exception {
         Api.Session visitor = demo("demo3");
@@ -79,7 +85,8 @@ class DemoProtectionTest extends LimitedStorageIntegrationTest {
         Api.Session leader = demo("demo1");
         long oldId = leader.userId;
         leader.uploadText(leader.rootFolderId, "방문자가 올린 파일.txt", "visitor");
-        leader.createTeam("방문자가 만든 팀");
+        Number visitedRoot = Api.read(leader.get("/api/teams/{t}", demoTeamId(leader)), "$.rootFolderId");
+        leader.createFolder(visitedRoot.longValue(), "방문자가 만든 폴더");   // 체험 계정은 새 팀을 만들 수 없어 데모 팀에 흔적을 남김 [S-10]
 
         seeder.reset();
 
@@ -88,10 +95,11 @@ class DemoProtectionTest extends LimitedStorageIntegrationTest {
         String personal = Api.body(fresh.get("/api/folders/{id}", fresh.rootFolderId));
         assertThat(personal).contains("할 일.txt").doesNotContain("방문자가 올린 파일");
         String teams = Api.body(fresh.get("/api/teams"));
-        assertThat(teams).contains("SmartCollab 데모 팀").doesNotContain("방문자가 만든 팀");
+        assertThat(teams).contains("SmartCollab 데모 팀");
         long team = demoTeamId(fresh);
         Number teamRoot = Api.read(fresh.get("/api/teams/{t}", team), "$.rootFolderId");
-        assertThat(Api.body(fresh.get("/api/folders/{id}", teamRoot.longValue()))).contains("기획").contains("회의록").contains("디자인");
+        assertThat(Api.body(fresh.get("/api/folders/{id}", teamRoot.longValue()))).contains("기획").contains("회의록").contains("디자인")
+                .doesNotContain("방문자가 만든 폴더");
         assertThat(Api.body(fresh.get("/api/teams/{t}", team))).contains("demo2").contains("demo3");
         outsider.get("/api/files/{id}/content", outsiderFile).andExpect(status().isOk());
     }
