@@ -3,7 +3,7 @@
 | 층 | 도구 | 개수 | 실행 |
 |---|---|---:|---|
 | 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 219 | `cd backend && ./gradlew test` |
-| 프론트엔드 단위·컴포넌트 | Vitest · Testing Library · jsdom | 71 | `cd frontend && npm test` |
+| 프론트엔드 단위·컴포넌트 | Vitest · Testing Library · jsdom | 89 | `cd frontend && npm test` |
 | E2E (전체 스택) | Playwright · Docker Compose · axe-core | 12 (시나리오 10 + 접근성·탭 제목 2) | `docker compose up -d --wait && cd e2e && npx playwright test` |
 
 백엔드 라인 커버리지 **91.6%**, 분기 커버리지 **80.0%** (JaCoCo, `backend/build/reports/jacoco/test/html`).
@@ -53,8 +53,9 @@
 | 프론트 `AppErrorPage.test` · `useDocumentTitle.test` · `josa.test`, 백엔드 `ApiExceptionTest` | 렌더링 오류·새 배포 안내 (ARC-04), 탭 제목 (UX-02), 받침에 맞는 조사 (UX-04) |
 | 프론트 `ChatTab.test` · `TeamActivityProvider.test` · `NotificationBell.test` | 채팅에 공유된 파일을 누르면 지금 파일 정보로 드라이브와 같은 미리보기, 내려받기 링크 분리, 지워진 파일 안내, 보일 때만 보는 중 (FB-06) / 다시 연결되면 채팅·알림 다시 받기 (FB-05) / 알림 요청 실패 안내 (FB-08) |
 | 프론트 `TrashPage.test` | 휴지통의 폴더(파일 수)·파일 구분, 폴더 복원(최상위로 옮겨진 경우 안내), 폴더 영구 삭제 확인 (UX-06) |
-| 프론트 `FileTable.test` · `RowMenu.test` · `DrivePage.test` | 큰 폴더를 200개씩 그리기·더 보기, 전체 선택은 전부, 키보드로 다음 묶음 이동, 정렬 시 처음부터 (PERF-02), Delete·F2 는 키를 누른 행 기준 (FB-01), 행 안 버튼의 Enter·Space 한 번만 (FB-09) / 다시 그려도 메뉴 초점 유지 (FB-10) / 하위 폴더로 옮겨도 팀 패널 유지 (FB-07)·좁은 화면의 보는 중 표시 (FB-06) |
+| 프론트 `FileTable.test` · `RowMenu.test` · `DrivePage.test`(구조 정리 전 동작 고정 6개 포함) | 큰 폴더를 200개씩 그리기·더 보기, 전체 선택은 전부, 키보드로 다음 묶음 이동, 정렬 시 처음부터 (PERF-02), Delete·F2 는 키를 누른 행 기준 (FB-01), 행 안 버튼의 Enter·Space 한 번만 (FB-09) / 다시 그려도 메뉴 초점 유지 (FB-10) / 하위 폴더로 옮겨도 팀 패널 유지 (FB-07)·좁은 화면의 보는 중 표시 (FB-06) |
 | 프론트 `ShareDialog.test` · `VersionHistoryDialog.test` · `MoveCopyDialog.test` | 다른 파일로 열면 입력이 남지 않음 (FB-03), 닫은 뒤 끝난 요청도 그 파일의 캐시 갱신·링크 해제 실패 안내 (FB-11), 다시 열면 이전 대상 폴더가 남지 않음 (FB-04) |
+| 프론트 순수 함수 `chatMessages.test` · `teamEvents.test` · `validateUpload.test` · `keepDraft.test` | 메시지 묶기·검사, 팀 이벤트·알림의 캐시 반영(React 없이), 업로드 전 검사, 편집본 파일 이름 (5단계) |
 | 프론트 `AuthProvider.test` | 실제 App·데이터 라우터로 로그아웃·세션 만료(401)·탈퇴 뒤 로그인 화면에 머무는지, 이전 사용자 캐시 삭제, 편집 중 세션 만료 시 확인, 비밀번호 오류 뒤 로그인 (BUG-09), 세션 만료 안내 (UX-03) |
 
 `.env` 의 `APP_PORT` 를 바꿨다면 E2E 에 주소를 알려 주세요: `E2E_BASE_URL=http://localhost:8081 npx playwright test`.
