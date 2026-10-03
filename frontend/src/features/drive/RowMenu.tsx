@@ -14,17 +14,23 @@ export function RowMenu({ x, y, item, canEdit, onClose, onAction }: {
   onAction: (a: RowAction) => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
+  const latestClose = useRef(onClose)
+  useEffect(() => {
+    latestClose.current = onClose
+  })
+  // 처음 열릴 때 한 번만 첫 항목에 초점을 둡니다. 부모가 매번 새 onClose 를 넘겨 이 효과가 다시 실행되면,
+  // 화면이 다시 그려질 때마다(목록 갱신·실시간 알림) 사용자가 옮긴 초점을 첫 항목으로 빼앗았습니다 [FB-10].
   useEffect(() => {
     ref.current?.querySelector<HTMLButtonElement>('button')?.focus()
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    const onDown = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && onClose()
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && latestClose.current()
+    const onDown = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && latestClose.current()
     document.addEventListener('keydown', onKey)
     document.addEventListener('mousedown', onDown)
     return () => {
       document.removeEventListener('keydown', onKey)
       document.removeEventListener('mousedown', onDown)
     }
-  }, [onClose])
+  }, [])
 
   const entries: { action: RowAction; label: string; show: boolean; danger?: boolean }[] = [
     { action: 'open', label: item.type === 'folder' ? '열기' : '미리보기', show: true },
