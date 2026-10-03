@@ -7,6 +7,7 @@ import { useMe } from '@/auth/AuthProvider'
 import { useToast } from '@/components/ui/Toast'
 import { useOnReconnect } from '@/lib/useOnReconnect'
 import { useRealtime, useSubscription } from './RealtimeProvider'
+import { invalidateDriveChange } from '@/api/driveCache'
 import { queryKeys } from '@/api/queryKeys'
 
 interface TeamActivityApi {
@@ -71,11 +72,7 @@ export function TeamActivityProvider({ children }: { children: ReactNode }) {
         const event = payload as TeamEvent
         switch (event.type) {
           case 'FOLDER_CHANGED':
-            void qc.invalidateQueries({ queryKey: queryKeys.folder.of(event.folderId) })
-            void qc.invalidateQueries({ queryKey: queryKeys.tree.of(teamId) })
-            void qc.invalidateQueries({ queryKey: queryKeys.usage.of(teamId) })
-            void qc.invalidateQueries({ queryKey: queryKeys.trash.of(teamId) })
-            void qc.invalidateQueries({ queryKey: queryKeys.versions.all })
+            invalidateDriveChange(qc, { folderIds: [event.folderId], scope: teamId })
             break
           case 'MEMBERS_CHANGED':
             void qc.invalidateQueries({ queryKey: queryKeys.team(teamId) })

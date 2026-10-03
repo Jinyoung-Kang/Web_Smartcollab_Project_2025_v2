@@ -16,6 +16,7 @@ import { appendChatMessage, useTeamActivity } from '@/realtime/TeamActivity'
 import { ItemIcon } from '@/lib/fileIcons'
 import { formatBytes, formatDay, formatTime, sameDay } from '@/lib/format'
 import { cn } from '@/lib/cn'
+import { invalidateDriveChange } from '@/api/driveCache'
 import { queryKeys } from '@/api/queryKeys'
 
 /**
@@ -113,7 +114,7 @@ export function ChatTab({ teamId, team, active = true }: { teamId: number; team:
     setUploading(true)
     try {
       const item = await uploadFile(team.rootFolderId, file, () => {})
-      void qc.invalidateQueries({ queryKey: queryKeys.folder.of(team.rootFolderId) })
+      invalidateDriveChange(qc, { folderIds: [team.rootFolderId], scope: teamId })
       await send({ fileId: item.id })
     } catch (e) {
       toast.error((e as Error).message)

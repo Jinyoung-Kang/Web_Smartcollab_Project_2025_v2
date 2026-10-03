@@ -23,6 +23,7 @@ import { PreviewDialog } from './dialogs/PreviewDialog'
 import { ShareDialog } from './dialogs/ShareDialog'
 import { VersionHistoryDialog } from './dialogs/VersionHistoryDialog'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
+import { invalidateDriveChange } from '@/api/driveCache'
 import { queryKeys } from '@/api/queryKeys'
 
 type DialogState =
@@ -86,11 +87,7 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
   const items = useMemo(() => data?.items ?? [], [data])
   const selectedItems = useMemo(() => items.filter((i) => selected.has(itemKey(i))), [items, selected])
 
-  const refresh = () => {
-    void qc.invalidateQueries({ queryKey: queryKeys.folder.of(folderId) })
-    void qc.invalidateQueries({ queryKey: queryKeys.tree.all })
-    void qc.invalidateQueries({ queryKey: queryKeys.usage.all })
-  }
+  const refresh = (otherFolderIds: number[] = []) => invalidateDriveChange(qc, { folderIds: [folderId, ...otherFolderIds] })
 
   // 선택한 항목을 한 요청으로 지웁니다. 하나라도 지울 수 없으면 아무것도 지우지 않습니다 [PERF-03].
   const remove = useMutation({
@@ -102,7 +99,7 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
         : `${trashedFiles + trashedFolders}개 항목을 휴지통으로 옮겼습니다.`)
     },
     onError: (e: Error) => toast.error(e.message),
-    onSettled: refresh,
+    onSettled: () => refresh(),
   })
 
   const askDelete = async (targets: Item[]) => {
@@ -318,8 +315,7 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
             toast.success(`${refs.length}개 항목을 옮겼습니다.`)
           }
           setSelected(new Set())
-          refresh()
-          void qc.invalidateQueries({ queryKey: queryKeys.folder.of(target) })
+          refresh([target])
         }}
       />
       <ShareDialog file={dialog.kind === 'share' ? dialog.item : null} onClose={() => setDialog({ kind: 'none' })} />

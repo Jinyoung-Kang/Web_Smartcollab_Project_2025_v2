@@ -1,9 +1,10 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { createMemoryRouter, RouterProvider } from 'react-router'
-import { folderApi } from '@/api/endpoints'
+import { folderApi, itemApi } from '@/api/endpoints'
+import { queryKeys } from '@/api/queryKeys'
 import type { FolderContents } from '@/api/types'
 import { ConfirmProvider } from '@/components/ui/Confirm'
 import { ToastProvider } from '@/components/ui/Toast'
@@ -33,6 +34,8 @@ const contents = (id: number): FolderContents => ({
   permissions: { canEdit: true, canDelete: true, canInvite: true, leader: true },
 })
 
+let client: QueryClient
+
 function renderDrive(wide: boolean) {
   panel.mounts = 0
   window.matchMedia = ((query: string) => ({
@@ -41,7 +44,7 @@ function renderDrive(wide: boolean) {
   vi.spyOn(folderApi, 'contents').mockImplementation(async (id: number) => contents(id))
   const router = createMemoryRouter([{ path: '/teams/:teamId/folders/:folderId', element: <DrivePage /> }],
     { initialEntries: ['/teams/3/folders/10'] })
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={client}>
       <ToastProvider>
@@ -78,3 +81,21 @@ describe('DrivePage — 팀 패널', () => {
     expect(panel.lastVisible).toBe(true)
   })
 })
+
+describe('DrivePage — 변경 뒤 다시 불러오기', () => {
+  it('[5단계] 지운 뒤 휴지통 목록도 바로 다시 불러온다 (이전: 캐시 유효 시간 30초 동안 옛 목록)', async () => {
+    vi.spyOn(itemApi, 'remove').mockResolvedValue({ trashedFiles: 0, trashedFolders: 1 })
+    renderDrive(true)
+    const invalidate = vi.spyOn(client, 'invalidateQueries')
+    const user = userEvent.setup()
+    await user.click(await screen.findByLabelText('회의록 선택'))
+    await user.keyboard('{Delete}')
+    const dialog = await screen.findByRole('dialog', { name: '1개 항목을 삭제할까요?' })
+    await user.click(within(dialog).getByRole('button', { name: '삭제' }))
+
+    await screen.findByText('1개 항목을 휴지통으로 옮겼습니다.')
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.trash.all })
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.folder.of(10) })
+  })
+})
+

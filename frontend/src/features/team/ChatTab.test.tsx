@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryRouter, RouterProvider } from 'react-router'
@@ -7,12 +7,15 @@ import { ApiError } from '@/api/http'
 import type { ChatMessage, Item, TeamDetail } from '@/api/types'
 import { ConfirmProvider } from '@/components/ui/Confirm'
 import { ToastProvider } from '@/components/ui/Toast'
+import { queryKeys } from '@/api/queryKeys'
 import { ChatTab } from './ChatTab'
 
 vi.mock('@/auth/AuthProvider', () => ({
   useMe: () => ({ id: 1, username: 'demo1', name: '김하늘', rootFolderId: 1, createdAt: '2026-09-01T00:00:00Z' }),
   usePublicConfig: () => ({ translationEnabled: false, officePreviewEnabled: false, maxUploadBytes: 1024, demo: { enabled: false, accounts: [] } }),
 }))
+const upload = vi.hoisted(() => ({ uploadFile: vi.fn() }))
+vi.mock('@/api/upload', () => upload)
 vi.mock('@/realtime/RealtimeProvider', () => ({ useRealtime: () => ({ publish: () => false }) }))
 const activity = vi.hoisted(() => ({ setActiveChat: vi.fn() }))
 vi.mock('@/realtime/TeamActivity', () => ({ useTeamActivity: () => activity, appendChatMessage: vi.fn() }))
@@ -31,9 +34,11 @@ const current: Item = {
   createdAt, updatedAt: createdAt, previewKind: 'IMAGE', textEditable: false,
 }
 
+let client: QueryClient
+
 function renderChat(active = true) {
   vi.spyOn(chatApi, 'history').mockResolvedValue({ messages: [shared], hasMore: false })
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const router = createMemoryRouter([{ path: '/', element: <ChatTab teamId={3} team={team} active={active} /> }])
   render(
     <QueryClientProvider client={client}>
@@ -93,3 +98,20 @@ describe('ChatTab — 보는 중 표시 [FB-06]', () => {
     expect(activity.setActiveChat).toHaveBeenCalledWith(3)
   })
 })
+
+describe('ChatTab — 파일 첨부 뒤 다시 불러오기', () => {
+  it('[5단계] 채팅으로 올린 파일도 팀 폴더·팀 사용량을 바로 다시 불러온다 (이전: 폴더만)', async () => {
+    upload.uploadFile.mockResolvedValue(current)
+    vi.spyOn(chatApi, 'send').mockResolvedValue(shared)
+    renderChat()
+    const invalidate = vi.spyOn(client, 'invalidateQueries')
+    await screen.findByRole('button', { name: '화면 스케치.png 미리보기' })
+
+    const input = document.querySelector<HTMLInputElement>('input[type=file]')!
+    fireEvent.change(input, { target: { files: [new File(['x'], '첨부.png', { type: 'image/png' })] } })
+
+    await vi.waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.usage.of(team.id) }))
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.folder.of(team.rootFolderId) })
+  })
+})
+
