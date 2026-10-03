@@ -1,10 +1,10 @@
 package com.smartcollab.file;
 
+import com.smartcollab.event.DeletionEvents;
 import com.smartcollab.folder.FolderRepository;
-import com.smartcollab.share.ShareLinkRepository;
-import com.smartcollab.signature.SignatureRepository;
 import com.smartcollab.storage.BlobLifecycle;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,7 +25,8 @@ import java.util.TreeMap;
  *   <li>폴더를 재귀 호출로 하나씩 지워 폴더 수만큼 쿼리 발생</li>
  * </ul>
  * v2 는 대상 ID 를 재귀 CTE 한 번으로 모은 뒤, 참조 관계 순서대로 일괄(bulk) 삭제하고
- * 저장소 파일은 커밋 이후에 지웁니다.</p>
+ * 저장소 파일은 커밋 이후에 지웁니다. 파일을 가리키는 서명·공유 링크는 그 모듈이 {@link DeletionEvents.FilesPurging} 을
+ * 듣고 먼저 지웁니다 [A-02].</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -35,10 +36,9 @@ public class DriveCleanupService {
 
     private final FileRepository files;
     private final FileVersionRepository versions;
-    private final SignatureRepository signatures;
-    private final ShareLinkRepository shareLinks;
     private final FolderRepository folders;
     private final BlobLifecycle blobs;
+    private final ApplicationEventPublisher events;
 
     /** 파일과 그 버전·서명·공유 링크를 영구 삭제합니다. */
     @Transactional(propagation = Propagation.MANDATORY)
@@ -47,8 +47,7 @@ public class DriveCleanupService {
         List<String> blobKeys = new ArrayList<>();
         for (List<Long> chunk : chunks(fileIds)) {
             blobKeys.addAll(versions.findStoredPaths(chunk));
-            shareLinks.deleteByFileIds(chunk);
-            signatures.deleteByFileIds(chunk);
+            events.publishEvent(new DeletionEvents.FilesPurging(List.copyOf(chunk)));   // 서명·공유 링크
             files.detachActiveVersions(chunk);   // files ↔ file_versions 순환 참조를 먼저 끊음
             versions.deleteByFileIds(chunk);
             files.deleteAllByIds(chunk);

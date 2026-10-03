@@ -1,8 +1,6 @@
 package com.smartcollab.file;
 
-import com.smartcollab.access.Access;
 import com.smartcollab.folder.Folder;
-import com.smartcollab.folder.FolderTree;
 import com.smartcollab.global.util.FileNames;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -34,30 +32,6 @@ public final class DriveDtos {
                     FileNames.extension(file.getName()), file.getOwner().getName(), file.getCreatedAt(),
                     file.getUpdatedAt(), FileNames.previewKind(file.getName()), FileNames.isTextEditable(file.getName()));
         }
-    }
-
-    public record PermissionsResponse(boolean canEdit, boolean canDelete, boolean canInvite, boolean leader) {
-        public static PermissionsResponse of(Access access) {
-            return new PermissionsResponse(access.canEdit(), access.canDelete(), access.canInvite(), access.leader());
-        }
-    }
-
-    public record Breadcrumb(Long id, String name) {
-    }
-
-    public record FolderInfo(Long id, String name, Long teamId, boolean root) {
-    }
-
-    public record FolderContents(FolderInfo folder, List<Breadcrumb> path, List<ItemResponse> items,
-                                 PermissionsResponse permissions) {
-    }
-
-    public record FolderTreeResponse(List<FolderTree.TreeNode> roots) {
-    }
-
-    public record CreateFolderRequest(
-            @NotNull(message = "상위 폴더를 지정하세요.") Long parentId,
-            @NotBlank(message = "폴더 이름을 입력하세요.") @Size(max = 255, message = "이름은 255자 이하입니다.") String name) {
     }
 
     public record RenameRequest(

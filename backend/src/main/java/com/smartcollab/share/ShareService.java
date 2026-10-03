@@ -2,7 +2,7 @@ package com.smartcollab.share;
 
 import com.smartcollab.access.AccessPolicy;
 import com.smartcollab.file.FileEntity;
-import com.smartcollab.file.FileRepository;
+import com.smartcollab.file.FileService;
 import com.smartcollab.file.FileService;
 import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.global.error.ApiException;
@@ -29,7 +29,7 @@ public class ShareService {
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final ShareLinkRepository links;
-    private final FileRepository files;
+    private final FileService fileService;
     private final UserRepository users;
     private final AccessPolicy accessPolicy;
     private final PasswordEncoder passwordEncoder;
@@ -59,7 +59,7 @@ public class ShareService {
     @Transactional
     public void revoke(Long linkId, Long userId) {
         ShareLink link = links.findById(linkId).orElseThrow(() -> ApiException.notFound("공유 링크"));
-        FileEntity file = files.findWithFolder(link.getFile().getId()).orElseThrow(() -> ApiException.notFound("파일"));
+        FileEntity file = link.getFile();   // 링크 해제는 휴지통의 파일이어도 할 수 있습니다
         accessPolicy.requireShare(file, userId);
         links.delete(link);
     }
@@ -129,11 +129,7 @@ public class ShareService {
     }
 
     private FileEntity activeFile(Long fileId) {
-        FileEntity file = files.findWithFolder(fileId).orElseThrow(() -> ApiException.notFound("파일"));
-        if (file.isInTrash()) {
-            throw ApiException.notFound("파일");
-        }
-        return file;
+        return fileService.getActive(fileId);
     }
 
     /** 192bit 무작위 토큰 (URL-safe Base64, 32자) */

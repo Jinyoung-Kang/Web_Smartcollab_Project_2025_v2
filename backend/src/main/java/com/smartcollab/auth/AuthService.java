@@ -1,7 +1,7 @@
 package com.smartcollab.auth;
 
 import com.smartcollab.folder.Folder;
-import com.smartcollab.folder.FolderRepository;
+import com.smartcollab.folder.RootFolders;
 import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.error.ErrorCode;
@@ -28,7 +28,7 @@ import java.util.regex.Pattern;
 public class AuthService {
 
     private final UserRepository users;
-    private final FolderRepository folders;
+    private final RootFolders rootFolders;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenService tokens;
     private final SlidingWindowRateLimiter rateLimiter;
@@ -41,7 +41,7 @@ public class AuthService {
 
     /** 외부 요청의 가입. 한 IP 에서 계정을 대량으로 만드는 것을 막습니다 [SEC-05]. */
     @Transactional
-    public User signUp(AuthDtos.SignUpRequest req, String clientIp) {
+    public Account signUp(AuthDtos.SignUpRequest req, String clientIp) {
         if (!rateLimiter.tryAcquire("signup:" + clientIp, props.rateLimit().signupPerHour(), Duration.ofHours(1))) {
             SecurityEventLog.rateLimited("signup-ip", clientIp);
             throw new ApiException(ErrorCode.RATE_LIMITED, "가입 요청이 너무 많습니다. 잠시 후 다시 시도하세요.");
@@ -49,7 +49,7 @@ public class AuthService {
         if (DemoAccounts.isReserved(req.username())) {   // [S-19] 체험 데이터 생성은 아래 signUp(req) 를 직접 씁니다
             throw ApiException.conflict("체험 계정용으로 예약된 아이디라 가입할 수 없습니다.");
         }
-        return signUp(req);
+        return Account.of(signUp(req));
     }
 
     /** 가입 (요청 제한 없음 — 데모 데이터 생성 등 서버 내부용). */
@@ -68,7 +68,7 @@ public class AuthService {
         }
         User user = users.save(new User(req.username(), passwordEncoder.encode(req.password()), req.name().strip(),
                 email, Role.USER));
-        folders.save(Folder.personalRoot(user));
+        rootFolders.createPersonal(user);
         return user;
     }
 
@@ -78,7 +78,7 @@ public class AuthService {
      * 제한에 걸리면 비밀번호가 맞아도 거절합니다(그렇지 않으면 응답 차이로 비밀번호를 계속 맞혀 볼 수 있음).
      */
     @Transactional(readOnly = true)
-    public User authenticate(String username, String password, String clientIp) {
+    public Account authenticate(String username, String password, String clientIp) {
         if (!rateLimiter.tryAcquire("login:" + clientIp, props.rateLimit().loginPerMinute(), Duration.ofMinutes(1))) {
             SecurityEventLog.rateLimited("login-ip", clientIp);
             throw new ApiException(ErrorCode.RATE_LIMITED, "로그인 시도가 너무 많습니다. 1분 뒤 다시 시도하세요.");
@@ -105,7 +105,7 @@ public class AuthService {
         }
         rateLimiter.reset(accountKey);
         SecurityEventLog.loginSucceeded(user.getId(), clientIp);
-        return user;
+        return Account.of(user);
     }
 
     private String dummyHash() {
@@ -115,8 +115,15 @@ public class AuthService {
         return dummyHash;
     }
 
-    public String issueToken(User user) {
-        return tokens.issue(user.getId(), user.getUsername());
+    public String issueToken(Account account) {
+        return tokens.issue(account.id(), account.username());
+    }
+
+    /** 가입·로그인한 계정. 컨트롤러에는 엔티티 대신 이것을 돌려줍니다 [A-05]. */
+    public record Account(Long id, String username) {
+        static Account of(User user) {
+            return new Account(user.getId(), user.getUsername());
+        }
     }
 
     public Duration tokenTtl() {
@@ -127,7 +134,7 @@ public class AuthService {
     public AuthDtos.MeResponse me(Long userId) {
         User user = users.findById(userId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
         // 루트 폴더가 없는 계정(과거 데이터)은 이 시점에 만들어 줍니다.
-        Folder root = folders.findPersonalRoot(userId).orElseGet(() -> folders.save(Folder.personalRoot(user)));
+        Folder root = rootFolders.personalOf(user);
         return new AuthDtos.MeResponse(user.getId(), user.getUsername(), user.getName(), user.getEmail(), root.getId(),
                 user.getCreatedAt());
     }

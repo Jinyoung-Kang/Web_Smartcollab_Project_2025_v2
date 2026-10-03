@@ -2,18 +2,15 @@ package com.smartcollab.team;
 
 import com.smartcollab.access.Access;
 import com.smartcollab.access.AccessPolicy;
-import com.smartcollab.chat.ChatMessageRepository;
-import com.smartcollab.file.DriveCleanupService;
-import com.smartcollab.file.DriveDtos;
+import com.smartcollab.access.PermissionsResponse;
+import com.smartcollab.event.ChangeEvents;
+import com.smartcollab.event.DeletionEvents;
+import com.smartcollab.event.NoticeEvents;
 import com.smartcollab.folder.Folder;
-import com.smartcollab.folder.FolderRepository;
-import com.smartcollab.folder.TeamRoot;
+import com.smartcollab.folder.RootFolders;
 import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.error.ErrorCode;
-import com.smartcollab.notification.Notification;
-import com.smartcollab.notification.NotificationService;
-import com.smartcollab.realtime.RealtimeEvents;
 import com.smartcollab.user.DemoAccounts;
 import com.smartcollab.user.User;
 import com.smartcollab.user.UserRepository;
@@ -34,12 +31,9 @@ public class TeamService {
     private final TeamRepository teams;
     private final TeamMemberRepository members;
     private final InvitationRepository invitations;
-    private final FolderRepository folders;
-    private final ChatMessageRepository chatMessages;
+    private final RootFolders rootFolders;
     private final UserRepository users;
     private final AccessPolicy accessPolicy;
-    private final DriveCleanupService cleanup;
-    private final NotificationService notifications;
     private final ApplicationEventPublisher events;
     private final DemoAccounts demoAccounts;
     private final AppProperties props;
@@ -68,9 +62,9 @@ public class TeamService {
     private TeamDtos.TeamSummary createTeam(String name, User owner) {
         Team team = teams.save(new Team(name.strip(), owner));
         TeamMember leader = members.save(TeamMember.leader(team, owner));
-        Folder root = folders.save(Folder.teamRoot(team, owner));
+        Folder root = rootFolders.createTeam(team, owner);
         return new TeamDtos.TeamSummary(team.getId(), team.getName(), owner.getName(), 1, root.getId(),
-                DriveDtos.PermissionsResponse.of(Access.of(leader)));
+                PermissionsResponse.of(Access.of(leader)));
     }
 
     /** 내 팀 목록. 소속·팀장(1회) + 인원 수(1회) + 루트 폴더(1회) = 쿼리 3회 (팀 수와 무관). */
@@ -83,12 +77,11 @@ public class TeamService {
         List<Long> teamIds = memberships.stream().map(m -> m.getTeam().getId()).toList();
         Map<Long, Long> counts = members.countMembers(teamIds).stream()
                 .collect(Collectors.toMap(TeamSize::teamId, TeamSize::members));
-        Map<Long, Long> roots = folders.findTeamRootIds(teamIds).stream()
-                .collect(Collectors.toMap(TeamRoot::teamId, TeamRoot::folderId, (a, b) -> Math.min(a, b)));
+        Map<Long, Long> roots = rootFolders.teamRootIds(teamIds);
         return memberships.stream()
                 .map(m -> new TeamDtos.TeamSummary(m.getTeam().getId(), m.getTeam().getName(),
                         m.getTeam().getOwner().getName(), counts.getOrDefault(m.getTeam().getId(), 0L),
-                        roots.get(m.getTeam().getId()), DriveDtos.PermissionsResponse.of(Access.of(m))))
+                        roots.get(m.getTeam().getId()), PermissionsResponse.of(Access.of(m))))
                 .toList();
     }
 
@@ -96,18 +89,15 @@ public class TeamService {
     public TeamDtos.TeamDetail detail(Long teamId, Long userId) {
         TeamMember me = accessPolicy.requireMember(teamId, userId);
         Team team = teams.findWithOwner(teamId).orElseThrow(() -> ApiException.notFound("팀"));
-        Long rootId = folders.findTeamRoot(teamId).map(Folder::getId).orElse(null);
+        Long rootId = rootFolders.teamRootId(teamId);
         List<TeamDtos.MemberResponse> list = members.findMembers(teamId).stream().map(TeamDtos.MemberResponse::of).toList();
         return new TeamDtos.TeamDetail(team.getId(), team.getName(), team.getOwner().getUsername(), rootId,
-                DriveDtos.PermissionsResponse.of(Access.of(me)), list);
+                PermissionsResponse.of(Access.of(me)), list);
     }
 
     @Transactional
     public void invite(Long teamId, String inviteeUsername, Long userId) {
-        TeamMember inviterMembership = accessPolicy.requireMember(teamId, userId);
-        if (!inviterMembership.mayInvite()) {
-            throw ApiException.forbidden("팀원 초대 권한이 없습니다.");
-        }
+        TeamMember inviterMembership = accessPolicy.requireInvite(teamId, userId);
         User invitee = users.findByUsername(inviteeUsername.strip())
                 .filter(u -> !u.isSystem())
                 .orElseThrow(() -> ApiException.notFound("초대할 사용자"));
@@ -120,8 +110,8 @@ public class TeamService {
         Team team = inviterMembership.getTeam();
         User inviter = inviterMembership.getUser();
         Invitation invitation = invitations.save(new Invitation(team, inviter, invitee));
-        notifications.notify(invitee, Notification.Type.TEAM_INVITE,
-                inviter.getName() + "님이 '" + team.getName() + "' 팀에 초대했습니다.", invitation, team);
+        notice(invitee.getId(), NoticeEvents.Type.TEAM_INVITE,
+                inviter.getName() + "님이 '" + team.getName() + "' 팀에 초대했습니다.", invitation.getId(), team.getId());
     }
 
     @Transactional
@@ -142,12 +132,12 @@ public class TeamService {
             if (!members.existsByTeamIdAndUserId(team.getId(), userId)) {
                 members.save(TeamMember.invitedBy(inviter, invitee));
             }
-            events.publishEvent(new RealtimeEvents.TeamChanged(team.getId(), RealtimeEvents.TeamChangeType.MEMBERS_CHANGED));
+            events.publishEvent(new ChangeEvents.TeamChanged(team.getId(), ChangeEvents.TeamChangeType.MEMBERS_CHANGED));
         }
-        notifications.notify(invitation.getInviter(),
-                accept ? Notification.Type.INVITE_ACCEPTED : Notification.Type.INVITE_REJECTED,
+        notice(invitation.getInviter().getId(),
+                accept ? NoticeEvents.Type.INVITE_ACCEPTED : NoticeEvents.Type.INVITE_REJECTED,
                 invitee.getName() + "님이 '" + team.getName() + "' 팀 초대를 " + (accept ? "수락" : "거절") + "했습니다.",
-                team);
+                null, team.getId());
     }
 
     @Transactional
@@ -163,9 +153,9 @@ public class TeamService {
         describe(changes, "초대", target.isCanInvite(), req.canInvite());
         target.updatePermissions(req.canEdit(), req.canDelete(), req.canInvite());
         if (!changes.isEmpty()) {
-            notifications.notify(target.getUser(), Notification.Type.PERMISSION_CHANGED,
-                    "'" + target.getTeam().getName() + "' 팀 권한 변경: " + String.join(", ", changes), target.getTeam());
-            events.publishEvent(new RealtimeEvents.TeamChanged(teamId, RealtimeEvents.TeamChangeType.MEMBERS_CHANGED));
+            notice(target.getUser().getId(), NoticeEvents.Type.PERMISSION_CHANGED,
+                    "'" + target.getTeam().getName() + "' 팀 권한 변경: " + String.join(", ", changes), null, teamId);
+            events.publishEvent(new ChangeEvents.TeamChanged(teamId, ChangeEvents.TeamChangeType.MEMBERS_CHANGED));
         }
     }
 
@@ -181,9 +171,9 @@ public class TeamService {
         User removed = target.getUser();
         members.delete(target);
         // 알림에 팀 ID 를 담아, 그 팀 화면을 보고 있던 사용자를 화면에서 내보낼 수 있게 합니다.
-        notifications.notify(removed, Notification.Type.REMOVED_FROM_TEAM, "'" + team.getName() + "' 팀에서 제외되었습니다.", team);
-        events.publishEvent(new RealtimeEvents.MembershipRevoked(teamId, removed.getId()));
-        events.publishEvent(new RealtimeEvents.TeamChanged(teamId, RealtimeEvents.TeamChangeType.MEMBERS_CHANGED));
+        notice(removed.getId(), NoticeEvents.Type.REMOVED_FROM_TEAM, "'" + team.getName() + "' 팀에서 제외되었습니다.", null, teamId);
+        events.publishEvent(new ChangeEvents.MembershipRevoked(teamId, removed.getId()));
+        events.publishEvent(new ChangeEvents.TeamChanged(teamId, ChangeEvents.TeamChangeType.MEMBERS_CHANGED));
     }
 
     @Transactional
@@ -194,8 +184,8 @@ public class TeamService {
         }
         demoAccounts.forbidIfDemo(me.getUser(), "체험 계정은 팀을 나갈 수 없습니다.");
         members.delete(me);
-        events.publishEvent(new RealtimeEvents.MembershipRevoked(teamId, userId));
-        events.publishEvent(new RealtimeEvents.TeamChanged(teamId, RealtimeEvents.TeamChangeType.MEMBERS_CHANGED));
+        events.publishEvent(new ChangeEvents.MembershipRevoked(teamId, userId));
+        events.publishEvent(new ChangeEvents.TeamChanged(teamId, ChangeEvents.TeamChangeType.MEMBERS_CHANGED));
     }
 
     /** 팀장 위임. v1 은 memberId 가 다른 팀 소속인지 확인하지 않아, 남의 팀 멤버를 팀장으로 지정할 수 있었습니다. */
@@ -211,13 +201,13 @@ public class TeamService {
         current.demoteFromLeader();
         next.promoteToLeader();
         team.changeOwner(next.getUser());
-        notifications.notify(next.getUser(), Notification.Type.LEADERSHIP_TRANSFERRED,
-                "'" + team.getName() + "' 팀의 새 팀장이 되었습니다.", team);
-        events.publishEvent(new RealtimeEvents.TeamChanged(teamId, RealtimeEvents.TeamChangeType.MEMBERS_CHANGED));
+        notice(next.getUser().getId(), NoticeEvents.Type.LEADERSHIP_TRANSFERRED,
+                "'" + team.getName() + "' 팀의 새 팀장이 되었습니다.", null, teamId);
+        events.publishEvent(new ChangeEvents.TeamChanged(teamId, ChangeEvents.TeamChangeType.MEMBERS_CHANGED));
     }
 
     /**
-     * 팀 삭제: 채팅 → 초대 → 팀 스토리지(폴더·파일·버전·서명·공유 링크) → 멤버 → 팀 순으로 지웁니다.
+     * 팀 삭제: 채팅 → 팀 스토리지(폴더·파일·버전·서명·공유 링크) → 초대 → 멤버 → 팀 순으로 지웁니다.
      * 저장소의 실제 파일은 커밋 이후에 삭제됩니다.
      */
     @Transactional
@@ -240,19 +230,20 @@ public class TeamService {
                 .filter(u -> !u.getId().equals(actorUserId))
                 .toList();
 
-        chatMessages.deleteByTeam(teamId);
+        events.publishEvent(new DeletionEvents.TeamDeleting(teamId));   // 채팅·팀 스토리지는 각 모듈이 정리 [A-02]
         invitations.deleteByTeam(teamId);
-        for (Folder root : folders.findTeamRoots(teamId)) {
-            cleanup.deleteFolderTree(root.getId());
-        }
         members.deleteByTeam(teamId);
         teams.deleteById(teamId);
 
         for (User u : others) {
-            notifications.notify(users.getReferenceById(u.getId()), Notification.Type.TEAM_DELETED,
-                    "'" + teamName + "' 팀이 삭제되었습니다.", null);
+            notice(u.getId(), NoticeEvents.Type.TEAM_DELETED, "'" + teamName + "' 팀이 삭제되었습니다.", null, null);
         }
-        events.publishEvent(new RealtimeEvents.TeamChanged(teamId, RealtimeEvents.TeamChangeType.TEAM_DELETED));
+        events.publishEvent(new ChangeEvents.TeamChanged(teamId, ChangeEvents.TeamChangeType.TEAM_DELETED));
+    }
+
+    /** 알림은 알림 모듈이 같은 트랜잭션 안에서 저장합니다 [A-01] */
+    private void notice(Long recipientUserId, NoticeEvents.Type type, String content, Long invitationId, Long teamId) {
+        events.publishEvent(new NoticeEvents.Requested(recipientUserId, type, content, invitationId, teamId));
     }
 
     private TeamMember memberOf(Long teamId, Long memberId) {

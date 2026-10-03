@@ -1,5 +1,6 @@
 package com.smartcollab.realtime;
 
+import com.smartcollab.event.ChangeEvents;
 import com.smartcollab.global.security.AuthUser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -92,7 +93,7 @@ public class TeamSubscriptionTracker {
 
     /** 팀에서 제외·탈퇴가 커밋되면 그 사용자의 해당 팀 구독을 브로커에서 해제합니다. */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
-    public void onMembershipRevoked(RealtimeEvents.MembershipRevoked event) {
+    public void onMembershipRevoked(ChangeEvents.MembershipRevoked event) {
         SimpleBrokerMessageHandler handler = broker.getIfAvailable();
         Set<Long> presenceChanged = new HashSet<>();
         sessionUsers.forEach((sessionId, user) -> {

@@ -1,11 +1,12 @@
 package com.smartcollab.file;
 
 import com.smartcollab.access.AccessPolicy;
+import com.smartcollab.event.ChangeEvents;
 import com.smartcollab.folder.Folder;
 import com.smartcollab.folder.FolderRepository;
 import com.smartcollab.folder.FolderStructureLock;
+import com.smartcollab.folder.FolderTrash;
 import com.smartcollab.global.error.ApiException;
-import com.smartcollab.realtime.RealtimeEvents;
 import com.smartcollab.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -17,7 +18,6 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Predicate;
 
 /**
  * 여러 항목 삭제 [PERF-03]. 이전에는 선택한 항목마다 요청·트랜잭션·실시간 알림이 하나씩 생겼습니다.
@@ -39,7 +39,7 @@ public class ItemDeletionService {
     private final FolderRepository folders;
     private final UserRepository users;
     private final AccessPolicy accessPolicy;
-    private final TrashService trash;
+    private final FolderTrash folderTrash;
     private final ApplicationEventPublisher events;
     private final FolderStructureLock structureLock;
 
@@ -50,13 +50,12 @@ public class ItemDeletionService {
         // 폴더를 휴지통에 넣는 동안 그 아래에 다른 요청이 폴더를 만들거나 옮기지 못하게 저장 공간을 먼저 잠급니다 [S-06]
         structureLock.lockScopesOf(selectedFolders);
         Set<Long> insideSelected = subtreesOf(selectedFolders);
-        Set<RealtimeEvents.FolderChanged> changes = new LinkedHashSet<>();
+        Set<ChangeEvents.FolderChanged> changes = new LinkedHashSet<>();
 
         int trashed = 0;
         for (DriveDtos.ItemRef ref : refs) {
             if (!ref.type().equals("file")) continue;
-            FileEntity file = files.findWithFolder(ref.id()).filter(Predicate.not(FileEntity::isDeleted))
-                    .orElseThrow(() -> ApiException.notFound("파일"));
+            FileEntity file = files.findActive(ref.id()).orElseThrow(() -> ApiException.notFound("파일"));
             trashed++;
             if (insideSelected.contains(file.getFolder().getId())) continue;   // 고른 폴더와 함께 휴지통으로 [S-15]
             accessPolicy.requireFileDelete(file, userId);
@@ -75,7 +74,7 @@ public class ItemDeletionService {
                 throw ApiException.badRequest("최상위 폴더는 삭제할 수 없습니다.");
             }
             changed(changes, folder.getParent());
-            trash.moveFolderToTrash(folder, userId);
+            folderTrash.moveToTrash(folder, userId);
         }
 
         changes.forEach(events::publishEvent);
@@ -96,9 +95,9 @@ public class ItemDeletionService {
         return ids;
     }
 
-    private static void changed(Set<RealtimeEvents.FolderChanged> changes, Folder folder) {
+    private static void changed(Set<ChangeEvents.FolderChanged> changes, Folder folder) {
         if (folder.teamId() != null) {
-            changes.add(new RealtimeEvents.FolderChanged(folder.teamId(), folder.getId()));
+            changes.add(new ChangeEvents.FolderChanged(folder.teamId(), folder.getId()));
         }
     }
 }

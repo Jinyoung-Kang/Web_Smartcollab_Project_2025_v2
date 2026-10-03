@@ -35,6 +35,7 @@ import java.util.Map;
 public class FileController {
 
     private final FileService fileService;
+    private final ItemDeletionService itemDeletionService;
     private final FileContentService contentService;
 
     @Operation(summary = "업로드", description = "multipart/form-data 의 file 파트를 folderId 폴더에 저장합니다.")
@@ -42,7 +43,8 @@ public class FileController {
     public ResponseEntity<DriveDtos.ItemResponse> upload(@RequestParam Long folderId,
                                                          @RequestPart("file") MultipartFile file,
                                                          @CurrentUser AuthUser user) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(fileService.upload(folderId, file, user.id()));
+        UploadSource source = new UploadSource(file.getOriginalFilename(), file.getSize(), file::getInputStream);
+        return ResponseEntity.status(HttpStatus.CREATED).body(fileService.upload(folderId, source, user.id()));
     }
 
     @Operation(summary = "파일 정보", description = "이름·크기·미리보기 종류. 채팅에 공유된 파일처럼 폴더 목록 없이 미리 볼 때 씁니다.")
@@ -81,7 +83,7 @@ public class FileController {
     @Operation(summary = "휴지통으로 이동")
     @DeleteMapping("/{fileId}")
     public ResponseEntity<Void> trash(@PathVariable Long fileId, @CurrentUser AuthUser user) {
-        fileService.moveToTrash(fileId, user.id());
+        itemDeletionService.delete(new DriveDtos.DeleteRequest(List.of(new DriveDtos.ItemRef("file", fileId))), user.id());
         return ResponseEntity.noContent().build();
     }
 
@@ -108,13 +110,6 @@ public class FileController {
                                         @CurrentUser AuthUser user) {
         contentService.restore(fileId, versionId, user.id());
         return ResponseEntity.noContent().build();
-    }
-
-    @Operation(summary = "현재 버전에 서명", description = "개인 파일은 소유자, 팀 파일은 팀장만 가능")
-    @PostMapping("/{fileId}/signatures")
-    public ResponseEntity<Void> sign(@PathVariable Long fileId, @CurrentUser AuthUser user) {
-        contentService.sign(fileId, user.id());
-        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     @Operation(summary = "파일 이름 검색", description = "teamId 가 없으면 내 드라이브, 있으면 팀 스토리지에서 검색 (최대 100건)")

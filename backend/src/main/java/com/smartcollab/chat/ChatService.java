@@ -1,10 +1,10 @@
 package com.smartcollab.chat;
 
 import com.smartcollab.access.AccessPolicy;
+import com.smartcollab.event.ChangeEvents;
 import com.smartcollab.file.FileEntity;
-import com.smartcollab.file.FileRepository;
+import com.smartcollab.file.FileService;
 import com.smartcollab.global.error.ApiException;
-import com.smartcollab.realtime.RealtimeEvents;
 import com.smartcollab.team.TeamMember;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -15,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -25,7 +24,7 @@ public class ChatService {
     static final int MAX_PAGE = 100;
 
     private final ChatMessageRepository messages;
-    private final FileRepository files;
+    private final FileService fileService;
     private final AccessPolicy accessPolicy;
     private final ApplicationEventPublisher events;
 
@@ -51,9 +50,8 @@ public class ChatService {
         TeamMember member = accessPolicy.requireMember(teamId, userId);
         ChatMessage message;
         if (req.fileId() != null) {
-            FileEntity file = files.findWithFolder(req.fileId())
-                    .filter(f -> !f.isInTrash() && Objects.equals(f.getFolder().teamId(), teamId))
-                    .orElseThrow(() -> ApiException.notFound("이 팀의 파일"));
+            FileEntity file = fileService.findActive(req.fileId()).orElseThrow(() -> ApiException.notFound("이 팀의 파일"));
+            accessPolicy.requireTeamChatFile(file, teamId);
             message = ChatMessage.fileShare(member.getTeam(), member.getUser(), file.getId(), file.getName(), file.getSize());
         } else {
             String content = req.content() == null ? "" : req.content().strip();
@@ -66,7 +64,7 @@ public class ChatService {
             message = ChatMessage.text(member.getTeam(), member.getUser(), content);
         }
         ChatDtos.MessageResponse response = ChatDtos.MessageResponse.of(messages.save(message));
-        events.publishEvent(new RealtimeEvents.ChatPosted(teamId, response));
+        events.publishEvent(new ChangeEvents.ChatPosted(teamId, response));
         return response;
     }
 
@@ -74,6 +72,6 @@ public class ChatService {
     public void clear(Long teamId, Long userId) {
         accessPolicy.requireLeader(teamId, userId);
         messages.deleteByTeam(teamId);
-        events.publishEvent(new RealtimeEvents.TeamChanged(teamId, RealtimeEvents.TeamChangeType.CHAT_CLEARED));
+        events.publishEvent(new ChangeEvents.TeamChanged(teamId, ChangeEvents.TeamChangeType.CHAT_CLEARED));
     }
 }

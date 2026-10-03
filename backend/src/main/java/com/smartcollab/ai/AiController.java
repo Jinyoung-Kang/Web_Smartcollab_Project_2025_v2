@@ -36,7 +36,8 @@ public class AiController {
     @PostMapping("/api/files/{fileId}/translation")
     public TranslationResponse translate(@PathVariable Long fileId, @RequestParam String target,
                                          @CurrentUser AuthUser user) {
-        return translationService.translate(fileId, user.id(), target);
+        TranslationService.TranslationResult result = translationService.translate(fileId, user.id(), target);
+        return new TranslationResponse(result.text(), result.targetLanguage(), result.detectedSourceLanguage());
     }
 
     public record SummaryResponse(List<String> sentences, int totalSentences, String method) {

@@ -1,22 +1,20 @@
 package com.smartcollab.file;
 
 import com.smartcollab.access.AccessPolicy;
+import com.smartcollab.event.ChangeEvents;
 import com.smartcollab.folder.Folder;
 import com.smartcollab.folder.FolderRepository;
 import com.smartcollab.folder.FolderStructureLock;
+import com.smartcollab.folder.FolderTrash;
 import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.tx.TransactionRunner;
-import com.smartcollab.realtime.RealtimeEvents;
-import com.smartcollab.team.TeamMember;
-import com.smartcollab.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
@@ -41,17 +39,16 @@ public class TrashService {
 
     private final FileRepository files;
     private final FolderRepository folders;
-    private final UserRepository users;
     private final AccessPolicy accessPolicy;
     private final DriveCleanupService cleanup;
     private final AppProperties props;
     private final ApplicationEventPublisher events;
     private final TransactionRunner tx;
     private final FolderStructureLock structureLock;
+    private final FolderTrash folderTrash;
 
     /** 자동 비우기에서 한 트랜잭션으로 지우는 파일 수 [PERF-05] */
     static final int PURGE_BATCH = 500;
-    private static final int CHUNK = 500;
 
     @Transactional(readOnly = true)
     public List<DriveDtos.TrashItem> list(Long teamId, Long userId) {
@@ -76,21 +73,6 @@ public class TrashService {
         return items;
     }
 
-    /**
-     * 폴더를 하위 폴더까지 휴지통에 넣습니다 [UX-06]. 권한·최상위 폴더 확인과 변경 알림은 호출하는 쪽이 합니다.
-     * 이미 따로 휴지통에 넣은 하위 폴더는 그대로 두어 휴지통 목록에 따로 남습니다.
-     * <p>일괄 UPDATE 가 영속성 컨텍스트를 비우므로, 호출하는 쪽은 이 뒤에 이전에 읽은 엔티티를 쓰지 않아야 합니다.</p>
-     */
-    @Transactional(propagation = Propagation.MANDATORY)
-    public void moveFolderToTrash(Folder folder, Long userId) {
-        Long rootId = folder.getId();
-        List<Long> subtree = folders.findSubtree(rootId).stream().map(FolderRepository.SubtreeRow::getId).toList();
-        for (int from = 0; from < subtree.size(); from += CHUNK) {
-            folders.markInTrash(subtree.subList(from, Math.min(from + CHUNK, subtree.size())), rootId);
-        }
-        folders.stampTrashRoot(rootId, Instant.now(), users.getReferenceById(userId));
-    }
-
     @Transactional
     public void restore(Long fileId, Long userId) {
         FileEntity file = getTrashed(fileId);
@@ -98,7 +80,7 @@ public class TrashService {
         file.restoreFromTrash();
         Long teamId = file.getFolder().teamId();
         if (teamId != null) {
-            events.publishEvent(new RealtimeEvents.FolderChanged(teamId, file.getFolder().getId()));
+            events.publishEvent(new ChangeEvents.FolderChanged(teamId, file.getFolder().getId()));
         }
     }
 
@@ -111,18 +93,12 @@ public class TrashService {
         structureLock.lockScopesOf(List.of(folderId));   // 복원과 영구 삭제·자동 비우기가 엇갈리지 않게 [S-06]
         Folder folder = folders.findById(folderId).orElseThrow(() -> ApiException.notFound("휴지통의 폴더"));
         accessPolicy.requireTrashedFolderManage(folder, userId);
-        boolean relocated = folder.getParent().isInTrash();
-        Folder destination = relocated ? scopeRoot(folder) : folder.getParent();
-        if (relocated) {
-            folder.moveUnder(destination);
-        }
-        Long destinationId = destination.getId();
         Long teamId = folder.teamId();
-        folders.restoreFromTrash(folderId);
+        FolderTrash.Restored restored = folderTrash.restore(folder);
         if (teamId != null) {
-            events.publishEvent(new RealtimeEvents.FolderChanged(teamId, destinationId));
+            events.publishEvent(new ChangeEvents.FolderChanged(teamId, restored.destinationId()));
         }
-        return new DriveDtos.RestoreResponse(destinationId, relocated);
+        return new DriveDtos.RestoreResponse(restored.destinationId(), restored.relocated());
     }
 
     @Transactional
@@ -204,10 +180,7 @@ public class TrashService {
     }
 
     private void requireTeamTrashAccess(Long teamId, Long userId) {
-        TeamMember member = accessPolicy.requireMember(teamId, userId);
-        if (!member.mayDelete()) {
-            throw ApiException.forbidden("팀 휴지통은 삭제 권한이 있는 멤버만 볼 수 있습니다.");
-        }
+        accessPolicy.requireTeamTrash(teamId, userId);
     }
 
     private FileEntity getTrashed(Long fileId) {
@@ -216,12 +189,5 @@ public class TrashService {
             throw ApiException.notFound("휴지통의 파일");
         }
         return file;
-    }
-
-    private Folder scopeRoot(Folder folder) {
-        return (folder.getTeam() == null
-                ? folders.findPersonalRoot(folder.getOwner().getId())
-                : folders.findTeamRoot(folder.teamId()))
-                .orElseThrow(() -> ApiException.notFound("최상위 폴더"));
     }
 }

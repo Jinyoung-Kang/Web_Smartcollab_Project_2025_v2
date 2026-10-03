@@ -2,13 +2,13 @@ package com.smartcollab.folder;
 
 import com.smartcollab.access.Access;
 import com.smartcollab.access.AccessPolicy;
-import com.smartcollab.file.TrashService;
+import com.smartcollab.access.PermissionsResponse;
+import com.smartcollab.event.ChangeEvents;
 import com.smartcollab.file.DriveDtos;
 import com.smartcollab.file.FileEntity;
 import com.smartcollab.file.FileRepository;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.util.FileNames;
-import com.smartcollab.realtime.RealtimeEvents;
 import com.smartcollab.user.User;
 import com.smartcollab.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -31,11 +31,10 @@ public class FolderService {
     private final AccessPolicy accessPolicy;
     private final FolderDepthPolicy depthPolicy;
     private final FolderStructureLock structureLock;
-    private final TrashService trash;
     private final ApplicationEventPublisher events;
 
     @Transactional(readOnly = true)
-    public DriveDtos.FolderContents contents(Long folderId, Long userId) {
+    public FolderDtos.FolderContents contents(Long folderId, Long userId) {
         Folder folder = get(folderId);
         Access access = accessPolicy.requireRead(folder, userId);
 
@@ -49,17 +48,17 @@ public class FolderService {
                 .map(DriveDtos.ItemResponse::of)
                 .forEach(items::add);
 
-        List<DriveDtos.Breadcrumb> path = folders.findPath(folderId).stream()
-                .map(row -> new DriveDtos.Breadcrumb(row.getId(),
+        List<FolderDtos.Breadcrumb> path = folders.findPath(folderId).stream()
+                .map(row -> new FolderDtos.Breadcrumb(row.getId(),
                         row.getParentId() == null ? rootName(folder) : row.getName()))
                 .toList();
-        DriveDtos.FolderInfo info = new DriveDtos.FolderInfo(folder.getId(),
+        FolderDtos.FolderInfo info = new FolderDtos.FolderInfo(folder.getId(),
                 folder.isRoot() ? rootName(folder) : folder.getName(), folder.teamId(), folder.isRoot());
-        return new DriveDtos.FolderContents(info, path, items, DriveDtos.PermissionsResponse.of(access));
+        return new FolderDtos.FolderContents(info, path, items, PermissionsResponse.of(access));
     }
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
-    public DriveDtos.ItemResponse create(DriveDtos.CreateFolderRequest req, Long userId) {
+    public DriveDtos.ItemResponse create(FolderDtos.CreateFolderRequest req, Long userId) {
         structureLock.lockScopesOf(List.of(req.parentId()));   // 휴지통에 들어가는 폴더 아래에 동시에 만들지 못하게 [S-06]
         Folder parent = get(req.parentId());
         accessPolicy.requireEdit(parent, userId);
@@ -81,25 +80,8 @@ public class FolderService {
         publishChanged(folder.getParent());
     }
 
-    /** 폴더를 하위 폴더·파일과 함께 휴지통으로 옮깁니다(30일 뒤 자동 영구 삭제) [UX-06]. 이전에는 즉시 영구 삭제였습니다. */
-    @Transactional(isolation = Isolation.READ_COMMITTED)
-    public void delete(Long folderId, Long userId) {
-        structureLock.lockScopesOf(List.of(folderId));
-        Folder folder = get(folderId);
-        accessPolicy.requireDelete(folder, userId);
-        if (folder.isRoot()) {
-            throw ApiException.badRequest("최상위 폴더는 삭제할 수 없습니다.");
-        }
-        Long teamId = folder.teamId();
-        Long parentId = folder.getParent().getId();
-        trash.moveFolderToTrash(folder, userId);
-        if (teamId != null) {
-            events.publishEvent(new RealtimeEvents.FolderChanged(teamId, parentId));
-        }
-    }
-
     @Transactional(readOnly = true)
-    public DriveDtos.FolderTreeResponse tree(Long teamId, Long userId) {
+    public FolderDtos.FolderTreeResponse tree(Long teamId, Long userId) {
         List<FolderNode> nodes;
         String rootName;
         if (teamId != null) {
@@ -110,7 +92,7 @@ public class FolderService {
             nodes = folders.findPersonalNodes(userId);
             rootName = "내 드라이브";
         }
-        return new DriveDtos.FolderTreeResponse(new FolderTree(nodes).roots(rootName));
+        return new FolderDtos.FolderTreeResponse(new FolderTree(nodes).roots(rootName));
     }
 
     private Folder get(Long folderId) {
@@ -123,7 +105,7 @@ public class FolderService {
 
     private void publishChanged(Folder folder) {
         if (folder != null && folder.teamId() != null) {
-            events.publishEvent(new RealtimeEvents.FolderChanged(folder.teamId(), folder.getId()));
+            events.publishEvent(new ChangeEvents.FolderChanged(folder.teamId(), folder.getId()));
         }
     }
 }

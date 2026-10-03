@@ -18,6 +18,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  * <ul>
  *   <li>표현(컨트롤러) → 비즈니스(서비스) → 데이터 접근(리포지토리) 순서로만 의존합니다.</li>
  *   <li>공통 모듈(global)과 저장소 어댑터(storage)는 도메인 패키지를 모릅니다 (재사용·교체 가능).</li>
+ *   <li>모듈 사이 이벤트(event)는 ID·값만 담고 어느 모듈에도 의존하지 않습니다 [A-03].</li>
  *   <li>API 는 엔티티 대신 DTO 를 돌려줍니다 (비밀번호 해시 같은 내부 필드 노출·지연 로딩 오류 방지).</li>
  * </ul>
  */
@@ -71,6 +72,23 @@ class ArchitectureTest {
     void storageIsIndependentOfDomain() {
         noClasses().that().resideInAPackage("com.smartcollab.storage..")
                 .should().dependOnClassesThat().resideInAnyPackage(DOMAIN_PACKAGES)
+                .check(CLASSES);
+    }
+
+    @Test
+    @DisplayName("[A-03] 모듈 사이 이벤트(event)는 도메인 패키지에 의존하지 않는다 (ID·값만 담음)")
+    void eventsAreIndependentOfDomain() {
+        noClasses().that().resideInAPackage("com.smartcollab.event..")
+                .should().dependOnClassesThat().resideInAnyPackage(DOMAIN_PACKAGES)
+                .check(CLASSES);
+    }
+
+    @Test
+    @DisplayName("[A-05] 서비스는 웹 타입(MultipartFile·HTTP 응답 등)과 컨트롤러에 의존하지 않는다 (요청·응답 형식은 컨트롤러 몫)")
+    void servicesDoNotDependOnWebTypes() {
+        noClasses().that().areAnnotatedWith(Service.class)
+                .should().dependOnClassesThat().resideInAnyPackage("org.springframework.web..", "org.springframework.http..")
+                .orShould().dependOnClassesThat().areAnnotatedWith(RestController.class)
                 .check(CLASSES);
     }
 }

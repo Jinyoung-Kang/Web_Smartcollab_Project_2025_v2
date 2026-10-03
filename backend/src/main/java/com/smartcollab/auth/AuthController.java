@@ -47,16 +47,16 @@ public class AuthController {
     @PostMapping("/signup")
     public ResponseEntity<AuthDtos.MeResponse> signUp(@Valid @RequestBody AuthDtos.SignUpRequest request,
                                                       HttpServletRequest http) {
-        User user = authService.signUp(request, ClientIp.of(http));
-        return withLoginCookie(HttpStatus.CREATED, user);
+        AuthService.Account account = authService.signUp(request, ClientIp.of(http));
+        return withLoginCookie(HttpStatus.CREATED, account);
     }
 
     @Operation(summary = "로그인", description = "성공하면 HttpOnly 인증 쿠키(SC_AUTH)를 설정합니다. IP 당 분당, 계정당 10분 시도 횟수가 제한됩니다.")
     @PostMapping("/login")
     public ResponseEntity<AuthDtos.MeResponse> login(@Valid @RequestBody AuthDtos.LoginRequest request,
                                                      HttpServletRequest http) {
-        User user = authService.authenticate(request.username(), request.password(), ClientIp.of(http));
-        return withLoginCookie(HttpStatus.OK, user);
+        AuthService.Account account = authService.authenticate(request.username(), request.password(), ClientIp.of(http));
+        return withLoginCookie(HttpStatus.OK, account);
     }
 
     @PostMapping("/logout")
@@ -72,11 +72,11 @@ public class AuthController {
         return authService.me(user.id());
     }
 
-    private ResponseEntity<AuthDtos.MeResponse> withLoginCookie(HttpStatus status, User user) {
-        String token = authService.issueToken(user);
+    private ResponseEntity<AuthDtos.MeResponse> withLoginCookie(HttpStatus status, AuthService.Account account) {
+        String token = authService.issueToken(account);
         return ResponseEntity.status(status)
                 .header(HttpHeaders.SET_COOKIE, cookies.issue(token, authService.tokenTtl()).toString())
                 .header(HttpHeaders.SET_COOKIE, cookies.clearCsrf().toString())
-                .body(authService.me(user.getId()));
+                .body(authService.me(account.id()));
     }
 }

@@ -2,7 +2,6 @@ package com.smartcollab.folder;
 
 import com.smartcollab.file.DriveDtos;
 import com.smartcollab.file.ItemTransferService;
-import com.smartcollab.file.TrashService;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.support.Api;
 import com.smartcollab.support.IntegrationTest;
@@ -38,7 +37,7 @@ class FolderConcurrencyTest extends IntegrationTest {
     @Autowired
     ItemTransferService transfer;
     @Autowired
-    TrashService trashService;
+    FolderTrash folderTrash;
     @Autowired
     PlatformTransactionManager txManager;
     @Autowired
@@ -71,7 +70,7 @@ class FolderConcurrencyTest extends IntegrationTest {
         tx.executeWithoutResult(st -> {
             Folder child = folders.findById(c).orElseThrow();                       // 이름 변경 요청이 하위 폴더를 읽음
             requiresNew.executeWithoutResult(inner ->                                // 그 사이 다른 요청이 상위 폴더를 휴지통에 넣고 커밋
-                    trashService.moveFolderToTrash(folders.findById(p).orElseThrow(), s.userId));
+                    folderTrash.moveToTrash(folders.findById(p).orElseThrow(), s.userId));
             child.rename("새 이름");                                                // 이름 변경 커밋
         });
 
@@ -103,8 +102,8 @@ class FolderConcurrencyTest extends IntegrationTest {
         long c = s.createFolder(p, "하위");
 
         Throwable result = raceAgainst(s.userId,
-                () -> trashService.moveFolderToTrash(folders.findById(p).orElseThrow(), s.userId),
-                () -> folderService.create(new DriveDtos.CreateFolderRequest(c, "새 폴더"), s.userId));
+                () -> folderTrash.moveToTrash(folders.findById(p).orElseThrow(), s.userId),
+                () -> folderService.create(new FolderDtos.CreateFolderRequest(c, "새 폴더"), s.userId));
 
         assertThat(result).isInstanceOf(ApiException.class);
         assertThat(jdbc.queryForObject("select count(*) from folders where parent_folder_id = ?", Integer.class, c)).isZero();

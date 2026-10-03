@@ -1,5 +1,6 @@
 package com.smartcollab.notification;
 
+import com.smartcollab.event.NoticeEvents;
 import com.smartcollab.team.Invitation;
 import com.smartcollab.team.Team;
 import com.smartcollab.user.User;
@@ -26,16 +27,6 @@ import java.time.Instant;
 @Table(name = "notifications")
 public class Notification {
 
-    public enum Type {
-        TEAM_INVITE,
-        INVITE_ACCEPTED,
-        INVITE_REJECTED,
-        PERMISSION_CHANGED,
-        REMOVED_FROM_TEAM,
-        LEADERSHIP_TRANSFERRED,
-        TEAM_DELETED
-    }
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "notification_id")
@@ -47,7 +38,7 @@ public class Notification {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 40)
-    private Type type;
+    private NoticeEvents.Type type;
 
     @Column(nullable = false, length = 500)
     private String content;
@@ -66,7 +57,7 @@ public class Notification {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
-    public Notification(User user, Type type, String content, Invitation invitation, Team team) {
+    public Notification(User user, NoticeEvents.Type type, String content, Invitation invitation, Team team) {
         this.user = user;
         this.type = type;
         this.content = content.length() > 500 ? content.substring(0, 500) : content;

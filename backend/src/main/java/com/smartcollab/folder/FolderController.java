@@ -1,6 +1,7 @@
 package com.smartcollab.folder;
 
 import com.smartcollab.file.DriveDtos;
+import com.smartcollab.file.ItemDeletionService;
 import com.smartcollab.global.security.AuthUser;
 import com.smartcollab.global.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,6 +20,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @Tag(name = "Folders", description = "폴더 탐색·생성·이름 변경·삭제")
 @RestController
 @RequestMapping("/api/folders")
@@ -26,21 +29,22 @@ import org.springframework.web.bind.annotation.RestController;
 public class FolderController {
 
     private final FolderService folderService;
+    private final ItemDeletionService itemDeletionService;
 
     @Operation(summary = "폴더 내용", description = "하위 폴더·파일, 경로(breadcrumb), 이 폴더에서의 내 권한을 함께 반환합니다.")
     @GetMapping("/{folderId}")
-    public DriveDtos.FolderContents contents(@PathVariable Long folderId, @CurrentUser AuthUser user) {
+    public FolderDtos.FolderContents contents(@PathVariable Long folderId, @CurrentUser AuthUser user) {
         return folderService.contents(folderId, user.id());
     }
 
     @Operation(summary = "폴더 트리", description = "teamId 가 없으면 내 드라이브, 있으면 팀 스토리지 전체 트리 (쿼리 1회)")
     @GetMapping("/tree")
-    public DriveDtos.FolderTreeResponse tree(@RequestParam(required = false) Long teamId, @CurrentUser AuthUser user) {
+    public FolderDtos.FolderTreeResponse tree(@RequestParam(required = false) Long teamId, @CurrentUser AuthUser user) {
         return folderService.tree(teamId, user.id());
     }
 
     @PostMapping
-    public ResponseEntity<DriveDtos.ItemResponse> create(@Valid @RequestBody DriveDtos.CreateFolderRequest request,
+    public ResponseEntity<DriveDtos.ItemResponse> create(@Valid @RequestBody FolderDtos.CreateFolderRequest request,
                                                          @CurrentUser AuthUser user) {
         return ResponseEntity.status(HttpStatus.CREATED).body(folderService.create(request, user.id()));
     }
@@ -52,10 +56,10 @@ public class FolderController {
         return ResponseEntity.noContent().build();
     }
 
-    @Operation(summary = "폴더 영구 삭제", description = "하위 폴더와 파일(휴지통 포함)까지 함께 삭제됩니다.")
+    @Operation(summary = "휴지통으로 이동", description = "하위 폴더·파일과 함께 휴지통으로 옮깁니다. 보관 기간(기본 30일)이 지나면 자동으로 영구 삭제됩니다.")
     @DeleteMapping("/{folderId}")
     public ResponseEntity<Void> delete(@PathVariable Long folderId, @CurrentUser AuthUser user) {
-        folderService.delete(folderId, user.id());
+        itemDeletionService.delete(new DriveDtos.DeleteRequest(List.of(new DriveDtos.ItemRef("folder", folderId))), user.id());
         return ResponseEntity.noContent().build();
     }
 }

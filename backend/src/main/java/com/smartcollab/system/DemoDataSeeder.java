@@ -7,17 +7,21 @@ import com.smartcollab.chat.ChatService;
 import com.smartcollab.file.DriveDtos;
 import com.smartcollab.file.FileContentService;
 import com.smartcollab.file.FileService;
-import com.smartcollab.folder.FolderRepository;
+import com.smartcollab.file.ItemDeletionService;
+import com.smartcollab.file.UploadSource;
+import com.smartcollab.folder.FolderDtos;
 import com.smartcollab.folder.FolderService;
+import com.smartcollab.folder.RootFolders;
 import com.smartcollab.global.config.AppProperties;
+import com.smartcollab.notification.NotificationRepository;
 import com.smartcollab.share.ShareDtos;
 import com.smartcollab.share.ShareService;
+import com.smartcollab.signature.SignatureService;
 import com.smartcollab.team.TeamDtos;
 import com.smartcollab.team.TeamMember;
 import com.smartcollab.team.TeamMemberRepository;
 import com.smartcollab.team.TeamRepository;
 import com.smartcollab.team.TeamService;
-import com.smartcollab.notification.NotificationRepository;
 import com.smartcollab.user.AccountService;
 import com.smartcollab.user.DemoAccounts;
 import com.smartcollab.user.User;
@@ -30,7 +34,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import javax.imageio.ImageIO;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -42,6 +45,7 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
+import javax.imageio.ImageIO;
 
 /**
  * 데모 모드(DEMO_ENABLED=true)에서 체험용 계정·팀·문서를 만듭니다. 실제 서비스 코드(가입·업로드·버전 저장·서명·채팅)를
@@ -59,9 +63,11 @@ public class DemoDataSeeder {
     private final TeamService teamService;
     private final TeamMemberRepository members;
     private final FolderService folderService;
-    private final FolderRepository folders;
+    private final RootFolders rootFolders;
     private final FileService fileService;
+    private final ItemDeletionService itemDeletionService;
     private final FileContentService contentService;
+    private final SignatureService signatureService;
     private final ChatService chatService;
     private final ShareService shareService;
     private final NotificationRepository notifications;
@@ -129,9 +135,9 @@ public class DemoDataSeeder {
 
         DriveDtos.ItemResponse kickoff = upload(minutes, "킥오프 회의.md", KICKOFF_V1, leader);
         save(kickoff.id(), KICKOFF_V2, editor);
-        contentService.sign(kickoff.id(), leader.getId());                // v2 에 서명
+        signatureService.sign(kickoff.id(), leader.getId());                // v2 에 서명
         save(kickoff.id(), KICKOFF_V3, deleter);                           // 새 버전 → v2 서명은 무효
-        contentService.sign(kickoff.id(), leader.getId());                // v3 에 다시 서명
+        signatureService.sign(kickoff.id(), leader.getId());                // v3 에 다시 서명
         upload(minutes, "주간 회의 메모.txt", WEEKLY_MEMO, deleter);
 
         DriveDtos.ItemResponse sketch = upload(design, "화면 스케치.png", sketchPng(), deleter);
@@ -146,12 +152,12 @@ public class DemoDataSeeder {
         shareService.create(overview.id(), new ShareDtos.CreateRequest(null, 24 * 7, 20), leader.getId());
 
         // 개인 드라이브와 휴지통
-        Long personalRoot = folders.findPersonalRoot(leader.getId()).orElseThrow().getId();
+        Long personalRoot = rootFolders.personalOf(leader).getId();
         Long refs = folder(personalRoot, "참고 자료", leader);
         upload(personalRoot, "할 일.txt", TODO, leader);
         upload(refs, "읽을거리.md", READING, leader);
         DriveDtos.ItemResponse old = upload(personalRoot, "지난 초안.txt", "이전 버전의 초안입니다.", leader);
-        fileService.moveToTrash(old.id(), leader.getId());
+        itemDeletionService.delete(new DriveDtos.DeleteRequest(List.of(new DriveDtos.ItemRef("file", old.id()))), leader.getId());
 
         // 알림: 다른 팀에서 온 초대(수락/거절 대기)
         TeamDtos.TeamSummary review = teamService.createDemoTeam("디자인 리뷰", editor.getId());
@@ -180,7 +186,7 @@ public class DemoDataSeeder {
     }
 
     private Long folder(Long parentId, String name, User user) {
-        return folderService.create(new DriveDtos.CreateFolderRequest(parentId, name), user.getId()).id();
+        return folderService.create(new FolderDtos.CreateFolderRequest(parentId, name), user.getId()).id();
     }
 
     private DriveDtos.ItemResponse upload(Long folderId, String name, String text, User user) {
@@ -188,7 +194,7 @@ public class DemoDataSeeder {
     }
 
     private DriveDtos.ItemResponse upload(Long folderId, String name, byte[] bytes, User user) {
-        return fileService.upload(folderId, new BytesMultipartFile(name, bytes), user.getId());
+        return fileService.upload(folderId, UploadSource.of(name, bytes), user.getId());
     }
 
     private Long save(Long fileId, String text, User user) {

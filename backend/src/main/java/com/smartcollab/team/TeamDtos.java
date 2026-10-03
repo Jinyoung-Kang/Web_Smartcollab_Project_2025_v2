@@ -1,6 +1,6 @@
 package com.smartcollab.team;
 
-import com.smartcollab.file.DriveDtos;
+import com.smartcollab.access.PermissionsResponse;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -23,7 +23,7 @@ public final class TeamDtos {
     }
 
     public record TeamSummary(Long id, String name, String ownerName, long memberCount, Long rootFolderId,
-                              DriveDtos.PermissionsResponse myPermissions) {
+                              PermissionsResponse myPermissions) {
     }
 
     public record MemberResponse(Long memberId, Long userId, String username, String name, boolean leader,
@@ -35,9 +35,7 @@ public final class TeamDtos {
     }
 
     public record TeamDetail(Long id, String name, String ownerUsername, Long rootFolderId,
-                             DriveDtos.PermissionsResponse myPermissions, List<MemberResponse> members) {
+                             PermissionsResponse myPermissions, List<MemberResponse> members) {
     }
 
-    public record PresenceResponse(List<String> online) {
-    }
 }

@@ -2,14 +2,13 @@ package com.smartcollab.file;
 
 import com.smartcollab.access.Access;
 import com.smartcollab.access.AccessPolicy;
+import com.smartcollab.event.ChangeEvents;
+import com.smartcollab.event.FileEvents;
 import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.error.ErrorCode;
 import com.smartcollab.global.tx.TransactionRunner;
 import com.smartcollab.global.util.FileNames;
-import com.smartcollab.realtime.RealtimeEvents;
-import com.smartcollab.signature.Signature;
-import com.smartcollab.signature.SignatureRepository;
 import com.smartcollab.storage.BlobLifecycle;
 import com.smartcollab.storage.BlobStorage;
 import com.smartcollab.storage.StoredBlob;
@@ -30,11 +29,10 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
- * 텍스트 편집·버전 기록·버전 복원·서명.
- * <p>한 파일의 내용 변경(저장·복원)과 서명은 파일 행 잠금으로 차례로 처리합니다 [S-17]. 서명은 잠근 뒤 읽은 현재 버전에 붙고,
+ * 텍스트 편집·버전 기록·버전 복원. 서명은 서명 모듈(SignatureService)이 맡습니다.
+ * <p>한 파일의 내용 변경(저장·복원)과 서명(서명 모듈)은 파일 행 잠금으로 차례로 처리합니다 [S-17]. 서명은 잠근 뒤 읽은 현재 버전에 붙고,
  * 뒤이은 내용 변경은 그 서명까지 무효로 합니다. 이전에는 서명이 잠그지 않아, 저장이 버전을 바꾸고 서명을 무효로 하는 사이에
  * 끼어들면 밀려난 버전에 유효한 서명이 남았습니다.</p>
  */
@@ -44,7 +42,7 @@ public class FileContentService {
 
     private final FileService fileService;
     private final FileVersionRepository versions;
-    private final SignatureRepository signatures;
+    private final VersionSignatures versionSignatures;
     private final UserRepository users;
     private final AccessPolicy accessPolicy;
     private final BlobStorage storage;
@@ -114,7 +112,7 @@ public class FileContentService {
                 fileService.lockActive(fileId);
                 FileVersion version = versions.save(new FileVersion(file, key, editor, blob.size(), blob.sha256()));
                 file.activate(version);
-                signatures.invalidateAll(fileId);   // 내용이 바뀌었으므로 기존 서명은 무효
+                events.publishEvent(new FileEvents.CurrentVersionChanged(fileId));   // 기존 서명 무효 (서명 모듈)
                 publishChanged(file);
                 return new SaveResult(version.getId(), file.getUpdatedAt());
             });
@@ -141,9 +139,7 @@ public class FileContentService {
         FileEntity file = fileService.getActive(fileId);
         accessPolicy.requireFileRead(file, userId);
         Long activeId = file.getActiveVersion().getId();
-        Map<Long, List<SignatureResponse>> signaturesByVersion = signatures.findByFile(fileId).stream()
-                .collect(Collectors.groupingBy(s -> s.getFileVersion().getId(),
-                        Collectors.mapping(SignatureResponse::of, Collectors.toList())));
+        Map<Long, List<SignatureResponse>> signaturesByVersion = versionSignatures.byVersion(fileId);
         return versions.findHistory(fileId).stream()
                 .map(v -> new VersionResponse(v.getId(), v.getCreatedAt(), v.getEditor().getName(), v.getSize(),
                         v.getSha256(), v.getId().equals(activeId),
@@ -162,27 +158,7 @@ public class FileContentService {
             return;
         }
         file.activate(version);
-        signatures.invalidateAll(fileId);
-        publishChanged(file);
-    }
-
-    /**
-     * 현재 버전에 서명합니다. 개인 파일은 소유자, 팀 파일은 팀장만 서명할 수 있습니다.
-     * v1 은 "가장 최근에 만들어진 버전"에 서명해, 옛 버전을 복원한 뒤 서명하면 엉뚱한 버전에 서명됐습니다.
-     */
-    @Transactional(isolation = Isolation.READ_COMMITTED)
-    public void sign(Long fileId, Long userId) {
-        FileEntity file = fileService.lockActive(fileId);   // 저장·복원이 끝난 뒤의 현재 버전에 서명 [S-17]
-        Access access = accessPolicy.requireFileRead(file, userId);
-        boolean allowed = access.isTeam() ? access.leader() : file.isOwnedBy(userId);
-        if (!allowed) {
-            throw ApiException.forbidden(access.isTeam() ? "팀 파일은 팀장만 서명할 수 있습니다." : "파일 소유자만 서명할 수 있습니다.");
-        }
-        FileVersion active = file.getActiveVersion();
-        if (signatures.existsByFileVersionIdAndSignerId(active.getId(), userId)) {
-            throw ApiException.conflict("이미 이 버전에 서명했습니다.");
-        }
-        signatures.save(new Signature(file, active, users.getReferenceById(userId)));
+        events.publishEvent(new FileEvents.CurrentVersionChanged(fileId));
         publishChanged(file);
     }
 
@@ -212,7 +188,7 @@ public class FileContentService {
     private void publishChanged(FileEntity file) {
         Long teamId = file.getFolder().teamId();
         if (teamId != null) {
-            events.publishEvent(new RealtimeEvents.FolderChanged(teamId, file.getFolder().getId()));
+            events.publishEvent(new ChangeEvents.FolderChanged(teamId, file.getFolder().getId()));
         }
     }
 
@@ -229,9 +205,6 @@ public class FileContentService {
     }
 
     public record SignatureResponse(String signerName, Instant signedAt, boolean valid, String sha256) {
-        static SignatureResponse of(Signature s) {
-            return new SignatureResponse(s.getSigner().getName(), s.getSignedAt(), s.isValid(), s.getSha256());
-        }
     }
 
     public record VersionResponse(Long versionId, Instant createdAt, String editorName, long size, String sha256,

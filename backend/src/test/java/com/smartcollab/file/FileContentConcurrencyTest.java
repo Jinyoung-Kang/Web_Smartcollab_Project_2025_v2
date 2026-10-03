@@ -1,5 +1,6 @@
 package com.smartcollab.file;
 
+import com.smartcollab.signature.SignatureService;
 import com.smartcollab.support.Api;
 import com.smartcollab.support.IntegrationTest;
 import com.smartcollab.support.TransactionRace;
@@ -23,6 +24,8 @@ class FileContentConcurrencyTest extends IntegrationTest {
     @Autowired
     FileContentService content;
     @Autowired
+    SignatureService signatureService;
+    @Autowired
     TransactionTemplate tx;
 
     private Long activeVersion(long fileId) {
@@ -44,7 +47,7 @@ class FileContentConcurrencyTest extends IntegrationTest {
         Throwable result;
         try (TransactionRace race = new TransactionRace(tx)) {
             result = race.run(() -> content.saveText(file, "2판", first, s.userId),
-                    () -> content.sign(file, s.userId));
+                    () -> signatureService.sign(file, s.userId));
         }
 
         assertThat(result).isNull();
@@ -63,7 +66,7 @@ class FileContentConcurrencyTest extends IntegrationTest {
         Throwable result;
         try (TransactionRace race = new TransactionRace(tx)) {
             result = race.run(() -> content.restore(file, first, s.userId),
-                    () -> content.sign(file, s.userId));
+                    () -> signatureService.sign(file, s.userId));
         }
 
         assertThat(result).isNull();

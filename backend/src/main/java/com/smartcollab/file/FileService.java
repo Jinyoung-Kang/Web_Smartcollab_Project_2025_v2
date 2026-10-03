@@ -1,6 +1,7 @@
 package com.smartcollab.file;
 
 import com.smartcollab.access.AccessPolicy;
+import com.smartcollab.event.ChangeEvents;
 import com.smartcollab.folder.Folder;
 import com.smartcollab.folder.FolderNode;
 import com.smartcollab.folder.FolderRepository;
@@ -9,7 +10,6 @@ import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.error.ErrorCode;
 import com.smartcollab.global.tx.TransactionRunner;
 import com.smartcollab.global.util.FileNames;
-import com.smartcollab.realtime.RealtimeEvents;
 import com.smartcollab.storage.BlobLifecycle;
 import com.smartcollab.storage.BlobStorage;
 import com.smartcollab.storage.StoredBlob;
@@ -20,15 +20,14 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.time.Duration;
 import java.util.List;
-import java.util.Optional;
 import java.util.Locale;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -56,21 +55,21 @@ public class FileService {
      * </ol>
      * 3단계가 실패하면 2단계에서 쓴 파일을 지웁니다.
      */
-    public DriveDtos.ItemResponse upload(Long folderId, MultipartFile multipart, Long userId) {
-        if (multipart == null || multipart.isEmpty()) {
+    public DriveDtos.ItemResponse upload(Long folderId, UploadSource source, Long userId) {
+        if (source == null || source.isEmpty()) {
             throw ApiException.badRequest("빈 파일은 업로드할 수 없습니다.");
         }
-        String name = FileNames.sanitizeUploadName(multipart.getOriginalFilename());
+        String name = FileNames.sanitizeUploadName(source.filename());
         tx.readOnly(() -> {
             Folder folder = getFolder(folderId);
             accessPolicy.requireEdit(folder, userId);
-            quota.checkRoom(StorageQuota.Scope.of(folder), multipart.getSize());
+            quota.checkRoom(StorageQuota.Scope.of(folder), source.size());
         });
 
         String key = BlobLifecycle.newFileKey();
         StoredBlob blob;
-        try (InputStream in = multipart.getInputStream()) {
-            blob = storage.put(key, in, multipart.getSize());
+        try (InputStream in = source.opener().open()) {
+            blob = storage.put(key, in, source.size());
         } catch (IOException e) {
             throw new UncheckedIOException("업로드 스트림을 읽지 못했습니다.", e);
         }
@@ -126,14 +125,6 @@ public class FileService {
         FileEntity file = getActive(fileId);
         accessPolicy.requireFileEdit(file, userId);
         file.rename(FileNames.validate(newName));
-        publishChanged(file.getFolder());
-    }
-
-    @Transactional
-    public void moveToTrash(Long fileId, Long userId) {
-        FileEntity file = getActive(fileId);
-        accessPolicy.requireFileDelete(file, userId);
-        file.moveToTrash(users.getReferenceById(userId));
         publishChanged(file.getFolder());
     }
 
@@ -198,26 +189,25 @@ public class FileService {
         return new DriveDtos.UsageResponse(usage.fileCount(), usage.totalBytes(), quota.usedBytes(scope), quota.limitBytes(scope));
     }
 
-    FileEntity getActive(Long fileId) {
-        return active(files.findWithFolder(fileId));
+    /** 휴지통이 아닌 파일, 없으면 404 [A-07] */
+    public FileEntity getActive(Long fileId) {
+        return files.findActive(fileId).orElseThrow(() -> ApiException.notFound("파일"));
+    }
+
+    /** 휴지통이 아닌 파일 (없으면 빈 값) [A-07] */
+    public Optional<FileEntity> findActive(Long fileId) {
+        return files.findActive(fileId);
     }
 
     /** 파일 행을 잠그고 읽습니다. 트랜잭션에서 이 파일을 처음 읽을 때 불러야 최신 상태를 얻습니다 [S-17]. */
-    FileEntity lockActive(Long fileId) {
-        return active(files.lockWithFolder(fileId));
-    }
-
-    private static FileEntity active(Optional<FileEntity> found) {
-        FileEntity file = found.orElseThrow(() -> ApiException.notFound("파일"));
-        if (file.isInTrash()) {
-            throw ApiException.notFound("파일");
-        }
-        return file;
+    public FileEntity lockActive(Long fileId) {
+        return files.lockWithFolder(fileId).filter(file -> !file.isInTrash())
+                .orElseThrow(() -> ApiException.notFound("파일"));
     }
 
     private void publishChanged(Folder folder) {
         if (folder.teamId() != null) {
-            events.publishEvent(new RealtimeEvents.FolderChanged(folder.teamId(), folder.getId()));
+            events.publishEvent(new ChangeEvents.FolderChanged(folder.teamId(), folder.getId()));
         }
     }
 

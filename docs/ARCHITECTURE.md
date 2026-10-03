@@ -40,25 +40,31 @@ flowchart LR
 com.smartcollab
 ├── global      config · error(ProblemDetail) · security(JWT 쿠키, CSRF, 요청 제한, 보안 이벤트 로그)
 │               · web(요청 추적 ID·접근 기록, 본문 크기 제한) · util
+├── event       모듈 사이 이벤트(ID·값만) — 커밋 뒤 화면 갱신·같은 트랜잭션의 후속 처리·연쇄 정리
 ├── access      AccessPolicy — 파일·폴더·팀 권한 판단의 단일 진입점
 ├── auth / user 가입·로그인·탈퇴, 시스템 계정
-├── folder      Folder, 재귀 CTE 조회, FolderTree(O(n) 트리)
+├── folder      Folder, 재귀 CTE 조회, FolderTree(O(n) 트리), 최상위 폴더·휴지통 상태·깊이·구조 잠금
 ├── file        업로드·다운로드·텍스트 편집·버전·휴지통·이동/복사·일괄 삭제
 ├── storage     BlobStorage(전략) · Local · Azure · BlobLifecycle(트랜잭션 연동)
 ├── team        팀·멤버·초대·권한
 ├── chat        커서 페이지 채팅, STOMP 컨트롤러
 ├── share       공유 링크, HMAC 다운로드 허가
-├── signature   버전 서명
+├── signature   버전 서명(서명하기·버전별 서명 제공·내용이 바뀌면 무효화)
 ├── notification 알림
-├── realtime    WebSocket 설정, STOMP 인가, 팀 구독 추적(접속 표시·권한 회수), 커밋 후 이벤트 발행
+├── realtime    WebSocket 설정, STOMP 인가, 팀 구독 추적(접속 표시·권한 회수), 접속 현황 API, 커밋 후 이벤트 발행
 ├── ai          추출 요약, 번역(사용자별 하루 분량 제한), DeepL 클라이언트
 └── system      공개 설정, 데모 데이터
 ```
 
 **의존 방향 규칙** (`ArchitectureTest`, ArchUnit 으로 빌드마다 검사): 컨트롤러는 리포지토리를 직접 쓰지 않고 서비스를 거칩니다.
-서비스는 서블릿(HTTP) 타입을 모르고, 컨트롤러는 엔티티 대신 DTO 를 돌려줍니다. 공통 모듈(`global`)과 저장소 어댑터(`storage`)는
-도메인 패키지에 의존하지 않습니다. 도메인 패키지끼리(file ↔ folder 등)는 서로 참조합니다 — 한 드라이브 기능을 이루는 밀접한
-애그리거트라 억지로 떼어 내지 않았습니다.
+서비스는 서블릿·웹 타입(MultipartFile·HTTP 응답)과 컨트롤러를 모르고, 컨트롤러는 엔티티 대신 DTO 를 돌려줍니다.
+공통 모듈(`global`)·저장소 어댑터(`storage`)·모듈 사이 이벤트(`event`)는 도메인 패키지에 의존하지 않습니다.
+
+**모듈 사이 의존** (`ModuleBoundaryTest`, 3차 점검 A-01~A-08 → [ADR-0010](adr/0010-module-boundaries-and-events.md)):
+- 회원 탈퇴·팀 삭제·파일 영구 삭제의 연쇄 정리는 지우는 쪽이 `DeletionEvents` 를 발행하고, 데이터를 가진 모듈이 같은 트랜잭션 안에서
+  듣고 정리합니다(외래 키 순서는 `DeletionEvents.Order`). 다른 모듈의 리포지토리로 지우거나 넘기지 않습니다.
+- 양방향 의존 17쌍 → 5쌍, 순환에 묶인 패키지 10개 → 4개. 남은 순환(access·file·folder·team)은 엔티티 연관과 `AccessPolicy` 가
+  엔티티를 받는 데서 생기며, 기준선으로 고정해 새 순환·새 양방향 의존·다른 모듈 리포지토리의 새 사용을 테스트가 막습니다.
 
 **요청이 거치는 필터 순서**: `RequestTraceFilter`(추적 ID·접근 기록) → `RequestBodyLimitFilter`(본문 6MB) →
 Spring Security(쿠키 JWT 인증·CSRF·보안 헤더) → 컨트롤러. 추적 필터가 가장 앞에 있어 413·401 같은 거절 응답에도 추적 ID 가 붙습니다.

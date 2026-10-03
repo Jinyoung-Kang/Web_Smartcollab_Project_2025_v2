@@ -4,7 +4,7 @@
 
 | 위협 | 대응 | 위치 |
 |---|---|---|
-| 다른 사용자의 파일·팀 데이터 접근 (IDOR) | 모든 파일·폴더·팀 요청을 `AccessPolicy` 로 판단. 읽을 수 없으면 404 로 존재 여부도 숨김 | `access/AccessPolicy` |
+| 다른 사용자의 파일·팀 데이터 접근 (IDOR) | 모든 파일·폴더·팀 요청을 `AccessPolicy` 로 판단. 읽을 수 없으면 404 로 존재 여부도 숨김. 서비스에 흩어져 있던 팀 휴지통·초대·서명·채팅 파일 공유 규칙도 여기로 모음(A-06) | `access/AccessPolicy` |
 | 토큰 탈취 (XSS)·스타일 주입 | JWT 를 HttpOnly 쿠키에 보관(자바스크립트로 읽을 수 없음), CSP `script-src 'self'`·`style-src 'self'`(인라인 스타일도 금지, E2E 가 모든 화면의 CSP 위반을 감시) | `AuthCookies`, `SecurityConfig.CSP`, `e2e/tests/fixtures.ts` |
 | CSRF | 쿠키 `SameSite=Strict` + SPA CSRF 토큰(`XSRF-TOKEN` → `X-XSRF-TOKEN`). 토큰은 로그인·로그아웃 때만 교체(요청마다 교체하면 요청이 겹칠 때 어긋남) | `SecurityConfig`, `AuthCookies.clearCsrf` |
 | WebSocket 도청·사칭 (CSWSH 포함) | 핸드셰이크 쿠키 인증 + 출처 검사, 구독마다 팀 멤버 확인, 보낸 사람은 Principal | `StompAuthorizationInterceptor` |
