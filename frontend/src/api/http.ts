@@ -44,7 +44,13 @@ let csrfRequest: Promise<void> | null = null
 export function ensureCsrf(force = false): Promise<void> {
   if (!force && readCookie(CSRF_COOKIE)) return Promise.resolve()
   csrfRequest ??= fetch('/api/auth/csrf', { credentials: 'same-origin' })
-    .then(() => undefined)
+    .then(
+      () => undefined,
+      // 네트워크 오류면 브라우저의 영문 오류(TypeError: Failed to fetch) 대신 다른 요청과 같은 안내로 [FB-12]
+      () => {
+        throw new ApiError(0, 'NETWORK', FALLBACK_MESSAGES[0]!)
+      },
+    )
     .finally(() => {
       csrfRequest = null
     })

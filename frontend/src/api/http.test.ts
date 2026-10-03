@@ -67,3 +67,15 @@ describe('request', () => {
     expect(handler).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('CSRF 토큰 [FB-12]', () => {
+  it('토큰을 받는 요청이 네트워크 오류로 실패하면 영문 브라우저 오류 대신 한국어 안내(ApiError NETWORK)로 알린다', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      throw new TypeError('Failed to fetch')
+    }))
+    const err = (await request('/api/x', { method: 'POST', json: {} }).catch((e: unknown) => e)) as ApiError
+    expect(err).toBeInstanceOf(ApiError)
+    expect(err.code).toBe('NETWORK')
+    expect(err.message).toBe('서버에 연결할 수 없습니다. 네트워크를 확인하세요.')
+  })
+})
