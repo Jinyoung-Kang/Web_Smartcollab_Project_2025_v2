@@ -14,7 +14,7 @@
 | **프론트엔드** | React 19 · TypeScript · Vite · TanStack Query · Tailwind CSS 4 |
 | **데이터·저장소** | MySQL 8 · Azure Blob Storage(또는 로컬 디스크) |
 | **배포 구성** | Azure App Service(Docker 이미지 또는 jar) · Azure Database for MySQL · Azure Blob Storage — 절차는 [DEPLOYMENT](docs/DEPLOYMENT.md) |
-| **CI·테스트** | GitHub Actions · JUnit 6 + Testcontainers(MySQL·Azurite) 235건 · Vitest 90건 · Playwright E2E 13건(접근성 자동 검사 포함) · ArchUnit 구조 규칙 |
+| **CI·테스트** | GitHub Actions · JUnit 6 + Testcontainers(MySQL·Azurite) 261건 · Vitest 94건 · Playwright E2E 13건(접근성 자동 검사 포함) · ArchUnit 구조 규칙 |
 
 ---
 
@@ -93,12 +93,12 @@ API 문서: <http://localhost:8080/swagger-ui.html> · 전체 목록 [docs/API.m
 ## 테스트
 
 ```bash
-cd backend && ./gradlew test          # 235건 (MySQL·Azurite 컨테이너 자동 실행), 커버리지 리포트 포함
-cd frontend && npm test               # 90건
+cd backend && ./gradlew test          # 261건 (MySQL·Azurite 컨테이너 자동 실행), 커버리지 리포트 포함
+cd frontend && npm test               # 94건
 docker compose up -d --wait && cd e2e && npm ci && npx playwright test   # E2E 13건 (접근성 자동 검사 포함)
 ```
 
-백엔드 라인 커버리지 91.7%(분기 80.3%). 첫 완성본(v1)에서 찾은 결함마다 회귀 테스트가 있습니다 → [docs/TESTING.md](docs/TESTING.md)
+백엔드 라인 커버리지 92.0%(분기 80.5%). 첫 완성본(v1)에서 찾은 결함마다 회귀 테스트가 있습니다 → [docs/TESTING.md](docs/TESTING.md)
 GitHub Actions 가 PR 과 main 푸시마다 백엔드·프론트엔드·E2E(Docker 이미지)·비밀값 검사(gitleaks)를 실행합니다.
 E2E 를 1분 안에 여러 번 돌리면 로그인 요청 제한에 걸리므로, 반복 실행 방법은 [TESTING](docs/TESTING.md) 을 참고하세요.
 
@@ -117,7 +117,7 @@ E2E 를 1분 안에 여러 번 돌리면 로그인 요청 제한에 걸리므로
 | [REVIEW_2026-09](docs/REVIEW_2026-09.md) | 코드 리뷰 (1차) — 발견 28건(해결 21 · 보류 7)의 재현·원인·수정·검증 기록 |
 | [REVIEW_2026-09-28](docs/REVIEW_2026-09-28.md) | 2차 점검 — 아키텍처·성능·보안(OWASP)·UI/UX 기준 재점검, 측정값과 변경 기록 |
 | [REVIEW_2026-10-03](docs/REVIEW_2026-10-03.md) | 3차 점검 — 아키텍처·신뢰성·보안·프런트엔드 구조, 발견 43건의 처리 결과 |
-| [QA_2026-10-03](docs/QA_2026-10-03.md) | 출시 기준 QA — 보안·신뢰성·경계값·화면·성능(k6·Lighthouse)·접근성 검증, 결함 13건(높음 2)의 재현·수정·출시 판단 |
+| [QA_2026-10-03](docs/QA_2026-10-03.md) | 출시 기준 QA — 보안·신뢰성·경계값·화면·성능(k6·Lighthouse)·접근성 검증, 결함 13건(높음 2)의 재현·수정·출시 판단, 후속 개선(사용량 집계·목록 페이지·DB 장애 503·고아 파일 정리 등)의 같은 스택 비교 |
 
 ## 폴더 구조
 

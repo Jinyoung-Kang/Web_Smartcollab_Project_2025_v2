@@ -9,7 +9,8 @@
 | CSRF | 쿠키 `SameSite=Strict` + SPA CSRF 토큰(`XSRF-TOKEN` → `X-XSRF-TOKEN`). 토큰은 로그인·로그아웃 때만 교체(요청마다 교체하면 요청이 겹칠 때 어긋남) | `SecurityConfig`, `AuthCookies.clearCsrf` |
 | WebSocket 도청·사칭 (CSWSH 포함) | 핸드셰이크 쿠키 인증 + 출처 검사, 구독마다 팀 멤버 확인, 보낸 사람은 Principal | `StompAuthorizationInterceptor` |
 | WebSocket 구독 폭주 | 한 연결에서 같은 목적지를 다시 구독하면 DB 조회 전에 거절, 연결당 구독 500개. 거절하면 ERROR 프레임 뒤 연결을 닫음 [S-11] | `StompAuthorizationInterceptor` |
-| 권한이 사라진 뒤의 WebSocket 수신 | 팀에서 제외·나가기·탈퇴가 커밋되면 그 사용자의 열린 팀 구독을 브로커에서 해제. 로그인(JWT)이 만료된 세션은 1분 안에 닫고, 만료 후의 SUBSCRIBE·SEND 는 거절 | `TeamSubscriptionTracker`, `WebSocketSessionExpiry` |
+| 권한이 사라진 뒤의 WebSocket 수신 | 팀에서 제외·나가기·탈퇴가 커밋되면 그 사용자의 열린 팀 구독을 브로커에서 해제. 로그인(JWT)이 만료된 세션과 탈퇴한 계정의 세션은 1분 안에 닫고, 만료 후의 SUBSCRIBE·SEND 는 거절 | `TeamSubscriptionTracker`, `WebSocketSessionExpiry` |
+| 탈퇴한 계정의 남은 토큰 | 탈퇴가 커밋되면 그 사용자 ID 를 토큰 만료 시간(8시간) 동안 거절 목록에 두고, 쿠키·Bearer 토큰 검증에서 401 로 거절. 이전에는 `/api/auth/me` 만 401 이고 다른 API 는 빈 데이터·404 를 돌려줘, 다른 기기의 화면이 로그인 화면으로 돌아가지 않았음 [QA-07] | `RevokedUsers`, `JwtTokenService.decoder` |
 | 무차별 대입 | 로그인: IP 당 분당 10회 + **계정당 10분 20회**(성공 시 초기화) / 공유 비밀번호: 링크+IP 당 10분 10회 + **링크당 10분 50회** (슬라이딩 윈도). 가입 규칙에 맞지 않는 아이디(악센트 변형 등)는 계정 시도 기록·DB 조회 없이 401 — DB 콜레이션이 악센트를 무시해 변형마다 계정 한도가 따로 생기던 문제 [S-03] | `SlidingWindowRateLimiter`, `AuthService`, `ShareService` |
 | 대용량 요청으로 메모리 고갈 (DoS) | 파일 업로드를 뺀 요청 본문을 6MB 로 제한 — 길이를 알리면 읽기 전에, 길이를 알리지 않는 전송(chunked)은 한도를 넘는 순간 413. 업로드는 업로드 한도(200MB)를 따르고, multipart 는 업로드 경로에서만 받음(다른 경로는 읽기 전에 415) [S-18]. 로그인 아이디·비밀번호 길이 상한, 요청 제한기는 키마다 자기 창으로 정리 [S-02] | `RequestBodyLimitFilter`, `AuthDtos`, `SlidingWindowRateLimiter` |
 | 한 요청으로 대량 데이터 생성 | 폴더 깊이 50단계(MySQL 재귀 한도 1000 아래), 한 번에 복사하는 폴더 1,000개·같은 항목 중복 제거 [S-04·S-05] | `FolderDepthPolicy`, `ItemTransferService` |
@@ -77,6 +78,8 @@ v1 은 브라우저에서 Babel 이 JSX 를 `eval` 해야 했고 스크립트를
 - 로그아웃은 쿠키 삭제입니다. 이미 탈취된 토큰은 만료 시각까지 유효합니다(HttpOnly 로 탈취 자체를 어렵게 함).
   사용자별 토큰 버전으로 무효화하면 로그아웃 한 번에 그 계정의 모든 기기가 로그아웃되는데, 여러 방문자가 함께 쓰는 체험 계정에서는
   한 사람의 로그아웃이 다른 방문자를 모두 내보내게 됩니다. 필요해지면 토큰마다 ID(jti)를 두고 폐기 목록을 만료 시각까지 보관하는 방식을 권장합니다.
+- 탈퇴한 계정의 거절 목록도 인스턴스별 인메모리입니다. 서버를 다시 시작하면 목록이 비어, 남은 토큰은 만료 시각까지 탈퇴 전처럼(빈 데이터·404) 응답받습니다.
+  사용자 ID 는 다시 쓰이지 않아 다른 사람의 데이터에는 닿지 않습니다. 여러 인스턴스로 늘리면 요청 제한과 함께 공유 저장소로 옮겨야 합니다 [QA-07].
 - 요청 제한은 인스턴스별 인메모리입니다. 여러 인스턴스로 확장하면 Redis 등 공유 저장소가 필요합니다.
 - 업로드 파일의 악성코드 검사는 하지 않습니다(운영 시 Azure Defender for Storage 등 연동 권장).
 - 업로드 경로로 온 multipart 는 인증 전에 CSRF 필터가 본문 파라미터에서 토큰을 찾느라 업로드 한도까지 해석할 수 있습니다.
