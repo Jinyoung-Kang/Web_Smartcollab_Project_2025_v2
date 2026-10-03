@@ -45,7 +45,8 @@ describe('FileTable', () => {
   })
 })
 
-describe('FileTable — 항목이 많은 폴더 [PERF-02]', () => {
+// 행 450개를 jsdom 에 그리는 테스트라 느린 환경에서는 기본 제한(5초)을 넘었습니다(동시 실행 재현 6.5초).
+describe('FileTable — 항목이 많은 폴더 [PERF-02]', { timeout: 20_000 }, () => {
   const many = Array.from({ length: 450 }, (_, i) => item({ id: i + 1, name: `파일-${String(i).padStart(3, '0')}.txt` }))
   const rowCount = () => document.querySelectorAll('tbody tr[data-row]').length
 
