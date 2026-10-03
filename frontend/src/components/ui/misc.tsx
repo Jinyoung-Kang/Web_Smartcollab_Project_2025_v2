@@ -17,19 +17,22 @@ export function EmptyState({
   description,
   action,
   className,
+  titleAs: Title = 'p',
 }: {
   icon: LucideIcon
   title: string
   description?: ReactNode
   action?: ReactNode
   className?: string
+  /** 화면 전체가 이 안내뿐일 때(없는 폴더·문서) 제목을 h1 으로 — 화면에 h1 이 없던 문제 [QA-12] */
+  titleAs?: 'p' | 'h1'
 }) {
   return (
     <div className={cn('flex flex-col items-center justify-center px-6 py-14 text-center', className)}>
       <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-slate-100">
         <Icon aria-hidden className="size-7 text-slate-400" />
       </div>
-      <p className="font-semibold text-slate-700">{title}</p>
+      <Title className="font-semibold text-slate-700">{title}</Title>
       {description && <p className="mt-1 max-w-sm text-sm text-slate-500">{description}</p>}
       {action && <div className="mt-5">{action}</div>}
     </div>
@@ -58,6 +61,8 @@ export function Avatar({ name, online, size = 'md' }: { name: string; online?: b
             'absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full ring-2 ring-white',
             online ? 'bg-emerald-500' : 'bg-slate-300',
           )}
+          // 역할 없는 span 의 aria-label 은 보조기기가 읽지 않아(ARIA 금지 속성) 이미지 역할을 줍니다 [QA-10]
+          role="img"
           aria-label={online ? '접속 중' : '오프라인'}
         />
       )}

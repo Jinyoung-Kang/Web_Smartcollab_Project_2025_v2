@@ -35,7 +35,8 @@ export function Header({ onOpenMenu }: { onOpenMenu: () => void }) {
       <IconButton label="메뉴 열기" className="lg:hidden" onClick={onOpenMenu}>
         <MenuIcon className="size-5" />
       </IconButton>
-      <Link to="/drive" className="flex items-center gap-2 font-bold text-slate-900">
+      {/* 좁은 화면에서는 글자가 숨어 이름 없는 링크가 되므로 이름을 직접 줍니다 [QA-11] */}
+      <Link to="/drive" aria-label="SmartCollab" className="flex items-center gap-2 font-bold text-slate-900">
         <img src="/favicon.svg" alt="" className="size-7 rounded-lg" />
         <span className="hidden sm:inline">SmartCollab</span>
       </Link>
@@ -67,7 +68,8 @@ export function Header({ onOpenMenu }: { onOpenMenu: () => void }) {
           <button
             onClick={toggle}
             aria-expanded={open}
-            aria-label="내 계정"
+            // 보이는 글자(사용자 이름)를 이름에 포함합니다 — 음성으로 화면에 보이는 이름을 말해 누를 수 있게(WCAG 2.5.3) [QA-13]
+            aria-label={`${me.name} 내 계정`}
             className="flex items-center gap-2 rounded-full p-0.5 hover:bg-slate-100 sm:pr-3"
           >
             <Avatar name={me.name} />
