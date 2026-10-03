@@ -64,6 +64,15 @@ public abstract class IntegrationTest {
         return new Api(mvc, json);
     }
 
+    /** 커밋 뒤 저장소 삭제는 별도 스레드에서 일어나므로 [P-02], 저장소 파일이 사라질 때까지 잠시 기다립니다. */
+    protected static boolean deletedFromStorage(String key) throws InterruptedException {
+        Path file = STORAGE_ROOT.resolve(key);
+        for (int i = 0; i < 100 && java.nio.file.Files.exists(file); i++) {
+            Thread.sleep(50);
+        }
+        return !java.nio.file.Files.exists(file);
+    }
+
     protected static Path storageRoot() {
         return STORAGE_ROOT;
     }

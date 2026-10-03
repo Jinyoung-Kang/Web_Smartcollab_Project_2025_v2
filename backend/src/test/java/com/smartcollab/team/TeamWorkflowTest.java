@@ -5,7 +5,6 @@ import com.smartcollab.support.IntegrationTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.nio.file.Files;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -171,7 +170,7 @@ class TeamWorkflowTest extends IntegrationTest {
 
         assertThat(jdbc.queryForObject("select count(*) from teams where team_id = ?", Integer.class, team[0])).isZero();
         assertThat(jdbc.queryForObject("select count(*) from folders where team_id = ?", Integer.class, team[0])).isZero();
-        assertThat(Files.exists(storageRoot().resolve(key))).isFalse();
+        assertThat(deletedFromStorage(key)).isTrue();
         member.get("/api/teams").andExpect(jsonPath("$", hasSize(0)));
         member.get("/api/notifications").andExpect(jsonPath("$.items[0].type").value("TEAM_DELETED"));
     }

@@ -75,7 +75,7 @@ class DriveWorkflowTest extends IntegrationTest {
         s.delete("/api/files/{id}", fileId).andExpect(status().isNoContent());
         s.delete("/api/trash/{id}", fileId).andExpect(status().isNoContent());
         assertThat(jdbc.queryForObject("select count(*) from files where file_id = ?", Integer.class, fileId)).isZero();
-        assertThat(Files.exists(storageRoot().resolve(key))).as("커밋 후 저장소 파일 삭제").isFalse();
+        assertThat(deletedFromStorage(key)).as("커밋 후 저장소 파일 삭제").isTrue();
     }
 
     @Test
