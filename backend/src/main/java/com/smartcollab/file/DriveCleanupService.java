@@ -39,6 +39,7 @@ public class DriveCleanupService {
     private final FolderRepository folders;
     private final BlobLifecycle blobs;
     private final ApplicationEventPublisher events;
+    private final StorageQuota quota;
 
     /** 파일과 그 버전·서명·공유 링크를 영구 삭제합니다. */
     @Transactional(propagation = Propagation.MANDATORY)
@@ -48,6 +49,7 @@ public class DriveCleanupService {
         for (List<Long> chunk : chunks(fileIds)) {
             blobKeys.addAll(versions.findStoredPaths(chunk));
             events.publishEvent(new DeletionEvents.FilesPurging(List.copyOf(chunk)));   // 서명·공유 링크
+            quota.releaseFiles(chunk);           // 저장 공간별 사용량 집계를 줄임 [IMP-01]
             files.detachActiveVersions(chunk);   // files ↔ file_versions 순환 참조를 먼저 끊음
             versions.deleteByFileIds(chunk);
             files.deleteAllByIds(chunk);

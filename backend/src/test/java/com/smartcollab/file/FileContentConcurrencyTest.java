@@ -7,6 +7,7 @@ import com.smartcollab.support.TransactionRace;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
@@ -45,7 +46,10 @@ class FileContentConcurrencyTest extends IntegrationTest {
         long first = activeVersion(file);
 
         Throwable result;
-        try (TransactionRace race = new TransactionRace(tx)) {
+        // 저장은 운영에서 자기 READ COMMITTED 트랜잭션으로 돌므로(저장 한도 확인이 그 격리 수준을 요구) 같은 격리 수준으로 붙듭니다
+        TransactionTemplate readCommitted = new TransactionTemplate(tx.getTransactionManager());
+        readCommitted.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
+        try (TransactionRace race = new TransactionRace(readCommitted)) {
             result = race.run(() -> content.saveText(file, "2판", first, s.userId),
                     () -> signatureService.sign(file, s.userId));
         }

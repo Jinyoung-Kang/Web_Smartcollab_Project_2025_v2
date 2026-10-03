@@ -235,6 +235,7 @@ public class ItemTransferService {
             p.copy().files().forEach(f -> saveFile(f, created, actor));
             p.copy().children().forEach(child -> queue.add(new Pair(child, created)));
         }
+        quota.record(StorageQuota.Scope.of(target), plan.totalBytes());
         publishChanged(Set.of(target));
     }
 

@@ -112,6 +112,7 @@ public class FileContentService {
                 // (이미 읽은 엔티티는 갱신되지 않지만, 그 사이 다른 변경이 있었다면 @Version 확인이 409 로 막습니다.)
                 fileService.lockActive(fileId);
                 FileVersion version = versions.save(new FileVersion(file, key, editor, blob.size(), blob.sha256()));
+                quota.record(StorageQuota.Scope.of(file.getFolder()), blob.size());
                 file.activate(version);
                 events.publishEvent(new FileEvents.CurrentVersionChanged(fileId));   // 기존 서명 무효 (서명 모듈)
                 publishChanged(file);
