@@ -1,45 +1,20 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Link, useBlocker, useNavigate, useParams } from 'react-router'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router'
+import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, ArrowLeft, Copy, FileSearch, History, Languages, Save, Sparkles, X } from 'lucide-react'
 import { fileApi } from '@/api/endpoints'
-import { ApiError } from '@/api/http'
+import { queryKeys } from '@/api/queryKeys'
 import type { Item, Permissions, TextContent } from '@/api/types'
 import { usePublicConfig } from '@/auth/AuthProvider'
 import { Button, IconButton, buttonStyles } from '@/components/ui/Button'
-import { useConfirm } from '@/components/ui/Confirm'
 import { EmptyState, Spinner } from '@/components/ui/misc'
 import { useToast } from '@/components/ui/Toast'
 import { VersionHistoryDialog } from '@/features/drive/dialogs/VersionHistoryDialog'
 import { formatRelative } from '@/lib/format'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
-import { queryKeys } from '@/api/queryKeys'
-
-/**
- * 충돌로 버려질 편집본을 보관합니다. 클립보드가 막혀 있으면(권한·비보안 연결) 텍스트 파일로 내려받습니다.
- * 이전에는 복사에 실패해도 "클립보드에 복사해 두었습니다"라고 안내했습니다 [BUG-06].
- */
-async function keepDraft(text: string, fileName: string): Promise<'clipboard' | 'file'> {
-  try {
-    if (!navigator.clipboard) throw new Error('clipboard unavailable')
-    await navigator.clipboard.writeText(text)
-    return 'clipboard'
-  } catch {
-    const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }))
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `${fileName.replace(/\.[^.]+$/, '')} (내 편집본).txt`
-    link.click()
-    URL.revokeObjectURL(url)
-    return 'file'
-  }
-}
-
-type ToolResult =
-  | { kind: 'summary'; sentences: string[]; total: number }
-  | { kind: 'translation'; text: string; target: string }
-  | { kind: 'loading'; label: string }
-  | { kind: 'error'; message: string }
+import { useDocumentTools } from './useDocumentTools'
+import { useTextDocument } from './useTextDocument'
+import { useUnsavedChangesGuard } from './useUnsavedChangesGuard'
 
 /**
  * 텍스트 편집기.
@@ -47,6 +22,7 @@ type ToolResult =
  * - Ctrl/⌘+S 저장. 저장하지 않은 변경이 있으면 창을 닫거나 새로고침할 때(beforeunload),
  *   앱 안의 다른 화면으로 이동할 때(useBlocker) 확인합니다 [BUG-04].
  * - 요약은 단어 빈도 기반 "핵심 문장 추출"이며 생성형 AI 결과가 아닙니다. 번역은 DeepL 키가 있을 때만 켜집니다.
+ * 문서 상태는 useTextDocument, 이동 확인은 useUnsavedChangesGuard, 문서 도구는 useDocumentTools 가 맡습니다.
  */
 export default function EditorPage() {
   const fileId = Number(useParams().fileId)
@@ -68,139 +44,17 @@ export default function EditorPage() {
 function Editor({ fileId, initial }: { fileId: number; initial: TextContent }) {
   useDocumentTitle(`${initial.name} 편집`)
   const navigate = useNavigate()
-  const qc = useQueryClient()
   const toast = useToast()
-  const confirm = useConfirm()
   const config = usePublicConfig()
-  const [saved, setSaved] = useState(initial.content)
-  const [draft, setDraft] = useState(initial.content)
-  const [baseVersion, setBaseVersion] = useState(initial.versionId)
-  const [saving, setSaving] = useState(false)
-  const [conflict, setConflict] = useState(false)
-  const [savedAt, setSavedAt] = useState<string | null>(initial.updatedAt)
-  const [tool, setTool] = useState<ToolResult | null>(null)
+  const { draft, setDraft, dirty, editable, saving, savedAt, conflict, save, loadLatest, overwrite, reloadIfClean } =
+    useTextDocument(fileId, initial)
+  const { tool, close: closeTool, summarize, translate } = useDocumentTools(fileId)
   const [historyOpen, setHistoryOpen] = useState(false)
-
-  const dirty = draft !== saved
-  const editable = initial.editable
-
-  useEffect(() => {
-    if (!dirty) return
-    const warn = (e: BeforeUnloadEvent) => e.preventDefault()
-    window.addEventListener('beforeunload', warn)
-    return () => window.removeEventListener('beforeunload', warn)
-  }, [dirty])
-
-  // 사이드바·뒤로 가기 등 앱 안의 이동은 beforeunload 가 발생하지 않으므로 라우터에서 막고 확인합니다.
-  const blocker = useBlocker(({ currentLocation, nextLocation }) => dirty && currentLocation.pathname !== nextLocation.pathname)
-  useEffect(() => {
-    if (blocker.state !== 'blocked') return
-    let active = true
-    void confirm({
-      title: '저장하지 않은 변경이 있습니다',
-      message: '저장하지 않고 나가면 변경 내용이 사라집니다.',
-      confirmLabel: '저장 안 하고 나가기',
-      danger: true,
-    }).then((leave) => {
-      if (!active) return
-      if (leave) blocker.proceed()
-      else blocker.reset()
-    })
-    return () => {
-      active = false
-    }
-  }, [blocker, confirm])
-
-  const save = useCallback(async () => {
-    if (!editable || saving) return
-    setSaving(true)
-    try {
-      const res = await fileApi.save(fileId, draft, baseVersion)
-      setBaseVersion(res.versionId)
-      setSavedAt(res.updatedAt)
-      setSaved(draft)
-      setConflict(false)
-      qc.setQueryData(queryKeys.fileContent(fileId), (old: TextContent | undefined) => old && { ...old, content: draft, versionId: res.versionId })
-      void qc.invalidateQueries({ queryKey: queryKeys.versions.of(fileId) })
-      void qc.invalidateQueries({ queryKey: queryKeys.folder.all })
-      toast.success('새 버전으로 저장했습니다.')
-    } catch (e) {
-      if (e instanceof ApiError && e.code === 'EDIT_CONFLICT') setConflict(true)
-      else toast.error((e as Error).message)
-    } finally {
-      setSaving(false)
-    }
-  }, [draft, baseVersion, editable, saving, fileId, qc, toast])
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
-        e.preventDefault()
-        void save()
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [save])
+  useUnsavedChangesGuard(dirty)
 
   const backTo = initial.teamId ? `/teams/${initial.teamId}/folders/${initial.folderId}` : `/drive/${initial.folderId}`
-
-  // 저장하지 않은 변경이 있으면 위의 이동 차단이 확인을 받습니다.
+  // 저장하지 않은 변경이 있으면 useUnsavedChangesGuard 가 이동 전에 확인을 받습니다.
   const close = () => navigate(backTo)
-
-  /** 충돌 해결 1: 최신 내용을 불러오고, 내 편집본은 클립보드(쓸 수 없으면 파일)로 보관 */
-  // 실패하면 알리고 충돌 안내를 그대로 둡니다(이전에는 처리되지 않은 오류로 아무 안내도 없었음) [FB-08].
-  const loadLatest = async () => {
-    try {
-      const keptIn = await keepDraft(draft, initial.name)
-      const latest = await qc.fetchQuery({ queryKey: queryKeys.fileContent(fileId), queryFn: () => fileApi.content(fileId), staleTime: 0 })
-      setDraft(latest.content)
-      setSaved(latest.content)
-      setBaseVersion(latest.versionId)
-      setConflict(false)
-      toast.info(keptIn === 'clipboard'
-        ? '최신 내용을 불러왔습니다. 내가 쓰던 내용은 클립보드에 복사해 두었습니다.'
-        : '최신 내용을 불러왔습니다. 클립보드를 쓸 수 없어 내가 쓰던 내용을 파일로 내려받았습니다.')
-    } catch (e) {
-      toast.error((e as Error).message)
-    }
-  }
-
-  /** 충돌 해결 2: 최신 버전을 기준으로 내 내용을 새 버전으로 저장 (이전 버전은 기록에 남음) */
-  const overwrite = async () => {
-    try {
-      const latest = await fileApi.content(fileId)
-      const res = await fileApi.save(fileId, draft, latest.versionId)
-      setConflict(false)
-      setBaseVersion(res.versionId)
-      setSavedAt(res.updatedAt)
-      setSaved(draft)
-      qc.setQueryData(queryKeys.fileContent(fileId), { ...latest, content: draft, versionId: res.versionId })
-      toast.success('내 내용으로 새 버전을 저장했습니다. 상대방의 버전은 버전 기록에 남아 있습니다.')
-    } catch (e) {
-      toast.error((e as Error).message)
-    }
-  }
-
-  const runSummary = async () => {
-    setTool({ kind: 'loading', label: '핵심 문장을 고르는 중' })
-    try {
-      const r = await fileApi.summary(fileId)
-      setTool({ kind: 'summary', sentences: r.sentences, total: r.totalSentences })
-    } catch (e) {
-      setTool({ kind: 'error', message: (e as Error).message })
-    }
-  }
-
-  const runTranslate = async (target: 'EN' | 'KO') => {
-    setTool({ kind: 'loading', label: target === 'EN' ? '영어로 번역하는 중' : '한국어로 번역하는 중' })
-    try {
-      const r = await fileApi.translate(fileId, target)
-      setTool({ kind: 'translation', text: r.text, target: r.targetLang })
-    } catch (e) {
-      setTool({ kind: 'error', message: (e as Error).message })
-    }
-  }
 
   const fileItem: Item = {
     type: 'file', id: fileId, name: initial.name, ownerName: '', createdAt: '', updatedAt: initial.updatedAt,
@@ -224,14 +78,14 @@ function Editor({ fileId, initial }: { fileId: number; initial: TextContent }) {
         <Button size="sm" variant="ghost" onClick={() => setHistoryOpen(true)}>
           <History className="size-4" /> 버전
         </Button>
-        <Button size="sm" variant="ghost" onClick={runSummary} title="저장된 최신 버전에서 중요한 문장을 고릅니다">
+        <Button size="sm" variant="ghost" onClick={() => void summarize()} title="저장된 최신 버전에서 중요한 문장을 고릅니다">
           <Sparkles className="size-4" /> 핵심 문장
         </Button>
-        <Button size="sm" variant="ghost" disabled={!config?.translationEnabled} onClick={() => runTranslate('EN')}
+        <Button size="sm" variant="ghost" disabled={!config?.translationEnabled} onClick={() => void translate('EN')}
           title={config?.translationEnabled ? '영어로 번역 (DeepL)' : '서버에 번역 API 키가 설정되지 않았습니다'}>
           <Languages className="size-4" /> EN
         </Button>
-        <Button size="sm" variant="ghost" disabled={!config?.translationEnabled} onClick={() => runTranslate('KO')}
+        <Button size="sm" variant="ghost" disabled={!config?.translationEnabled} onClick={() => void translate('KO')}
           title={config?.translationEnabled ? '한국어로 번역 (DeepL)' : '서버에 번역 API 키가 설정되지 않았습니다'}>
           <Languages className="size-4" /> KO
         </Button>
@@ -273,7 +127,7 @@ function Editor({ fileId, initial }: { fileId: number; initial: TextContent }) {
                   <Copy className="size-4" />
                 </IconButton>
               )}
-              <IconButton label="닫기" onClick={() => setTool(null)}>
+              <IconButton label="닫기" onClick={closeTool}>
                 <X className="size-4" />
               </IconButton>
             </div>
@@ -298,14 +152,7 @@ function Editor({ fileId, initial }: { fileId: number; initial: TextContent }) {
       </div>
       <VersionHistoryDialog file={historyOpen ? fileItem : null} permissions={permissions} onClose={() => {
         setHistoryOpen(false)
-        // 버전 복원 후에는 최신 내용을 다시 불러옵니다 (변경 중이 아닐 때만)
-        if (!dirty) {
-          void qc.fetchQuery({ queryKey: queryKeys.fileContent(fileId), queryFn: () => fileApi.content(fileId), staleTime: 0 }).then((latest) => {
-            setDraft(latest.content)
-            setSaved(latest.content)
-            setBaseVersion(latest.versionId)
-          }, (e: Error) => toast.error(`최신 내용을 불러오지 못했습니다. ${e.message}`))
-        }
+        reloadIfClean()   // 버전을 되돌렸다면 최신 내용으로
       }} />
     </div>
   )

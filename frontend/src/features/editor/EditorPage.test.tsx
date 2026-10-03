@@ -15,9 +15,9 @@ const doc: TextContent = {
 
 let client: QueryClient
 
-function renderEditor() {
+function renderEditor(config: Partial<PublicConfig> = {}) {
   vi.spyOn(fileApi, 'content').mockResolvedValue(doc)
-  vi.spyOn(configApi, 'get').mockResolvedValue({ translationEnabled: false } as PublicConfig)
+  vi.spyOn(configApi, 'get').mockResolvedValue({ translationEnabled: false, ...config } as PublicConfig)
   const router = createMemoryRouter(
     [
       { path: '/files/:fileId/edit', element: <EditorPage /> },
