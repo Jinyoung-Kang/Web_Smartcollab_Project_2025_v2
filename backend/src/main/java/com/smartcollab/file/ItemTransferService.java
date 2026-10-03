@@ -140,6 +140,7 @@ public class ItemTransferService {
         List<FileCopy> fileCopies = new ArrayList<>();
         int count = 0;
         int folderCount = 0;
+        int height = -1;   // 복사할 폴더 트리 중 가장 높은 것(폴더가 없으면 -1)
         // 같은 항목을 여러 번 넣어 복사본을 불리지 못하게 중복을 없앱니다 [S-04]
         for (DriveDtos.ItemRef ref : req.items().stream().distinct().toList()) {
             if (ref.type().equals("folder")) {
@@ -155,6 +156,7 @@ public class ItemTransferService {
                     throw ApiException.badRequest("한 번에 복사할 수 있는 폴더는 " + props.files().maxCopyFolders() + "개까지입니다.");
                 }
                 depthPolicy.requireRoomUnder(target, FolderDepthPolicy.heightOf(subtree));
+                height = Math.max(height, FolderDepthPolicy.heightOf(subtree));
                 FolderCopy tree = planFolderTree(source, subtree, uniqueName(source.isRoot() ? "복사된 폴더" : source.getName(), takenNames));
                 folderCopies.add(tree);
                 count += tree.fileCount();
@@ -169,7 +171,7 @@ public class ItemTransferService {
                 throw ApiException.badRequest("한 번에 복사할 수 있는 파일은 " + MAX_COPY_FILES + "개까지입니다.");
             }
         }
-        CopyPlan plan = new CopyPlan(target.getId(), folderCopies, fileCopies, count);
+        CopyPlan plan = new CopyPlan(target.getId(), folderCopies, fileCopies, count, height);
         quota.checkRoom(StorageQuota.Scope.of(target), plan.totalBytes());
         return plan;
     }
@@ -216,6 +218,10 @@ public class ItemTransferService {
         structureLock.lockScopesOf(List.of(plan.targetFolderId()));   // 대상이 그 사이 휴지통에 들어갔으면 아래 권한 확인에서 404 [S-06]
         Folder target = getFolder(plan.targetFolderId());
         accessPolicy.requireEdit(target, userId);
+        // 계획(잠그지 않은 읽기) 뒤 저장소에 복사하는 동안 대상이 깊은 곳으로 옮겨졌을 수 있어 잠근 뒤 다시 확인합니다 [S-05]
+        if (plan.height() >= 0) {
+            depthPolicy.requireRoomUnder(target, plan.height());
+        }
         quota.lockAndCheckRoom(StorageQuota.Scope.of(target), plan.totalBytes());
         User actor = users.findById(userId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
         plan.files().forEach(f -> saveFile(f, target, actor));
@@ -264,7 +270,8 @@ public class ItemTransferService {
         }
     }
 
-    private record CopyPlan(Long targetFolderId, List<FolderCopy> folders, List<FileCopy> files, int fileCount) {
+    /** @param height 복사할 폴더 트리 중 가장 높은 것의 높이(폴더가 없으면 -1) */
+    private record CopyPlan(Long targetFolderId, List<FolderCopy> folders, List<FileCopy> files, int fileCount, int height) {
         long totalBytes() {
             return allFiles().stream().mapToLong(FileCopy::size).sum();
         }
