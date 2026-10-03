@@ -1,3 +1,4 @@
+import { CLIENT_ID } from './clientId'
 import { ApiError, onUnauthorized, request } from './http'
 
 function mockFetch(responses: Array<{ status: number; body?: unknown }>) {
@@ -48,6 +49,13 @@ describe('request', () => {
     const { calls } = mockFetch([{ status: 204 }])
     await request('/api/x', { method: 'POST', json: { a: 1 } })
     expect((calls[0]!.headers as Record<string, string>)['X-XSRF-TOKEN']).toBe('abc123')
+  })
+
+  it('[IMP-03] 요청에 이 탭의 ID 를 X-Client-Id 헤더로 보낸다 (실시간 이벤트에서 자기 변경을 알아보려고)', async () => {
+    const { calls } = mockFetch([{ status: 204 }])
+    await request('POST', '/api/folders', { parentId: 1, name: 'x' })
+    expect((calls[0]?.headers as Record<string, string>)['X-Client-Id']).toBe(CLIENT_ID)
+    expect(CLIENT_ID).toMatch(/^[A-Za-z0-9-]{8,64}$/)
   })
 
   it('CSRF 토큰 오류면 토큰을 새로 받고 한 번 재시도한다', async () => {

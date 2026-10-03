@@ -1,4 +1,5 @@
 import { QueryClient } from '@tanstack/react-query'
+import { CLIENT_ID } from '@/api/clientId'
 import { queryKeys } from '@/api/queryKeys'
 import type { AppNotification, ChatMessage } from '@/api/types'
 import { applyNotification, applyTeamEvent, shouldMarkUnread } from './teamEvents'
@@ -15,6 +16,14 @@ describe('applyTeamEvent', () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.folder.of(11) })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.tree.of(3) })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.trash.of(3) })
+  })
+
+  it('[IMP-03] 이 탭이 일으킨 폴더 변경이면 다시 불러오지 않는다 (변경 요청의 응답이 이미 갱신함), 다른 탭·사람이면 불러온다', () => {
+    const { qc, invalidate } = client()
+    applyTeamEvent(qc, 3, { type: 'FOLDER_CHANGED', folderId: 11, origin: CLIENT_ID })
+    expect(invalidate).not.toHaveBeenCalled()
+    applyTeamEvent(qc, 3, { type: 'FOLDER_CHANGED', folderId: 11, origin: 'other-tab-1234' })
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.folder.of(11) })
   })
 
   it('채팅을 비우면 그 팀 채팅을 처음부터, 팀이 지워지면 팀을 캐시에서 빼고 알린다', () => {
