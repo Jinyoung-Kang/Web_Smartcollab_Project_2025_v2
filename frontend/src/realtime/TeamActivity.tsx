@@ -99,7 +99,12 @@ export function TeamActivityProvider({ children }: { children: ReactNode }) {
 
   // 끊긴 동안 팀에서 제외됐을 수 있으므로 재연결하면 팀 목록을 다시 받아 구독을 맞춥니다.
   // (제외된 팀 토픽을 다시 구독하면 서버가 거절하며 연결을 닫습니다)
-  useOnReconnect(connected, () => void qc.invalidateQueries({ queryKey: ['teams'] }))
+  // 채팅·알림은 실시간으로만 갱신되므로(채팅 캐시는 만료 없음) 끊긴 동안 온 것을 다시 받습니다 [FB-05].
+  useOnReconnect(connected, () => {
+    void qc.invalidateQueries({ queryKey: ['teams'] })
+    void qc.invalidateQueries({ queryKey: ['chat'] })
+    void qc.invalidateQueries({ queryKey: ['notifications'] })
+  })
 
   useSubscription('/user/queue/notifications', (payload) => {
     const n = payload as AppNotification
