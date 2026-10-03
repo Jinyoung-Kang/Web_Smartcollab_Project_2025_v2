@@ -1,6 +1,10 @@
 # 운영(Azure App Service) 프로필 — SPRING_PROFILES_ACTIVE=prod
 spring:
+  # 공통 설정의 개발용 DB 기본값을 물려받지 않습니다. 비어 있으면 ProductionSettings 가 기동을 멈춥니다 [S-14].
   datasource:
+    url: ${DB_URL:}
+    username: ${DB_USERNAME:}
+    password: ${DB_PASSWORD:}
     hikari:
       maximum-pool-size: ${DB_POOL_SIZE:20}
 
