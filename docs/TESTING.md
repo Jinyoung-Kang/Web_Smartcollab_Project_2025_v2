@@ -2,16 +2,16 @@
 
 | 층 | 도구 | 개수 | 실행 |
 |---|---|---:|---|
-| 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 173 | `cd backend && ./gradlew test` |
+| 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 210 | `cd backend && ./gradlew test` |
 | 프론트엔드 단위·컴포넌트 | Vitest · Testing Library · jsdom | 51 | `cd frontend && npm test` |
 | E2E (전체 스택) | Playwright · Docker Compose · axe-core | 12 (시나리오 10 + 접근성·탭 제목 2) | `docker compose up -d --wait && cd e2e && npx playwright test` |
 
-백엔드 라인 커버리지 **90.0%**, 분기 커버리지 **77.6%** (JaCoCo, `backend/build/reports/jacoco/test/html`).
+백엔드 라인 커버리지 **90.9%**, 분기 커버리지 **79.2%** (JaCoCo, `backend/build/reports/jacoco/test/html`).
 
 ## 원칙
 
 - **H2 대신 실제 MySQL** 로 통합 테스트합니다. 재귀 CTE·`ON DELETE SET NULL`·조건부 UPDATE 처럼 DB 동작에 기대는 로직이 많아, 운영과 다른 DB 로 테스트하면 통과해도 믿을 수 없기 때문입니다.
-- 테스트마다 무작위 사용자 이름을 써서 데이터를 분리하고, 컨테이너와 Spring 컨텍스트는 한 번만 띄웁니다(전체 173건 약 1분 40초). 테스트 JVM 은 운영 컨테이너·CI 와 같은 UTC 로 실행합니다.
+- 테스트마다 무작위 사용자 이름을 써서 데이터를 분리하고, 컨테이너와 Spring 컨텍스트는 한 번만 띄웁니다(전체 210건, 테스트 실행 약 2분 — 2026-10-03 로컬 측정 124초). 테스트 JVM 은 운영 컨테이너·CI 와 같은 UTC 로 실행합니다.
 - v1 에서 찾은 결함마다 이름에 `[v1 …]` 을, 2026-09 코드 리뷰 항목에는 `[SEC-01]`·`[BUG-02]` 처럼 항목 ID 를 붙인 회귀 테스트가 있습니다 → [REFACTORING_REPORT.md](REFACTORING_REPORT.md), [REVIEW_2026-09.md](REVIEW_2026-09.md)
 - 인증은 실제 브라우저처럼 HttpOnly 쿠키 + CSRF 토큰으로 요청합니다(`support/Api`).
 
@@ -20,11 +20,13 @@
 | 테스트 | 검증 내용 |
 |---|---|
 | `AccessControlTest` | v1 의 권한 누락 경로 10종 — 비로그인 파일 열람, 남의 파일·팀·버전·알림 접근, 다른 팀 멤버 조작 |
-| `WebSocketSecurityTest` | 실제 서버(랜덤 포트)에 WebSocket 으로 접속 — 비로그인 거부, 사칭 불가, 비멤버 구독 차단, 알림 푸시, 접속자 갱신 |
+| `WebSocketSecurityTest` · `StompSubscriptionLimitTest` | 실제 서버(랜덤 포트)에 WebSocket 으로 접속 — 비로그인 거부, 사칭 불가, 비멤버 구독 차단, 알림 푸시, 접속자 갱신, 같은 목적지 중복 구독 거절 / 연결당 구독 상한·해제·끊김 정리, 거절된 구독은 자리를 차지하지 않음 (S-11) |
 | `DriveWorkflowTest` | 업로드·다운로드 파일명, 안전한 inline 미리보기, 휴지통 수명주기(커밋 후 저장소 삭제), 폴더 삭제(휴지통·서명 포함), 복사본 다운로드, 순환 이동 차단, 검색 |
 | `TextEditingTest` | 낙관적 잠금(409), 버전 복원, 현재 버전 서명·무효화, 추출 요약, 번역 키 없음 처리 |
-| `TeamWorkflowTest` | 초대·수락·중복 방지, 권한 적용, 팀장 위임, 팀 삭제 정리, 채팅 커서 페이지, 채팅에 공유된 파일의 정보(미리보기 종류)·휴지통이면 404 |
-| `ShareLinkTest` | 비밀번호·grant 흐름, **동시 다운로드 12건 중 정확히 3건만 성공**, 만료·해제·휴지통 |
+| `TeamWorkflowTest` | 초대·수락·중복 방지, 권한 적용, 팀장 위임, 팀 삭제 정리, 채팅 커서 페이지, 채팅에 공유된 파일의 정보(미리보기 종류)·휴지통이면 404, 새 멤버의 편집 권한은 초대자를 따름·초대 권한을 잃은 사람의 초대는 수락 불가 (S-08), 팀장인 팀 10개 (S-10) |
+| `ShareLinkTest` | 비밀번호·grant 흐름, **동시 다운로드 12건 중 정확히 3건만 성공**, 만료·해제·휴지통, 만든 사람이 팀에서 나가면 링크 동작 중지 (S-09) |
+| `AuthFlowTest` | 쿠키·CSRF 인증 흐름, 요청 제한, 악센트 변형 아이디로 로그인 불가·긴 아이디 조기 거절 (S-02·S-03), 체험 계정 아이디로 가입 불가 (S-19) |
+| `FolderLimitsTest` · `FolderConcurrencyTest` · `FileContentConcurrencyTest` | 폴더 깊이 50단계·복사 폴더 1,000개·중복 항목 (S-04·S-05) / 다른 트랜잭션이 잠금을 쥔 채 기다리는 동안 요청을 보내(`support/TransactionRace`) 경합을 결정적으로 재현 — 휴지통 표시 유실·순환 이동·휴지통 폴더 아래 생성 (S-06), 저장·복원과 겹친 서명 (S-17) |
 | `AccountDeletionTest` | 복잡한 이력이 있는 사용자의 탈퇴와 팀 자료 이관 |
 | `QueryCountBenchmarkTest` · `DownloadMemoryBenchmarkTest` · `StorageConnectionBenchmarkTest` | 성능 측정값 산출 ([PERFORMANCE.md](PERFORMANCE.md)). 마지막은 저장소 입출력 중 DB 커넥션 점유가 0 인지 검증 |
 | `CsrfEndpointTest` | 실제 서버에서 CSRF 발급 토큰이 헤더로 쓸 수 있는 값인지, 로그인한 요청이 토큰을 바꾸지 않는지 (BUG-07·08) |
@@ -32,17 +34,18 @@
 | `StorageCleanupTest` | 트랜잭션 밖에서 쓴 파일을 DB 저장·후속 복사 실패 시 지우는지 (PERF-01) |
 | `SpaRoutingTest` | 화면 경로는 index.html, API·정적 파일은 그대로 (BUG-02) |
 | `StorageQuotaTest` | 저장 공간 한도 — 옛 버전·휴지통 포함, 복사·텍스트 저장, 팀 한도, **동시 업로드 8개 중 한도만큼 6개만** (SEC-05) |
-| `DemoProtectionTest` | 체험 계정의 탈퇴·팀 삭제 등 차단, 체험 한도, 초기화 후 복원 (SEC-06). 데모 모드를 켠 별도 컨텍스트 |
-| `TrashPurgeScheduleTest` · `CorsProfileTest` · `GlobalExceptionHandlerTest` | 스케줄 시간대, 프로필별 CORS 출처, 로그에 입력값을 남기지 않는지 |
-| `RequestBodyLimitTest` | 실제 Tomcat 에 한도를 넘는 본문을 보내면 Content-Length·chunked 모두 413, 파일 업로드는 제외 (SEC-10) |
-| `RequestTraceTest` | 추적 ID 가 응답 헤더·오류 본문·로그에서 같은지, 위조된 ID 교체, 쿼리 문자열·입력한 자격 증명을 로그에 남기지 않는지 (ARC-02·SEC-11) |
-| `SecurityHeadersTest` · `TranslationServiceTest` | CSP 가 인라인 스크립트·스타일을 막는지 (SEC-12) / 사용자별 하루 번역 분량, 거절된 요청은 분량 미사용, 권한 확인이 먼저 (SEC-07) |
+| `DemoProtectionTest` | 체험 계정의 탈퇴·팀 삭제·새 팀 만들기 등 차단, 체험 한도, 초기화 후 복원 (SEC-06·S-10). 데모 모드를 켠 별도 컨텍스트 |
+| `TrashPurgeScheduleTest` · `CorsProfileTest` · `ProductionSettingsTest` · `GlobalExceptionHandlerTest` | 스케줄 시간대, 프로필별 CORS 출처, 운영 프로필은 DB 환경 변수 없이 기동하지 않음 (S-14), 로그에 입력값을 남기지 않는지 |
+| `DependencyVersionTest` | Jackson·Tomcat 이 공지가 고쳐진 버전 아래로 내려가지 않는지 (S-01) |
+| `RequestBodyLimitTest` | 실제 Tomcat 에 한도를 넘는 본문을 보내면 Content-Length·chunked 모두 413, 파일 업로드는 제외 (SEC-10), 업로드 경로가 아닌 multipart 는 읽기 전에 415 (S-18) |
+| `RequestTraceTest` | 추적 ID 가 응답 헤더·오류 본문·로그에서 같은지, 위조된 ID 교체, 쿼리 문자열·입력한 자격 증명·공유 토큰을 로그에 남기지 않는지 (ARC-02·SEC-11·S-07) |
+| `SecurityHeadersTest` · `TranslationServiceTest` | CSP 가 인라인 스크립트·스타일을 막는지 (SEC-12), 파일 응답의 sandbox(PDF 미리보기 제외) (S-13) / 사용자별 하루 번역 분량, 거절된 요청은 분량 미사용, 권한 확인이 먼저 (SEC-07), 호출 실패 시 분량 반환 (S-16) |
 | `FolderTrashTest` | 폴더 휴지통 — 안의 폴더·파일이 드라이브·트리·검색·직접 접근·공유 링크에서 모두 사라짐, 복원, 영구 삭제(저장 공간 반환), 상위 폴더가 휴지통이면 최상위로 복원, 휴지통 폴더로는 이동·업로드 불가, 복사 시 휴지통 하위 폴더 제외, 보관 기간 만료, 팀 권한 (UX-06) |
-| `ItemDeletionTest` · `TrashPurgeBatchTest` | 여러 항목 삭제가 한 트랜잭션(전부 아니면 전무)·폴더당 알림 1번 (PERF-03) / 휴지통 자동 비우기 500개씩 배치 (PERF-05) |
+| `ItemDeletionTest` · `TrashPurgeBatchTest` | 여러 항목 삭제가 한 트랜잭션(전부 아니면 전무)·폴더당 알림 1번 (PERF-03), 고른 폴더 안의 항목을 함께 골라도 순서와 상관없이 그 폴더와 함께 휴지통으로 (S-15) / 휴지통 자동 비우기 500개씩 배치 (PERF-05) |
 | `NotificationQueryPlanTest` | 알림 최신순 조회가 정렬 없이 인덱스 순서로 읽히는지 실행 계획으로 확인 (PERF-04) |
 | `ArchitectureTest` | 계층·의존 방향 규칙 5개 — 컨트롤러→리포지토리 금지, 서비스의 서블릿 의존 금지, 엔티티 응답 금지, global·storage 의 도메인 의존 금지 (ARC-05) |
 | `AzureBlobStorageTest` | Azure 구현을 에뮬레이터(Azurite)로 검증 — 업로드·서버 측 복사·SAS URL·삭제 |
-| `SlidingWindowRateLimiterTest` 외 단위 테스트 | 요청 제한(동시성·만료 정리), 트리 구성(깊이 5,000), 요약 알고리즘, grant 서명, 파일명 검증, DeepL 호출 형식 |
+| `SlidingWindowRateLimiterTest` 외 단위 테스트 | 요청 제한(동시성·키별 창으로 정리·분량 반환), 트리 구성(깊이 5,000), 요약 알고리즘, grant 서명, 파일명 검증(방향 제어 문자, S-12), DeepL 호출 형식 |
 | E2E `smoke.spec.ts` | 모든 화면의 CSP 위반 감시(`fixtures.ts`, 하나라도 있으면 실패), CSP 헤더, 문서 편집·버전, 업로드·이름 변경·휴지통 복원, **두 사용자 실시간 채팅·폴더 반영**, 비로그인 공유 다운로드, 검색 화면 새로고침, 로그아웃·비밀번호 오류 뒤 로그인 (BUG-09), 폴더를 휴지통에 넣고 복원 (UX-06), 팀 채팅에 올린 파일 미리보기(이미지가 실제로 그려지는지) |
 | 프론트 `upload.test` · `EditorPage.test` | 대기 중 업로드 취소, 업로드의 401·CSRF 처리, 편집기 앱 내 이동 차단, 충돌 해결 시 편집본 보관 |
 | E2E `a11y.spec.ts` | 로그인·드라이브·팀(내가 보낸 채팅 파일 카드 포함)·선택 작업 바·버전 기록·알림·휴지통을 axe(WCAG 2.1 AA·모범 사례)로 검사 — 위반이 하나라도 있으면 실패, 화면별 탭 제목 (UX-01·02) |
