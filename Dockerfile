@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
 # 1) 프론트엔드 빌드 (Vite)
-FROM node:22-bookworm-slim AS web
+# Node 24(LTS, 보안 지원 2028-04-30까지). 22 는 적극 지원이 2025-10-21 에 끝났습니다(3차 점검).
+FROM node:24-bookworm-slim AS web
 WORKDIR /web
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund
