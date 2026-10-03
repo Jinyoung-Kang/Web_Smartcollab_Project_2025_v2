@@ -1,0 +1,23 @@
+{
+  "graceful-upload": {
+    "uploadResult": 201,
+    "listed": true,
+    "shutdownLog": "Graceful shutdown complete",
+    "integrity": {
+      "versions": 962,
+      "blobs": 1111,
+      "missingBlobs": 1,
+      "orphanBlobs": 150,
+      "tempUploads": 0,
+      "hashMismatch(sample<=300)": 0,
+      "filesWithoutActiveVersion": 0,
+      "activeVersionOfOtherFile": 0,
+      "fileSizeMismatch": 0,
+      "childScopeMismatch": 0,
+      "trashRootNotTrashed": 0,
+      "childOfTrashedNotTrashed": 0,
+      "teamsWithoutOneLeader": 0,
+      "duplicateMembers": 0
+    }
+  }
+}

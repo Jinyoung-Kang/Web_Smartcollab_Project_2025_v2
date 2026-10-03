@@ -52,7 +52,8 @@ const out = {}
     const detail = await A.get(`/api/teams/${t.id}`)
     const detailC = await C.get(`/api/teams/${t.id}`)
     const view = detail.status === 200 ? detail.data : detailC.data
-    rounds.push({ delegate: d, leave: l, leader: view?.members?.find((x) => x.leader)?.username === C.username ? 'C' : 'A', members: view?.members?.length })
+    const leaderName = view?.members?.find((x) => x.leader)?.username
+    rounds.push({ delegate: d, leave: l, leader: leaderName === C.username ? 'C' : leaderName === A.username ? 'A' : '없음', members: view?.members?.length })
   }
   out.C4_delegateVsLeave = { outcomes: tally(rounds.map((r) => `위임${r.delegate}/나가기${r.leave}→팀장${r.leader},멤버${r.members}`)) }
 }

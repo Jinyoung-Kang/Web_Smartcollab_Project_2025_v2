@@ -73,7 +73,9 @@ const rec = (name, ok, detail) => rows.push({ ok: ok ? 'PASS' : 'FAIL', name, de
     for (const via of ['cookie', 'bearer']) {
       const headers = via === 'bearer' ? { authorization: `Bearer ${t}` } : { cookie: `SC_AUTH=${t}` }
       const r = await fetch(`${BASE}/api/auth/me`, { headers })
-      rec(`변조 토큰 ${name} (${via})`, r.status === 401, `status ${r.status}`)
+      // 8KB 값은 Tomcat 요청 헤더 한도에 걸려 인증 전에 400 으로 거절됩니다(기대 동작)
+      const expected = name.startsWith('아주 긴 값') ? [400, 431] : [401]
+      rec(`변조 토큰 ${name} (${via})`, expected.includes(r.status), `status ${r.status}`)
     }
   }
   // 쿠키는 정상, Bearer 는 변조 — 어느 쪽으로도 인증되지 않거나 401

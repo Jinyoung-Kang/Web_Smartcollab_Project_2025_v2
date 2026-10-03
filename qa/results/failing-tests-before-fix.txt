@@ -34,3 +34,6 @@ expect(received).toEqual(expected) // deep equality
 
 # [QA-13] 수정 전 이미지(8081)에서 E2E a11y 실패
 label-content-name-mismatch: .p-0\.5  (내 계정 버튼 — aria-label "내 계정", 보이는 글자는 사용자 이름)
+
+# [QA-06] UploadLockContentionTest — 수정 전 7724929 에서 독립 검토가 실행 (independent-review.md)
+FAIL UploadLockContentionTest | [QA-06] 다른 사용자의 저장 한도 확인이 진행 중이어도 내 업로드는 기다리지 않는다 | 다른 사용자의 한도 확인에 2.03초 막힘(기준 1.5초)

@@ -1,0 +1,77 @@
+{
+  "deepl": {
+    "ok": {
+      "status": 200,
+      "ms": 163
+    },
+    "err500": {
+      "status": 502,
+      "ms": 29,
+      "code": "UPSTREAM_ERROR"
+    },
+    "dropped": {
+      "status": 502,
+      "ms": 18,
+      "code": "UPSTREAM_ERROR"
+    },
+    "slow": [
+      {
+        "status": 502,
+        "ms": 30072,
+        "code": "UPSTREAM_ERROR"
+      },
+      {
+        "status": 502,
+        "ms": 30072,
+        "code": "UPSTREAM_ERROR"
+      },
+      {
+        "status": 502,
+        "ms": 30072,
+        "code": "UPSTREAM_ERROR"
+      }
+    ],
+    "slowStatuses": [
+      502,
+      502,
+      502,
+      502,
+      502,
+      502,
+      502,
+      502,
+      502,
+      502,
+      502,
+      502,
+      502,
+      502,
+      502
+    ],
+    "othersMaxMs": 94,
+    "afterOk": {
+      "status": 200,
+      "ms": 62
+    }
+  },
+  "graceful-upload": {
+    "uploadResult": "ERR ECONNRESET",
+    "listed": false,
+    "integrity": {
+      "versions": 949,
+      "blobs": 1098,
+      "missingBlobs": 1,
+      "orphanBlobs": 150,
+      "tempUploads": 0,
+      "hashMismatch(sample<=300)": 0,
+      "filesWithoutActiveVersion": 0,
+      "activeVersionOfOtherFile": 0,
+      "fileSizeMismatch": 0,
+      "childScopeMismatch": 0,
+      "trashRootNotTrashed": 0,
+      "childOfTrashedNotTrashed": 0,
+      "teamsWithoutOneLeader": 0,
+      "duplicateMembers": 0
+    }
+  }
+}

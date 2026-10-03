@@ -1,0 +1,23 @@
+{
+  "tool": "aquasec/trivy:0.69.1 image --scanners vuln --severity HIGH,CRITICAL",
+  "image": "smartcollab:local",
+  "createdAt": "2026-10-03T08:06:05.431583804Z",
+  "os": {
+    "Family": "ubuntu",
+    "Name": "24.04"
+  },
+  "results": [
+    {
+      "target": "smartcollab:local (ubuntu 24.04)",
+      "type": "ubuntu",
+      "class": "os-pkgs",
+      "highOrCritical": 0
+    },
+    {
+      "target": "Java",
+      "type": "jar",
+      "class": "lang-pkgs",
+      "highOrCritical": 0
+    }
+  ]
+}

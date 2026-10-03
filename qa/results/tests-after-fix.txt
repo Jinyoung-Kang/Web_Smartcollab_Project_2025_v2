@@ -1,0 +1,14 @@
+# 수정 뒤 QA 시험 결과 (./gradlew clean build, 백엔드 전체 235건 중 QA 시험)
+
+PASS ItemRequestValidationTest | [QA-04] "/api/items/move" 의 items 에 null 이 있으면 400 | 0.13s
+PASS ItemRequestValidationTest | [QA-04] "/api/items/copy" 의 items 에 null 이 있으면 400 | 0.12s
+PASS ItemRequestValidationTest | [QA-04] "/api/items/delete" 의 items 에 null 이 있으면 400 | 0.14s
+PASS UploadLockContentionTest | [QA-06] 다른 사용자의 저장 한도 확인이 진행 중이어도 내 업로드는 기다리지 않는다 (서로 다른 사용자의 업로드가 교착되던 원인) | 0.27s
+PASS DatabaseFailFastTest | [QA-02] DB 에 연결할 수 없으면 커넥션을 5초 안에 포기한다 (30초 동안 요청을 붙잡던 문제) | 5.18s
+PASS MultipartErrorTest | [QA-03] 업로드 도중 연결이 끊겨도(업로드 취소) 처리하지 않은 예외로 ERROR 로그를 남기지 않고, 파일도 남지 않는다 | 3.56s
+PASS MultipartErrorTest | [QA-03] 끝 경계가 없는 multipart 본문은 400 이고 ERROR 로그를 남기지 않는다 | 0.22s
+PASS MultipartErrorTest | [QA-03] 파일 이름에 NUL 문자가 있으면 400 이고 ERROR 로그를 남기지 않는다 | 0.18s
+PASS TeamMembershipRaceTest | [QA-01] 멤버가 팀을 나가는 중에 그 멤버에게 위임해도 팀장 없는 팀이 남지 않는다 (회귀 방지) | 2.44s
+PASS TeamMembershipRaceTest | [QA-01] 팀장 위임이 커밋되기 전에 같은 팀장이 그 멤버를 내보내도 팀장 없는 팀이 남지 않는다 | 2.37s
+PASS TeamMembershipRaceTest | [QA-01] 팀장으로 위임되는 중에 그 멤버가 팀을 나가도 팀장 없는 팀이 남지 않는다 | 2.31s
+PASS TeamMembershipRaceTest | [QA-05] 같은 초대를 거절하는 중에 수락하면 수락은 409 이고, 거절만 반영된다 (둘 다 성공으로 응답하던 문제) | 2.39s

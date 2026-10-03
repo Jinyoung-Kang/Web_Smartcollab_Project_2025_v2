@@ -1,0 +1,36 @@
+{
+  "when": "2026-10-03T08:42:39.034Z",
+  "clickedCount": {},
+  "clicked": {},
+  "issues": [
+    {
+      "kind": "http.401",
+      "page": "keyboard http://localhost:8080/login",
+      "detail": "GET /api/auth/me",
+      "after": "(처음)"
+    },
+    {
+      "kind": "console.error",
+      "page": "keyboard http://localhost:8080/login",
+      "detail": "Failed to load resource: the server responded with a status of 401 ()",
+      "after": "(처음)"
+    },
+    {
+      "kind": "info.tab-order",
+      "page": "login",
+      "detail": "button[로그인] → button[회원가입] → input[] → input[] → button[로그인] → body[SmartCollab팀을 위](초점 표시 없음) → button[로그인] → button[회원가입] → input[] → input[] → button[로그인] → button[로그인]"
+    },
+    {
+      "kind": "http.401",
+      "page": "keyboard http://localhost:8080/login",
+      "detail": "GET /api/auth/me",
+      "after": "(처음)"
+    },
+    {
+      "kind": "console.error",
+      "page": "keyboard http://localhost:8080/login",
+      "detail": "Failed to load resource: the server responded with a status of 401 ()",
+      "after": "(처음)"
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "storage-readonly": {
+    "upload": {
+      "status": 500,
+      "ms": 43,
+      "code": "INTERNAL_ERROR"
+    },
+    "save": {
+      "status": 500,
+      "ms": 31,
+      "code": "INTERNAL_ERROR"
+    },
+    "copy": {
+      "status": 500,
+      "ms": 58,
+      "code": "INTERNAL_ERROR"
+    },
+    "roListed": false,
+    "docUnchanged": true,
+    "usageBefore": {
+      "fileCount": 1,
+      "totalBytes": 64,
+      "storedBytes": 64,
+      "quotaBytes": 1073741824
+    },
+    "usageAfter": {
+      "fileCount": 1,
+      "totalBytes": 64,
+      "storedBytes": 64,
+      "quotaBytes": 1073741824
+    },
+    "integrity": {
+      "versions": 947,
+      "blobs": 1097,
+      "missingBlobs": 0,
+      "orphanBlobs": 150,
+      "tempUploads": 0,
+      "hashMismatch(sample<=300)": 0,
+      "filesWithoutActiveVersion": 0,
+      "activeVersionOfOtherFile": 0,
+      "fileSizeMismatch": 0,
+      "childScopeMismatch": 0,
+      "trashRootNotTrashed": 0,
+      "childOfTrashedNotTrashed": 0,
+      "teamsWithoutOneLeader": 0,
+      "duplicateMembers": 0
+    }
+  },
+  "missing-blob": {
+    "download": {
+      "status": 404,
+      "bytes": 172,
+      "code": "NOT_FOUND"
+    },
+    "view": {
+      "status": 404,
+      "bytes": 168,
+      "code": "NOT_FOUND"
+    },
+    "content": {
+      "status": 404,
+      "bytes": 171,
+      "code": "NOT_FOUND"
+    },
+    "copy": 404,
+    "summary": 404,
+    "log": "2026-10-03T08:16:04.278Z ERROR 1 --- [smartcollab] [mcat-handler-19] [e91b7fb6989c4e8697fada3c72558a14] c.s.global.error.GlobalExceptionHandler  : Unhandled exc\n2026-10-03T08:16:04.352Z ERROR 1 --- [smartcollab] [mcat-handler-21] [7752a64b7aee4b28826ff18779a4b134] c.s.global.error.GlobalExceptionHandler  : Unhandled exc\n2026-10-03T08:16:04.412Z ERROR 1 --- [smartcollab] [mcat-handler-22] [04e80a4bd290497b937964431318bfb2] c.s.global.error.GlobalExceptionHandler  : Unhandled exc"
+  }
+}

@@ -9,12 +9,16 @@ if (latency) await toxi('/proxies/mysql/toxics', 'POST', { name: 'repro', type: 
 process.on('exit', () => {})
 const cleanup = async () => { if (latency) await toxi('/proxies/mysql/toxics/repro', 'DELETE') }
 
-for (let round = 1; round <= 60; round++) {
+const ROUNDS = Number(process.env.ROUNDS ?? 60)
+const tally = {}
+for (let round = 1; round <= ROUNDS; round++) {
   const A = await new Client('A').signup()
   const C = await new Client('C').signup()
   const t = await A.createTeam(`leaderless-${round}`)
   const m = await A.addMember(t.id, C, { canEdit: true, canDelete: true, canInvite: true })
   const [d, l] = await Promise.all([A.post(`/api/teams/${t.id}/leader/${m.memberId}`), C.post(`/api/teams/${t.id}/leave`)])
+  const key = `위임${d.status}/나가기${l.status}`
+  tally[key] = (tally[key] ?? 0) + 1
   if (d.status !== 204 || l.status !== 204) continue
   const detail = (await A.get(`/api/teams/${t.id}`)).data
   console.log(`round ${round}: 위임 ${d.status}, 나가기 ${l.status}`)
@@ -34,4 +38,4 @@ for (let round = 1; round <= 60; round++) {
   process.exit(0)
 }
 await cleanup()
-console.log('60회 안에 재현되지 않음')
+console.log(`${ROUNDS}회 안에 재현되지 않음`, JSON.stringify(tally))

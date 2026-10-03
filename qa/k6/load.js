@@ -2,10 +2,23 @@
 // 읽기:  k6 run -e MIX=read  -e VUS=50 -e DURATION=60s qa/k6/load.js
 // 쓰기:  k6 run -e MIX=write -e VUS=10 -e DURATION=60s qa/k6/load.js
 // 로그인: k6 run -e MIX=login -e VUS=20 -e DURATION=30s qa/k6/load.js
+// API 만(다운로드 제외): -e MIX=api  ·  Docker 네트워크 안에서(호스트 포트 포워딩 제외): qa/scripts/run-load.sh docker
 import http from 'k6/http'
 import { check } from 'k6'
 import { SharedArray } from 'k6/data'
 import exec from 'k6/execution'
+import { Counter } from 'k6/metrics'
+
+// 실패 응답을 상태 코드별로 셉니다(요약에 남김)
+const STATUS = Object.fromEntries([0, 400, 401, 403, 404, 409, 413, 429, 500, 502, 503, 504].map((c) => [c, new Counter(`status_${c}`)]))
+http.setResponseCallback(http.expectedStatuses({ min: 200, max: 399 }))
+function track(r) {
+  if (r.status >= 400 || r.status === 0) {
+    (STATUS[r.status] ?? STATUS[500]).add(1)
+    if (__ENV.DEBUG) console.log(`${r.status} ${r.request.method} ${r.request.url} ${String(r.body).slice(0, 200)}`)
+  }
+  return r
+}
 
 const BASE = __ENV.BASE || 'http://localhost:8080'
 const MIX = __ENV.MIX || 'read'
@@ -16,6 +29,8 @@ export const options = {
   vus: Number(__ENV.VUS || 10),
   duration: __ENV.DURATION || '60s',
   summaryTrendStats: ['avg', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
+  // k6 는 반복마다 쿠키를 지우므로, 한 번 로그인한 세션을 이어 쓰려면 끕니다(로그인 측정은 직접 지움)
+  noCookiesReset: true,
   discardResponseBodies: false,
   // 측정 기준(D2 제안): 읽기 p95 ≤ 300ms, 쓰기 p95 ≤ 800ms, 오류율 < 1%. 이름별 지표를 요약에 남기려고 이름마다 기준을 둡니다.
   thresholds: Object.fromEntries([
@@ -60,30 +75,31 @@ export default function () {
   }
   const json = { headers: { 'content-type': 'application/json', ...csrfHeader() } }
   const pick = Math.random()
-  if (MIX === 'read') {
-    if (pick < 0.3) check(http.get(`${BASE}/api/folders/${me.folderId}`, { tags: { name: 'folder' } }), { ok: (r) => r.status === 200 })
-    else if (pick < 0.4) check(http.get(`${BASE}/api/folders/tree`, { tags: { name: 'tree' } }), { ok: (r) => r.status === 200 })
-    else if (pick < 0.5) check(http.get(`${BASE}/api/files/search?q=${encodeURIComponent('문서-1')}`, { tags: { name: 'search' } }), { ok: (r) => r.status === 200 })
-    else if (pick < 0.6) check(http.get(`${BASE}/api/notifications`, { tags: { name: 'notifications' } }), { ok: (r) => r.status === 200 })
-    else if (pick < 0.7) check(http.get(`${BASE}/api/teams/${me.teamId}/messages?size=30`, { tags: { name: 'chat' } }), { ok: (r) => r.status === 200 })
-    else if (pick < 0.8) check(http.get(`${BASE}/api/files/${me.textFileId}/content`, { tags: { name: 'text' } }), { ok: (r) => r.status === 200 })
-    else if (pick < 0.9) check(http.get(`${BASE}/api/teams/${me.teamId}`, { tags: { name: 'team' } }), { ok: (r) => r.status === 200 })
-    else check(http.get(`${BASE}/api/files/${me.bigFileId}/download`, { tags: { name: 'download10mb' }, responseType: 'none' }), { ok: (r) => r.status === 200 })
+  if (MIX === 'read' || MIX === 'api') {
+    if (pick < 0.3) check(track(http.get(`${BASE}/api/folders/${me.folderId}`, { tags: { name: 'folder' } })), { ok: (r) => r.status === 200 })
+    else if (pick < 0.4) check(track(http.get(`${BASE}/api/folders/tree`, { tags: { name: 'tree' } })), { ok: (r) => r.status === 200 })
+    else if (pick < 0.5) check(track(http.get(`${BASE}/api/files/search?q=${encodeURIComponent('문서-1')}`, { tags: { name: 'search' } })), { ok: (r) => r.status === 200 })
+    else if (pick < 0.6) check(track(http.get(`${BASE}/api/notifications`, { tags: { name: 'notifications' } })), { ok: (r) => r.status === 200 })
+    else if (pick < 0.7) check(track(http.get(`${BASE}/api/teams/${me.teamId}/messages?size=30`, { tags: { name: 'chat' } })), { ok: (r) => r.status === 200 })
+    else if (pick < 0.8) check(track(http.get(`${BASE}/api/files/${me.textFileId}/content`, { tags: { name: 'text' } })), { ok: (r) => r.status === 200 })
+    else if (pick < 0.9) check(track(http.get(`${BASE}/api/teams/${me.teamId}`, { tags: { name: 'team' } })), { ok: (r) => r.status === 200 })
+    else if (MIX === 'api') check(track(http.get(`${BASE}/api/folders/${me.folderId}`, { tags: { name: 'folder' } })), { ok: (r) => r.status === 200 })
+    else check(track(http.get(`${BASE}/api/files/${me.bigFileId}/download`, { tags: { name: 'download10mb' }, responseType: 'none' })), { ok: (r) => r.status === 200 })
   } else if (MIX === 'write') {
     if (pick < 0.35) {
       const form = { file: http.file(PAYLOAD_1MB, `up-${exec.vu.idInTest}-${exec.scenario.iterationInTest}.bin`, 'application/octet-stream') }
-      const r = http.post(`${BASE}/api/files/upload?folderId=${me.rootFolderId}`, form, { headers: csrfHeader(), tags: { name: 'upload1mb' } })
+      const r = track(http.post(`${BASE}/api/files/upload?folderId=${me.rootFolderId}`, form, { headers: csrfHeader(), tags: { name: 'upload1mb' } }))
       check(r, { ok: (x) => x.status === 201 })
     } else if (pick < 0.65) {
       const cur = http.get(`${BASE}/api/files/${me.textFileId}/content`, { tags: { name: 'text' } })
       const base = cur.json('versionId')
-      const r = http.put(`${BASE}/api/files/${me.textFileId}/content`, JSON.stringify({ content: `저장 ${Date.now()} `.repeat(20), baseVersionId: base }), { ...json, tags: { name: 'textSave' } })
+      const r = track(http.put(`${BASE}/api/files/${me.textFileId}/content`, JSON.stringify({ content: `저장 ${Date.now()} `.repeat(20), baseVersionId: base }), { ...json, tags: { name: 'textSave' }, responseCallback: http.expectedStatuses({ min: 200, max: 399 }, 409) }))
       check(r, { ok: (x) => x.status === 200 || x.status === 409 })
     } else if (pick < 0.85) {
-      const r = http.post(`${BASE}/api/folders`, JSON.stringify({ parentId: me.folderId, name: `f-${Date.now()}` }), { ...json, tags: { name: 'createFolder' } })
+      const r = track(http.post(`${BASE}/api/folders`, JSON.stringify({ parentId: me.folderId, name: `f-${Date.now()}` }), { ...json, tags: { name: 'createFolder' } }))
       check(r, { ok: (x) => x.status === 201 })
     } else {
-      const r = http.post(`${BASE}/api/teams/${me.teamId}/messages`, JSON.stringify({ content: `부하 메시지 ${Date.now()}` }), { ...json, tags: { name: 'chatSend' } })
+      const r = track(http.post(`${BASE}/api/teams/${me.teamId}/messages`, JSON.stringify({ content: `부하 메시지 ${Date.now()}` }), { ...json, tags: { name: 'chatSend' } }))
       check(r, { ok: (x) => x.status === 200 || x.status === 201 })
     }
   }
@@ -98,12 +114,13 @@ export function handleSummary(data) {
     failedRate: m.http_req_failed?.values.rate,
     p95: m.http_req_duration?.values['p(95)'],
   }
+  out.statusCounts = Object.fromEntries(Object.entries(m).filter(([k]) => /^status_\d+$/.test(k)).map(([k, v]) => [k, v.values.count]))
   for (const [k, v] of Object.entries(m)) {
     const g = /^http_req_duration\{name:(\w+)\}$/.exec(k)
     if (g) out.byName[g[1]] = v.values
   }
   return {
-    [`qa/results/k6-${MIX}-${options.vus}.json`]: JSON.stringify(out, null, 2),
+    [`${__ENV.OUT || 'qa/results'}/k6-${MIX}-${options.vus}.json`]: JSON.stringify(out, null, 2),
     stdout: `${MIX} vus=${options.vus} reqs=${out.totals.requests} rps=${out.totals.rps?.toFixed(1)} failed=${(out.totals.failedRate * 100).toFixed(2)}% p95=${out.totals.p95?.toFixed(1)}ms\n`,
   }
 }

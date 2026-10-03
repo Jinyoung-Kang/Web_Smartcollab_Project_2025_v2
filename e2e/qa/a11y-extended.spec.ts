@@ -44,7 +44,7 @@ test.afterAll(() => {
 test('비로그인 화면 — 가입·오류 상태·공유 받기', async ({ page }) => {
   await page.goto('/signup')
   await scan(page, '가입')
-  await page.getByRole('button', { name: '가입하기' }).or(page.getByRole('button', { name: '회원가입', exact: true })).last().click()
+  await page.getByRole('button', { name: '가입하고 시작하기' }).click()
   await scan(page, '가입 — 빈 값으로 제출한 오류 상태')
   await page.goto('/login')
   await page.getByLabel('아이디').fill(data.user.username)
@@ -106,6 +106,7 @@ test('로그인 화면 — 대화상자·편집기·검색·빈/오류 상태', 
   await page.getByRole('button', { name: '새 팀 만들기' }).click()
   await scan(page, '새 팀 만들기 대화상자')
   await page.keyboard.press('Escape')
+  await page.goto('/drive')   // 행 메뉴로 선택된 항목이 남아 있으면 업로드 버튼 대신 선택 작업 바가 보입니다
   await page.locator('input[type="file"]').first().setInputFiles({ name: 'a11y-upload.txt', mimeType: 'text/plain', buffer: Buffer.from('x') })
   await page.getByRole('region', { name: '업로드 진행 상황' }).waitFor()
   await scan(page, '업로드 진행 상황 패널')

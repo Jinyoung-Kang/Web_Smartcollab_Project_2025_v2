@@ -5,6 +5,7 @@ import { defineConfig } from '@playwright/test'
 export default defineConfig({
   testDir: './qa',
   timeout: 600_000,
+  expect: { timeout: 10_000 },
   workers: 1,
   reporter: [['list']],
   use: {
@@ -13,5 +14,6 @@ export default defineConfig({
     timezoneId: 'Asia/Seoul',
     viewport: { width: 1440, height: 900 },
     channel: process.env.CI ? undefined : 'chrome',
+    actionTimeout: 10_000,
   },
 })

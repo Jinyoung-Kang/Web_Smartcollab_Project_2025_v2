@@ -1,0 +1,28 @@
+{
+  "kill-copy": {
+    "copyResult": 200,
+    "restartMs": 11793,
+    "dstFolders": 1,
+    "copiedFiles": 150,
+    "before": {
+      "versions": 796,
+      "blobs": 946
+    },
+    "integrity": {
+      "versions": 946,
+      "blobs": 1096,
+      "missingBlobs": 0,
+      "orphanBlobs": 150,
+      "tempUploads": 0,
+      "hashMismatch(sample<=300)": 0,
+      "filesWithoutActiveVersion": 0,
+      "activeVersionOfOtherFile": 0,
+      "fileSizeMismatch": 0,
+      "childScopeMismatch": 0,
+      "trashRootNotTrashed": 0,
+      "childOfTrashedNotTrashed": 0,
+      "teamsWithoutOneLeader": 0,
+      "duplicateMembers": 0
+    }
+  }
+}

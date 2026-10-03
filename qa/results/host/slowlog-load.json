@@ -1,0 +1,309 @@
+{
+  "entries": 4484,
+  "shapes": 31,
+  "slowShapes(max>=50ms)": 31,
+  "topByTotal": [
+    {
+      "shape": "COMMIT",
+      "count": 146,
+      "total": 12.210492999999998,
+      "max": 0.24493,
+      "rows_examined": 0,
+      "rows_sent": 0,
+      "example": "COMMIT",
+      "avg_examined": 0
+    },
+    {
+      "shape": "WITH RECURSIVE ancestors (folder_id, name, parent_folder_id, depth) AS ( SELECT folder_id, name, parent_folder_id, ? FROM folders WHERE folder_id = ? UNION ALL SELECT f.folder_id, f.name, f.parent_folder_id, a.depth + ? FROM folders f JOIN ancestors a ON f.folder_id = a.parent_folder_id ) SELECT folder_id AS id, name AS name, parent_folder_id AS parentId FROM ancestors ORDER BY depth DESC",
+      "count": 3980,
+      "total": 9.120923000000015,
+      "max": 0.183683,
+      "rows_examined": 15920,
+      "rows_sent": 7960,
+      "example": "WITH RECURSIVE ancestors (folder_id, name, parent_folder_id, depth) AS (\n    SELECT folder_id, name, parent_folder_id, 0 FROM folders WHERE folder_id = 759\n    UNION ALL\n    SELECT f.folder_id, f.name, f.parent_folder_id, a.depth + 1\n    FROM folders f JOIN ancestors a ON f.folder_id = a.parent_folder_id\n)\nSELECT folder_id AS id, name AS name, parent_folder_id AS parentId FROM ancestors ORDER BY depth DESC",
+      "avg_examined": 4
+    },
+    {
+      "shape": "SELECT COALESCE(SUM(v.size), ?) FROM file_versions v JOIN files f ON f.file_id = v.file_id JOIN folders fo ON fo.folder_id = f.folder_id WHERE fo.team_id IS NULL AND fo.owner_id = ? FOR SHARE",
+      "count": 84,
+      "total": 7.144060000000005,
+      "max": 0.280102,
+      "rows_examined": 1592668,
+      "rows_sent": 84,
+      "example": "SELECT COALESCE(SUM(v.size), 0) FROM file_versions v\nJOIN files f ON f.file_id = v.file_id JOIN folders fo ON fo.folder_id = f.folder_id\nWHERE fo.team_id IS NULL AND fo.owner_id = 355 FOR SHARE",
+      "avg_examined": 18960
+    },
+    {
+      "shape": "select coalesce(sum(fv1_0.size),?) from file_versions fv1_0 join files f1_0 on f1_0.file_id=fv1_0.file_id join folders f2_0 on f2_0.folder_id=f1_0.folder_id where f2_0.team_id is null and f2_0.owner_id=?",
+      "count": 62,
+      "total": 6.740014000000001,
+      "max": 0.680211,
+      "rows_examined": 1085777,
+      "rows_sent": 62,
+      "example": "select coalesce(sum(fv1_0.size),0) from file_versions fv1_0 join files f1_0 on f1_0.file_id=fv1_0.file_id join folders f2_0 on f2_0.folder_id=f1_0.folder_id where f2_0.team_id is null and f2_0.owner_id=355",
+      "avg_examined": 17512
+    },
+    {
+      "shape": "insert into file_versions (created_at,editor_id,file_id,sha256,size,stored_path) values (?, …)",
+      "count": 47,
+      "total": 5.195879000000001,
+      "max": 0.431072,
+      "rows_examined": 0,
+      "rows_sent": 0,
+      "example": "insert into file_versions (created_at,editor_id,file_id,sha256,size,stored_path) values ('2026-10-03 09:04:28.50475',356,1453,'40a26882d1f015b8c4aafed540a6633ed4a7b0ed3037761e44651f1e501177e6',420,'versions/9850a5a5-618b-476a-8880-8a5257cd35aa')",
+      "avg_examined": 0
+    },
+    {
+      "shape": "insert into folders (created_at,deleted_at,deleted_by,name,owner_id,parent_folder_id,team_id,trash_root_id) values (?,null,null,?,?,?,null,null)",
+      "count": 37,
+      "total": 4.364345,
+      "max": 0.801928,
+      "rows_examined": 0,
+      "rows_sent": 0,
+      "example": "insert into folders (created_at,deleted_at,deleted_by,name,owner_id,parent_folder_id,team_id,trash_root_id) values ('2026-10-03 09:04:30.567429',null,null,'f-1791018270526',361,756,null,null)",
+      "avg_examined": 0
+    },
+    {
+      "shape": "insert into files (active_version_id,created_at,is_deleted,deleted_at,deleted_by,folder_id,original_name,owner_id,size,updated_at,version) values (null,?,?,null,null,?,?,?,?,?,?)",
+      "count": 38,
+      "total": 3.9365449999999997,
+      "max": 0.717186,
+      "rows_examined": 0,
+      "rows_sent": 0,
+      "example": "insert into files (active_version_id,created_at,is_deleted,deleted_at,deleted_by,folder_id,original_name,owner_id,size,updated_at,version) values (null,'2026-10-03 09:04:30.556849',0,null,null,737,'up-2-204.bin',354,1048576,'2026-10-03 09:04:30.556849',0)",
+      "avg_examined": 0
+    },
+    {
+      "shape": "select fe1_0.file_id,fe1_0.active_version_id,fe1_0.created_at,fe1_0.is_deleted,fe1_0.deleted_at,fe1_0.deleted_by,fe1_0.folder_id,fe1_0.original_name,fe1_0.owner_id,o1_0.user_id,o1_0.created_at,o1_0.email,o1_0.name,o1_0.password,o1_0.role,o1_0.username,fe1_0.size,fe1_0.updated_at,fe1_0.version from files fe1_0 join users o1_0 on o1_0.user_id=fe1_0.owner_id where fe1_0.folder_id in (?, …) and fe1_0.",
+      "count": 24,
+      "total": 2.8531059999999995,
+      "max": 0.306881,
+      "rows_examined": 250422,
+      "rows_sent": 264,
+      "example": "select fe1_0.file_id,fe1_0.active_version_id,fe1_0.created_at,fe1_0.is_deleted,fe1_0.deleted_at,fe1_0.deleted_by,fe1_0.folder_id,fe1_0.original_name,fe1_0.owner_id,o1_0.user_id,o1_0.created_at,o1_0.email,o1_0.name,o1_0.password,o1_0.role,o1_0.username,fe1_0.size,fe1_0.updated_at,fe1_0.version from files fe1_0 join users o1_0 on o1_0.user_id=fe1_0.owner_id where fe1_0.folder_id in (736,865,868,869,902,871,872,745,905,908,881,913,887,888,889,891,893,862,894,895) and fe1_0.is_deleted=false and lower(fe1_0.original_name) like '%문서-1%' escape '!' order by fe1_0.original_name limit 100",
+      "avg_examined": 10434
+    },
+    {
+      "shape": "select f1_0.folder_id,f1_0.created_at,f1_0.deleted_at,f1_0.deleted_by,f1_0.name,f1_0.owner_id,f1_0.parent_folder_id,f1_0.team_id,f1_0.trash_root_id from folders f1_0 where f1_0.folder_id=?",
+      "count": 5,
+      "total": 0.720796,
+      "max": 0.462926,
+      "rows_examined": 5,
+      "rows_sent": 5,
+      "example": "select f1_0.folder_id,f1_0.created_at,f1_0.deleted_at,f1_0.deleted_by,f1_0.name,f1_0.owner_id,f1_0.parent_folder_id,f1_0.team_id,f1_0.trash_root_id from folders f1_0 where f1_0.folder_id=759",
+      "avg_examined": 1
+    },
+    {
+      "shape": "select u1_0.user_id,u1_0.created_at,u1_0.email,u1_0.name,u1_0.password,u1_0.role,u1_0.username from users u1_0 where u1_0.user_id=?",
+      "count": 3,
+      "total": 0.561627,
+      "max": 0.389215,
+      "rows_examined": 3,
+      "rows_sent": 3,
+      "example": "select u1_0.user_id,u1_0.created_at,u1_0.email,u1_0.name,u1_0.password,u1_0.role,u1_0.username from users u1_0 where u1_0.user_id=357",
+      "avg_examined": 1
+    },
+    {
+      "shape": "select f1_0.folder_id,f1_0.created_at,f1_0.deleted_at,f1_0.deleted_by,f1_0.name,f1_0.owner_id,o1_0.user_id,o1_0.created_at,o1_0.email,o1_0.name,o1_0.password,o1_0.role,o1_0.username,f1_0.parent_folder_id,f1_0.team_id,f1_0.trash_root_id from folders f1_0 join users o1_0 on o1_0.user_id=f1_0.owner_id where f1_0.parent_folder_id=? and f1_0.trash_root_id is null",
+      "count": 7,
+      "total": 0.559635,
+      "max": 0.1321,
+      "rows_examined": 0,
+      "rows_sent": 0,
+      "example": "select f1_0.folder_id,f1_0.created_at,f1_0.deleted_at,f1_0.deleted_by,f1_0.name,f1_0.owner_id,o1_0.user_id,o1_0.created_at,o1_0.email,o1_0.name,o1_0.password,o1_0.role,o1_0.username,f1_0.parent_folder_id,f1_0.team_id,f1_0.trash_root_id from folders f1_0 join users o1_0 on o1_0.user_id=f1_0.owner_id where f1_0.parent_folder_id=748 and f1_0.trash_root_id is null",
+      "avg_examined": 0
+    },
+    {
+      "shape": "update files set active_version_id=?,is_deleted=?,deleted_at=null,deleted_by=null,folder_id=?,original_name=?,owner_id=?,size=?,updated_at=?,version=? where file_id=? and version=?",
+      "count": 2,
+      "total": 0.513903,
+      "max": 0.438837,
+      "rows_examined": 2,
+      "rows_sent": 0,
+      "example": "update files set active_version_id=15326,is_deleted=0,deleted_at=null,deleted_by=null,folder_id=738,original_name='메모.txt',owner_id=353,size=420,updated_at='2026-10-03 09:05:12.776082',version=107 where file_id=1449 and version=106",
+      "avg_examined": 1
+    },
+    {
+      "shape": "select fe1_0.file_id,fe1_0.active_version_id,fe1_0.created_at,fe1_0.is_deleted,fe1_0.deleted_at,fe1_0.deleted_by,fe1_0.folder_id,f1_0.folder_id,f1_0.created_at,f1_0.deleted_at,f1_0.deleted_by,f1_0.name,f1_0.owner_id,f1_0.parent_folder_id,f1_0.team_id,f1_0.trash_root_id,fe1_0.original_name,fe1_0.owner_id,fe1_0.size,fe1_0.updated_at,fe1_0.version from files fe1_0 join folders f1_0 on f1_0.folder_id=",
+      "count": 2,
+      "total": 0.512294,
+      "max": 0.3138,
+      "rows_examined": 2,
+      "rows_sent": 2,
+      "example": "select fe1_0.file_id,fe1_0.active_version_id,fe1_0.created_at,fe1_0.is_deleted,fe1_0.deleted_at,fe1_0.deleted_by,fe1_0.folder_id,f1_0.folder_id,f1_0.created_at,f1_0.deleted_at,f1_0.deleted_by,f1_0.name,f1_0.owner_id,f1_0.parent_folder_id,f1_0.team_id,f1_0.trash_root_id,fe1_0.original_name,fe1_0.owner_id,fe1_0.size,fe1_0.updated_at,fe1_0.version from files fe1_0 join folders f1_0 on f1_0.folder_id=fe1_0.folder_id where fe1_0.file_id=1702",
+      "avg_examined": 1
+    },
+    {
+      "shape": "select fe1_0.file_id,fe1_0.active_version_id,fe1_0.created_at,fe1_0.is_deleted,fe1_0.deleted_at,fe1_0.deleted_by,fe1_0.folder_id,fe1_0.original_name,fe1_0.owner_id,o1_0.user_id,o1_0.created_at,o1_0.email,o1_0.name,o1_0.password,o1_0.role,o1_0.username,fe1_0.size,fe1_0.updated_at,fe1_0.version from files fe1_0 join users o1_0 on o1_0.user_id=fe1_0.owner_id where fe1_0.folder_id=? and fe1_0.is_delet",
+      "count": 7,
+      "total": 0.461136,
+      "max": 0.079152,
+      "rows_examined": 408,
+      "rows_sent": 204,
+      "example": "select fe1_0.file_id,fe1_0.active_version_id,fe1_0.created_at,fe1_0.is_deleted,fe1_0.deleted_at,fe1_0.deleted_by,fe1_0.folder_id,fe1_0.original_name,fe1_0.owner_id,o1_0.user_id,o1_0.created_at,o1_0.email,o1_0.name,o1_0.password,o1_0.role,o1_0.username,fe1_0.size,fe1_0.updated_at,fe1_0.version from files fe1_0 join users o1_0 on o1_0.user_id=fe1_0.owner_id where fe1_0.folder_id=745 and fe1_0.is_deleted=false",
+      "avg_examined": 58
+    },
+    {
+      "shape": "select n1_0.notification_id,n1_0.content,n1_0.created_at,i1_0.invitation_id,i1_0.created_at,i1_0.invitee_id,i1_0.inviter_id,i1_0.responded_at,i1_0.status,i1_0.team_id,n1_0.is_read,t1_0.team_id,t1_0.created_at,t1_0.name,t1_0.owner_id,n1_0.type,n1_0.user_id from notifications n1_0 left join invitations i1_0 on i1_0.invitation_id=n1_0.invitation_id left join teams t1_0 on t1_0.team_id=n1_0.team_id wh",
+      "count": 5,
+      "total": 0.430841,
+      "max": 0.1778,
+      "rows_examined": 55,
+      "rows_sent": 17,
+      "example": "select n1_0.notification_id,n1_0.content,n1_0.created_at,i1_0.invitation_id,i1_0.created_at,i1_0.invitee_id,i1_0.inviter_id,i1_0.responded_at,i1_0.status,i1_0.team_id,n1_0.is_read,t1_0.team_id,t1_0.created_at,t1_0.name,t1_0.owner_id,n1_0.type,n1_0.user_id from notifications n1_0 left join invitations i1_0 on i1_0.invitation_id=n1_0.invitation_id left join teams t1_0 on t1_0.team_id=n1_0.team_id where n1_0.user_id=354 order by n1_0.created_at desc,n1_0.notification_id desc limit 30",
+      "avg_examined": 11
+    }
+  ],
+  "slow": [
+    {
+      "shape": "COMMIT",
+      "count": 146,
+      "total": 12.210492999999998,
+      "max": 0.24493,
+      "rows_examined": 0,
+      "rows_sent": 0,
+      "example": "COMMIT",
+      "avg_examined": 0
+    },
+    {
+      "shape": "WITH RECURSIVE ancestors (folder_id, name, parent_folder_id, depth) AS ( SELECT folder_id, name, parent_folder_id, ? FROM folders WHERE folder_id = ? UNION ALL SELECT f.folder_id, f.name, f.parent_folder_id, a.depth + ? FROM folders f JOIN ancestors a ON f.folder_id = a.parent_folder_id ) SELECT folder_id AS id, name AS name, parent_folder_id AS parentId FROM ancestors ORDER BY depth DESC",
+      "count": 3980,
+      "total": 9.120923000000015,
+      "max": 0.183683,
+      "rows_examined": 15920,
+      "rows_sent": 7960,
+      "example": "WITH RECURSIVE ancestors (folder_id, name, parent_folder_id, depth) AS (\n    SELECT folder_id, name, parent_folder_id, 0 FROM folders WHERE folder_id = 759\n    UNION ALL\n    SELECT f.folder_id, f.name, f.parent_folder_id, a.depth + 1\n    FROM folders f JOIN ancestors a ON f.folder_id = a.parent_folder_id\n)\nSELECT folder_id AS id, name AS name, parent_folder_id AS parentId FROM ancestors ORDER BY depth DESC",
+      "avg_examined": 4
+    },
+    {
+      "shape": "SELECT COALESCE(SUM(v.size), ?) FROM file_versions v JOIN files f ON f.file_id = v.file_id JOIN folders fo ON fo.folder_id = f.folder_id WHERE fo.team_id IS NULL AND fo.owner_id = ? FOR SHARE",
+      "count": 84,
+      "total": 7.144060000000005,
+      "max": 0.280102,
+      "rows_examined": 1592668,
+      "rows_sent": 84,
+      "example": "SELECT COALESCE(SUM(v.size), 0) FROM file_versions v\nJOIN files f ON f.file_id = v.file_id JOIN folders fo ON fo.folder_id = f.folder_id\nWHERE fo.team_id IS NULL AND fo.owner_id = 355 FOR SHARE",
+      "avg_examined": 18960
+    },
+    {
+      "shape": "select coalesce(sum(fv1_0.size),?) from file_versions fv1_0 join files f1_0 on f1_0.file_id=fv1_0.file_id join folders f2_0 on f2_0.folder_id=f1_0.folder_id where f2_0.team_id is null and f2_0.owner_id=?",
+      "count": 62,
+      "total": 6.740014000000001,
+      "max": 0.680211,
+      "rows_examined": 1085777,
+      "rows_sent": 62,
+      "example": "select coalesce(sum(fv1_0.size),0) from file_versions fv1_0 join files f1_0 on f1_0.file_id=fv1_0.file_id join folders f2_0 on f2_0.folder_id=f1_0.folder_id where f2_0.team_id is null and f2_0.owner_id=355",
+      "avg_examined": 17512
+    },
+    {
+      "shape": "insert into file_versions (created_at,editor_id,file_id,sha256,size,stored_path) values (?, …)",
+      "count": 47,
+      "total": 5.195879000000001,
+      "max": 0.431072,
+      "rows_examined": 0,
+      "rows_sent": 0,
+      "example": "insert into file_versions (created_at,editor_id,file_id,sha256,size,stored_path) values ('2026-10-03 09:04:28.50475',356,1453,'40a26882d1f015b8c4aafed540a6633ed4a7b0ed3037761e44651f1e501177e6',420,'versions/9850a5a5-618b-476a-8880-8a5257cd35aa')",
+      "avg_examined": 0
+    },
+    {
+      "shape": "insert into folders (created_at,deleted_at,deleted_by,name,owner_id,parent_folder_id,team_id,trash_root_id) values (?,null,null,?,?,?,null,null)",
+      "count": 37,
+      "total": 4.364345,
+      "max": 0.801928,
+      "rows_examined": 0,
+      "rows_sent": 0,
+      "example": "insert into folders (created_at,deleted_at,deleted_by,name,owner_id,parent_folder_id,team_id,trash_root_id) values ('2026-10-03 09:04:30.567429',null,null,'f-1791018270526',361,756,null,null)",
+      "avg_examined": 0
+    },
+    {
+      "shape": "insert into files (active_version_id,created_at,is_deleted,deleted_at,deleted_by,folder_id,original_name,owner_id,size,updated_at,version) values (null,?,?,null,null,?,?,?,?,?,?)",
+      "count": 38,
+      "total": 3.9365449999999997,
+      "max": 0.717186,
+      "rows_examined": 0,
+      "rows_sent": 0,
+      "example": "insert into files (active_version_id,created_at,is_deleted,deleted_at,deleted_by,folder_id,original_name,owner_id,size,updated_at,version) values (null,'2026-10-03 09:04:30.556849',0,null,null,737,'up-2-204.bin',354,1048576,'2026-10-03 09:04:30.556849',0)",
+      "avg_examined": 0
+    },
+    {
+      "shape": "select fe1_0.file_id,fe1_0.active_version_id,fe1_0.created_at,fe1_0.is_deleted,fe1_0.deleted_at,fe1_0.deleted_by,fe1_0.folder_id,fe1_0.original_name,fe1_0.owner_id,o1_0.user_id,o1_0.created_at,o1_0.email,o1_0.name,o1_0.password,o1_0.role,o1_0.username,fe1_0.size,fe1_0.updated_at,fe1_0.version from files fe1_0 join users o1_0 on o1_0.user_id=fe1_0.owner_id where fe1_0.folder_id in (?, …) and fe1_0.",
+      "count": 24,
+      "total": 2.8531059999999995,
+      "max": 0.306881,
+      "rows_examined": 250422,
+      "rows_sent": 264,
+      "example": "select fe1_0.file_id,fe1_0.active_version_id,fe1_0.created_at,fe1_0.is_deleted,fe1_0.deleted_at,fe1_0.deleted_by,fe1_0.folder_id,fe1_0.original_name,fe1_0.owner_id,o1_0.user_id,o1_0.created_at,o1_0.email,o1_0.name,o1_0.password,o1_0.role,o1_0.username,fe1_0.size,fe1_0.updated_at,fe1_0.version from files fe1_0 join users o1_0 on o1_0.user_id=fe1_0.owner_id where fe1_0.folder_id in (736,865,868,869,902,871,872,745,905,908,881,913,887,888,889,891,893,862,894,895) and fe1_0.is_deleted=false and lower(fe1_0.original_name) like '%문서-1%' escape '!' order by fe1_0.original_name limit 100",
+      "avg_examined": 10434
+    },
+    {
+      "shape": "select f1_0.folder_id,f1_0.created_at,f1_0.deleted_at,f1_0.deleted_by,f1_0.name,f1_0.owner_id,f1_0.parent_folder_id,f1_0.team_id,f1_0.trash_root_id from folders f1_0 where f1_0.folder_id=?",
+      "count": 5,
+      "total": 0.720796,
+      "max": 0.462926,
+      "rows_examined": 5,
+      "rows_sent": 5,
+      "example": "select f1_0.folder_id,f1_0.created_at,f1_0.deleted_at,f1_0.deleted_by,f1_0.name,f1_0.owner_id,f1_0.parent_folder_id,f1_0.team_id,f1_0.trash_root_id from folders f1_0 where f1_0.folder_id=759",
+      "avg_examined": 1
+    },
+    {
+      "shape": "select u1_0.user_id,u1_0.created_at,u1_0.email,u1_0.name,u1_0.password,u1_0.role,u1_0.username from users u1_0 where u1_0.user_id=?",
+      "count": 3,
+      "total": 0.561627,
+      "max": 0.389215,
+      "rows_examined": 3,
+      "rows_sent": 3,
+      "example": "select u1_0.user_id,u1_0.created_at,u1_0.email,u1_0.name,u1_0.password,u1_0.role,u1_0.username from users u1_0 where u1_0.user_id=357",
+      "avg_examined": 1
+    },
+    {
+      "shape": "select f1_0.folder_id,f1_0.created_at,f1_0.deleted_at,f1_0.deleted_by,f1_0.name,f1_0.owner_id,o1_0.user_id,o1_0.created_at,o1_0.email,o1_0.name,o1_0.password,o1_0.role,o1_0.username,f1_0.parent_folder_id,f1_0.team_id,f1_0.trash_root_id from folders f1_0 join users o1_0 on o1_0.user_id=f1_0.owner_id where f1_0.parent_folder_id=? and f1_0.trash_root_id is null",
+      "count": 7,
+      "total": 0.559635,
+      "max": 0.1321,
+      "rows_examined": 0,
+      "rows_sent": 0,
+      "example": "select f1_0.folder_id,f1_0.created_at,f1_0.deleted_at,f1_0.deleted_by,f1_0.name,f1_0.owner_id,o1_0.user_id,o1_0.created_at,o1_0.email,o1_0.name,o1_0.password,o1_0.role,o1_0.username,f1_0.parent_folder_id,f1_0.team_id,f1_0.trash_root_id from folders f1_0 join users o1_0 on o1_0.user_id=f1_0.owner_id where f1_0.parent_folder_id=748 and f1_0.trash_root_id is null",
+      "avg_examined": 0
+    },
+    {
+      "shape": "update files set active_version_id=?,is_deleted=?,deleted_at=null,deleted_by=null,folder_id=?,original_name=?,owner_id=?,size=?,updated_at=?,version=? where file_id=? and version=?",
+      "count": 2,
+      "total": 0.513903,
+      "max": 0.438837,
+      "rows_examined": 2,
+      "rows_sent": 0,
+      "example": "update files set active_version_id=15326,is_deleted=0,deleted_at=null,deleted_by=null,folder_id=738,original_name='메모.txt',owner_id=353,size=420,updated_at='2026-10-03 09:05:12.776082',version=107 where file_id=1449 and version=106",
+      "avg_examined": 1
+    },
+    {
+      "shape": "select fe1_0.file_id,fe1_0.active_version_id,fe1_0.created_at,fe1_0.is_deleted,fe1_0.deleted_at,fe1_0.deleted_by,fe1_0.folder_id,f1_0.folder_id,f1_0.created_at,f1_0.deleted_at,f1_0.deleted_by,f1_0.name,f1_0.owner_id,f1_0.parent_folder_id,f1_0.team_id,f1_0.trash_root_id,fe1_0.original_name,fe1_0.owner_id,fe1_0.size,fe1_0.updated_at,fe1_0.version from files fe1_0 join folders f1_0 on f1_0.folder_id=",
+      "count": 2,
+      "total": 0.512294,
+      "max": 0.3138,
+      "rows_examined": 2,
+      "rows_sent": 2,
+      "example": "select fe1_0.file_id,fe1_0.active_version_id,fe1_0.created_at,fe1_0.is_deleted,fe1_0.deleted_at,fe1_0.deleted_by,fe1_0.folder_id,f1_0.folder_id,f1_0.created_at,f1_0.deleted_at,f1_0.deleted_by,f1_0.name,f1_0.owner_id,f1_0.parent_folder_id,f1_0.team_id,f1_0.trash_root_id,fe1_0.original_name,fe1_0.owner_id,fe1_0.size,fe1_0.updated_at,fe1_0.version from files fe1_0 join folders f1_0 on f1_0.folder_id=fe1_0.folder_id where fe1_0.file_id=1702",
+      "avg_examined": 1
+    },
+    {
+      "shape": "select fe1_0.file_id,fe1_0.active_version_id,fe1_0.created_at,fe1_0.is_deleted,fe1_0.deleted_at,fe1_0.deleted_by,fe1_0.folder_id,fe1_0.original_name,fe1_0.owner_id,o1_0.user_id,o1_0.created_at,o1_0.email,o1_0.name,o1_0.password,o1_0.role,o1_0.username,fe1_0.size,fe1_0.updated_at,fe1_0.version from files fe1_0 join users o1_0 on o1_0.user_id=fe1_0.owner_id where fe1_0.folder_id=? and fe1_0.is_delet",
+      "count": 7,
+      "total": 0.461136,
+      "max": 0.079152,
+      "rows_examined": 408,
+      "rows_sent": 204,
+      "example": "select fe1_0.file_id,fe1_0.active_version_id,fe1_0.created_at,fe1_0.is_deleted,fe1_0.deleted_at,fe1_0.deleted_by,fe1_0.folder_id,fe1_0.original_name,fe1_0.owner_id,o1_0.user_id,o1_0.created_at,o1_0.email,o1_0.name,o1_0.password,o1_0.role,o1_0.username,fe1_0.size,fe1_0.updated_at,fe1_0.version from files fe1_0 join users o1_0 on o1_0.user_id=fe1_0.owner_id where fe1_0.folder_id=745 and fe1_0.is_deleted=false",
+      "avg_examined": 58
+    },
+    {
+      "shape": "select n1_0.notification_id,n1_0.content,n1_0.created_at,i1_0.invitation_id,i1_0.created_at,i1_0.invitee_id,i1_0.inviter_id,i1_0.responded_at,i1_0.status,i1_0.team_id,n1_0.is_read,t1_0.team_id,t1_0.created_at,t1_0.name,t1_0.owner_id,n1_0.type,n1_0.user_id from notifications n1_0 left join invitations i1_0 on i1_0.invitation_id=n1_0.invitation_id left join teams t1_0 on t1_0.team_id=n1_0.team_id wh",
+      "count": 5,
+      "total": 0.430841,
+      "max": 0.1778,
+      "rows_examined": 55,
+      "rows_sent": 17,
+      "example": "select n1_0.notification_id,n1_0.content,n1_0.created_at,i1_0.invitation_id,i1_0.created_at,i1_0.invitee_id,i1_0.inviter_id,i1_0.responded_at,i1_0.status,i1_0.team_id,n1_0.is_read,t1_0.team_id,t1_0.created_at,t1_0.name,t1_0.owner_id,n1_0.type,n1_0.user_id from notifications n1_0 left join invitations i1_0 on i1_0.invitation_id=n1_0.invitation_id left join teams t1_0 on t1_0.team_id=n1_0.team_id where n1_0.user_id=354 order by n1_0.created_at desc,n1_0.notification_id desc limit 30",
+      "avg_examined": 11
+    }
+  ]
+}

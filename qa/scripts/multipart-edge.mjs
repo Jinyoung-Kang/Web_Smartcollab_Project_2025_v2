@@ -18,6 +18,7 @@ await raw('끝 경계 없음', '--b\r\nContent-Disposition: form-data; name="fil
 await raw('file 파트 없음', '--b\r\nContent-Disposition: form-data; name="other"\r\n\r\nhi\r\n--b--\r\n', 'multipart/form-data; boundary=b')
 await raw('파일명 없음', '--b\r\nContent-Disposition: form-data; name="file"\r\n\r\nhi\r\n--b--\r\n', 'multipart/form-data; boundary=b')
 await raw('빈 파일명', '--b\r\nContent-Disposition: form-data; name="file"; filename=""\r\n\r\nhi\r\n--b--\r\n', 'multipart/form-data; boundary=b')
+await raw('파일 이름에 NUL', '--b\r\nContent-Disposition: form-data; name="file"; filename="a\u0000.txt"\r\n\r\nhi\r\n--b--\r\n', 'multipart/form-data; boundary=b')
 await raw('file 파트 두 개', '--b\r\nContent-Disposition: form-data; name="file"; filename="a.txt"\r\n\r\nA\r\n--b\r\nContent-Disposition: form-data; name="file"; filename="b.txt"\r\n\r\nB\r\n--b--\r\n', 'multipart/form-data; boundary=b')
 
 // 중단된 업로드: Content-Length 를 크게 알리고 일부만 보낸 뒤 연결을 끊음
