@@ -1,5 +1,5 @@
 // 장애 주입 — QA 스택(sc-qa)에서만. DB 끊김·지연(Toxiproxy), 앱 강제 종료, 저장소 쓰기 실패, 외부 API(DeepL 목) 지연·오류
-// 실행: node qa/scripts/reliability.mjs [시나리오...]  (예: node qa/scripts/reliability.mjs db-cut kill-upload)
+// 실행: node qa/scripts/reliability.mjs [시나리오...]  (예: node qa/scripts/reliability.mjs db-cut kill-upload). 결과 폴더는 QA_OUT(기본 qa/results)
 import { execSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 import { BASE, Client } from './lib.mjs'
@@ -200,4 +200,4 @@ await run('graceful-upload', async () => {
   return { uploadResult, listed, shutdownLog, integrity: integrity() }
 })
 
-writeFileSync(new URL(`../results/reliability-${only.join('_') || 'all'}${process.env.KILL_UPLOAD_MS ? '-u' + process.env.KILL_UPLOAD_MS : ''}${process.env.KILL_COPY_MS ? '-c' + process.env.KILL_COPY_MS : ''}.json`, import.meta.url), JSON.stringify(results, null, 2))
+writeFileSync(`${process.env.QA_OUT ?? 'qa/results'}/reliability-${only.join('_') || 'all'}${process.env.KILL_UPLOAD_MS ? '-u' + process.env.KILL_UPLOAD_MS : ''}${process.env.KILL_COPY_MS ? '-c' + process.env.KILL_COPY_MS : ''}.json`, JSON.stringify(results, null, 2))

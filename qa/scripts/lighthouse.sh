@@ -2,10 +2,10 @@
 # Lighthouse(npm, 설치된 Chrome 사용)로 화면 성능·접근성·모범 사례를 측정합니다 — QA 스택(8080)에서만.
 # 로그인이 필요한 화면은 QA 사용자의 JWT 를 Authorization: Bearer 헤더로 넘깁니다(Chrome 은 덧붙인 Cookie 헤더를 쓰지 않아
 # 로그인 화면으로 돌아가 버림 — 첫 측정에서 확인). 화면마다 데스크톱·모바일 각 3회, 점수 중앙값을 남깁니다.
-# 사용: qa/scripts/lighthouse.sh   → qa/results/lighthouse-summary.json (원본 보고서는 저장하지 않음)
+# 사용: qa/scripts/lighthouse.sh   → ${QA_OUT:-qa/results}/lighthouse-summary.json (원본 보고서는 저장하지 않음)
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-OUT=qa/results
+OUT=${QA_OUT:-qa/results}
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 export CHROME_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
@@ -45,6 +45,7 @@ for f in glob.glob(f'{tmp}/*.json'):
         'fcpMs': a['first-contentful-paint']['numericValue'], 'lcpMs': a['largest-contentful-paint']['numericValue'],
         'tbtMs': a['total-blocking-time']['numericValue'], 'cls': a['cumulative-layout-shift']['numericValue'],
         'transferKb': a['total-byte-weight']['numericValue'] / 1024,
+        'consoleErrors': len(a['errors-in-console'].get('details', {}).get('items', [])),
         'authMe401': any('/api/auth/me' in (i.get('sourceLocation') or {}).get('url', '') for i in a['errors-in-console'].get('details', {}).get('items', [])),
         'failedAudits': sorted(k for k, v in a.items() if v.get('score') is not None and v['score'] < 0.9 and v.get('scoreDisplayMode') in ('binary', 'numeric'))[:12],
     })

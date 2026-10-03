@@ -22,6 +22,10 @@ while IFS=$'\t' read -r key sha; do
   [ -n "$actual" ] && [ "$actual" != "$sha" ] && bad=$((bad+1))
 done < "$T/db"
 q() { sql "$1" | head -1; }
+# 저장 사용량 집계(V4, IMP-01)와 실제 버전 합계가 다른 저장 공간 수 — V4 전 DB 면 null
+scope_sum='SELECT COALESCE(SUM(v.size),0) FROM file_versions v JOIN files f ON f.file_id=v.file_id JOIN folders fo ON fo.folder_id=f.folder_id WHERE'
+user_drift=$(q "SELECT COUNT(*) FROM users u WHERE u.stored_bytes <> ($scope_sum fo.team_id IS NULL AND fo.owner_id=u.user_id)")
+team_drift=$(q "SELECT COUNT(*) FROM teams t WHERE t.stored_bytes <> ($scope_sum fo.team_id=t.team_id)")
 cat <<JSON
 {
   "versions": $(wc -l < "$T/dbkeys" | tr -d ' '),
@@ -37,7 +41,8 @@ cat <<JSON
   "trashRootNotTrashed": $(q "SELECT COUNT(*) FROM folders c JOIN folders r ON r.folder_id=c.trash_root_id WHERE r.trash_root_id IS NULL OR r.trash_root_id<>r.folder_id"),
   "childOfTrashedNotTrashed": $(q "SELECT COUNT(*) FROM folders c JOIN folders p ON p.folder_id=c.parent_folder_id WHERE p.trash_root_id IS NOT NULL AND c.trash_root_id IS NULL"),
   "teamsWithoutOneLeader": $(q "SELECT COUNT(*) FROM teams t WHERE (SELECT COUNT(*) FROM team_members m WHERE m.team_id=t.team_id AND m.user_id=t.owner_id) <> 1"),
-  "duplicateMembers": $(q "SELECT COUNT(*) FROM (SELECT team_id,user_id FROM team_members GROUP BY team_id,user_id HAVING COUNT(*)>1) x")
+  "duplicateMembers": $(q "SELECT COUNT(*) FROM (SELECT team_id,user_id FROM team_members GROUP BY team_id,user_id HAVING COUNT(*)>1) x"),
+  "usageCounterDrift": { "users": ${user_drift:-null}, "teams": ${team_drift:-null} }
 }
 JSON
 rm -rf "$T"
