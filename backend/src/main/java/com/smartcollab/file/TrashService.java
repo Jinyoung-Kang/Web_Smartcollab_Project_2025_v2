@@ -1,13 +1,13 @@
 package com.smartcollab.file;
 
 import com.smartcollab.access.AccessPolicy;
+import com.smartcollab.event.ChangeEvents;
 import com.smartcollab.folder.Folder;
 import com.smartcollab.folder.FolderRepository;
 import com.smartcollab.folder.FolderStructureLock;
 import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.tx.TransactionRunner;
-import com.smartcollab.realtime.RealtimeEvents;
 import com.smartcollab.team.TeamMember;
 import com.smartcollab.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -98,7 +98,7 @@ public class TrashService {
         file.restoreFromTrash();
         Long teamId = file.getFolder().teamId();
         if (teamId != null) {
-            events.publishEvent(new RealtimeEvents.FolderChanged(teamId, file.getFolder().getId()));
+            events.publishEvent(new ChangeEvents.FolderChanged(teamId, file.getFolder().getId()));
         }
     }
 
@@ -120,7 +120,7 @@ public class TrashService {
         Long teamId = folder.teamId();
         folders.restoreFromTrash(folderId);
         if (teamId != null) {
-            events.publishEvent(new RealtimeEvents.FolderChanged(teamId, destinationId));
+            events.publishEvent(new ChangeEvents.FolderChanged(teamId, destinationId));
         }
         return new DriveDtos.RestoreResponse(destinationId, relocated);
     }

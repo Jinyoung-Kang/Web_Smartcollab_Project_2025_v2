@@ -1,6 +1,6 @@
 package com.smartcollab.file;
 
-import com.smartcollab.realtime.RealtimeEvents;
+import com.smartcollab.event.ChangeEvents;
 import com.smartcollab.support.Api;
 import com.smartcollab.support.IntegrationTest;
 import org.junit.jupiter.api.DisplayName;
@@ -96,8 +96,8 @@ class ItemDeletionTest extends IntegrationTest {
 
         leader.postJson("/api/items/delete", Map.of("items", refs)).andExpect(status().isOk());
 
-        assertThat(events.stream(RealtimeEvents.FolderChanged.class))
-                .containsExactly(new RealtimeEvents.FolderChanged(team[0], team[1]));
+        assertThat(events.stream(ChangeEvents.FolderChanged.class))
+                .containsExactly(new ChangeEvents.FolderChanged(team[0], team[1]));
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.smartcollab.file;
 
 import com.smartcollab.access.AccessPolicy;
+import com.smartcollab.event.ChangeEvents;
 import com.smartcollab.folder.Folder;
 import com.smartcollab.folder.FolderNode;
 import com.smartcollab.folder.FolderRepository;
@@ -9,7 +10,6 @@ import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.error.ErrorCode;
 import com.smartcollab.global.tx.TransactionRunner;
 import com.smartcollab.global.util.FileNames;
-import com.smartcollab.realtime.RealtimeEvents;
 import com.smartcollab.storage.BlobLifecycle;
 import com.smartcollab.storage.BlobStorage;
 import com.smartcollab.storage.StoredBlob;
@@ -27,8 +27,8 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.time.Duration;
 import java.util.List;
-import java.util.Optional;
 import java.util.Locale;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -217,7 +217,7 @@ public class FileService {
 
     private void publishChanged(Folder folder) {
         if (folder.teamId() != null) {
-            events.publishEvent(new RealtimeEvents.FolderChanged(folder.teamId(), folder.getId()));
+            events.publishEvent(new ChangeEvents.FolderChanged(folder.teamId(), folder.getId()));
         }
     }
 

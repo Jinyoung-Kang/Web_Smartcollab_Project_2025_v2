@@ -2,12 +2,12 @@ package com.smartcollab.file;
 
 import com.smartcollab.access.Access;
 import com.smartcollab.access.AccessPolicy;
+import com.smartcollab.event.ChangeEvents;
 import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.error.ErrorCode;
 import com.smartcollab.global.tx.TransactionRunner;
 import com.smartcollab.global.util.FileNames;
-import com.smartcollab.realtime.RealtimeEvents;
 import com.smartcollab.signature.Signature;
 import com.smartcollab.signature.SignatureRepository;
 import com.smartcollab.storage.BlobLifecycle;
@@ -212,7 +212,7 @@ public class FileContentService {
     private void publishChanged(FileEntity file) {
         Long teamId = file.getFolder().teamId();
         if (teamId != null) {
-            events.publishEvent(new RealtimeEvents.FolderChanged(teamId, file.getFolder().getId()));
+            events.publishEvent(new ChangeEvents.FolderChanged(teamId, file.getFolder().getId()));
         }
     }
 

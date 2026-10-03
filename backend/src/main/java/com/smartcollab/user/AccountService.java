@@ -1,6 +1,7 @@
 package com.smartcollab.user;
 
 import com.smartcollab.chat.ChatMessageRepository;
+import com.smartcollab.event.ChangeEvents;
 import com.smartcollab.file.DriveCleanupService;
 import com.smartcollab.file.FileRepository;
 import com.smartcollab.file.FileVersionRepository;
@@ -9,7 +10,6 @@ import com.smartcollab.folder.FolderRepository;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.error.ErrorCode;
 import com.smartcollab.notification.NotificationRepository;
-import com.smartcollab.realtime.RealtimeEvents;
 import com.smartcollab.share.ShareLinkRepository;
 import com.smartcollab.signature.SignatureRepository;
 import com.smartcollab.team.InvitationRepository;
@@ -96,8 +96,8 @@ public class AccountService {
         users.deleteById(userId);
 
         teamIds.forEach(teamId -> {
-            events.publishEvent(new RealtimeEvents.MembershipRevoked(teamId, userId));
-            events.publishEvent(new RealtimeEvents.TeamChanged(teamId, RealtimeEvents.TeamChangeType.MEMBERS_CHANGED));
+            events.publishEvent(new ChangeEvents.MembershipRevoked(teamId, userId));
+            events.publishEvent(new ChangeEvents.TeamChanged(teamId, ChangeEvents.TeamChangeType.MEMBERS_CHANGED));
         });
     }
 }

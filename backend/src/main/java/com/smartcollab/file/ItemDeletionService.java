@@ -1,11 +1,11 @@
 package com.smartcollab.file;
 
 import com.smartcollab.access.AccessPolicy;
+import com.smartcollab.event.ChangeEvents;
 import com.smartcollab.folder.Folder;
 import com.smartcollab.folder.FolderRepository;
 import com.smartcollab.folder.FolderStructureLock;
 import com.smartcollab.global.error.ApiException;
-import com.smartcollab.realtime.RealtimeEvents;
 import com.smartcollab.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -50,7 +50,7 @@ public class ItemDeletionService {
         // 폴더를 휴지통에 넣는 동안 그 아래에 다른 요청이 폴더를 만들거나 옮기지 못하게 저장 공간을 먼저 잠급니다 [S-06]
         structureLock.lockScopesOf(selectedFolders);
         Set<Long> insideSelected = subtreesOf(selectedFolders);
-        Set<RealtimeEvents.FolderChanged> changes = new LinkedHashSet<>();
+        Set<ChangeEvents.FolderChanged> changes = new LinkedHashSet<>();
 
         int trashed = 0;
         for (DriveDtos.ItemRef ref : refs) {
@@ -96,9 +96,9 @@ public class ItemDeletionService {
         return ids;
     }
 
-    private static void changed(Set<RealtimeEvents.FolderChanged> changes, Folder folder) {
+    private static void changed(Set<ChangeEvents.FolderChanged> changes, Folder folder) {
         if (folder.teamId() != null) {
-            changes.add(new RealtimeEvents.FolderChanged(folder.teamId(), folder.getId()));
+            changes.add(new ChangeEvents.FolderChanged(folder.teamId(), folder.getId()));
         }
     }
 }

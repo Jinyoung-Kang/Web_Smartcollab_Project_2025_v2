@@ -1,7 +1,7 @@
 package com.smartcollab.notification;
 
+import com.smartcollab.event.ChangeEvents;
 import com.smartcollab.global.error.ApiException;
-import com.smartcollab.realtime.RealtimeEvents;
 import com.smartcollab.team.Invitation;
 import com.smartcollab.team.Team;
 import com.smartcollab.user.User;
@@ -26,7 +26,7 @@ public class NotificationService {
     @Transactional
     public void notify(User recipient, Notification.Type type, String content, Invitation invitation, Team team) {
         Notification saved = notifications.save(new Notification(recipient, type, content, invitation, team));
-        events.publishEvent(new RealtimeEvents.UserNotified(recipient.getUsername(), NotificationResponse.from(saved)));
+        events.publishEvent(new ChangeEvents.UserNotified(recipient.getUsername(), NotificationResponse.from(saved)));
     }
 
     @Transactional

@@ -3,6 +3,7 @@ package com.smartcollab.team;
 import com.smartcollab.access.Access;
 import com.smartcollab.access.AccessPolicy;
 import com.smartcollab.chat.ChatMessageRepository;
+import com.smartcollab.event.ChangeEvents;
 import com.smartcollab.file.DriveCleanupService;
 import com.smartcollab.file.DriveDtos;
 import com.smartcollab.folder.Folder;
@@ -13,7 +14,6 @@ import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.error.ErrorCode;
 import com.smartcollab.notification.Notification;
 import com.smartcollab.notification.NotificationService;
-import com.smartcollab.realtime.RealtimeEvents;
 import com.smartcollab.user.DemoAccounts;
 import com.smartcollab.user.User;
 import com.smartcollab.user.UserRepository;
@@ -142,7 +142,7 @@ public class TeamService {
             if (!members.existsByTeamIdAndUserId(team.getId(), userId)) {
                 members.save(TeamMember.invitedBy(inviter, invitee));
             }
-            events.publishEvent(new RealtimeEvents.TeamChanged(team.getId(), RealtimeEvents.TeamChangeType.MEMBERS_CHANGED));
+            events.publishEvent(new ChangeEvents.TeamChanged(team.getId(), ChangeEvents.TeamChangeType.MEMBERS_CHANGED));
         }
         notifications.notify(invitation.getInviter(),
                 accept ? Notification.Type.INVITE_ACCEPTED : Notification.Type.INVITE_REJECTED,
@@ -165,7 +165,7 @@ public class TeamService {
         if (!changes.isEmpty()) {
             notifications.notify(target.getUser(), Notification.Type.PERMISSION_CHANGED,
                     "'" + target.getTeam().getName() + "' 팀 권한 변경: " + String.join(", ", changes), target.getTeam());
-            events.publishEvent(new RealtimeEvents.TeamChanged(teamId, RealtimeEvents.TeamChangeType.MEMBERS_CHANGED));
+            events.publishEvent(new ChangeEvents.TeamChanged(teamId, ChangeEvents.TeamChangeType.MEMBERS_CHANGED));
         }
     }
 
@@ -182,8 +182,8 @@ public class TeamService {
         members.delete(target);
         // 알림에 팀 ID 를 담아, 그 팀 화면을 보고 있던 사용자를 화면에서 내보낼 수 있게 합니다.
         notifications.notify(removed, Notification.Type.REMOVED_FROM_TEAM, "'" + team.getName() + "' 팀에서 제외되었습니다.", team);
-        events.publishEvent(new RealtimeEvents.MembershipRevoked(teamId, removed.getId()));
-        events.publishEvent(new RealtimeEvents.TeamChanged(teamId, RealtimeEvents.TeamChangeType.MEMBERS_CHANGED));
+        events.publishEvent(new ChangeEvents.MembershipRevoked(teamId, removed.getId()));
+        events.publishEvent(new ChangeEvents.TeamChanged(teamId, ChangeEvents.TeamChangeType.MEMBERS_CHANGED));
     }
 
     @Transactional
@@ -194,8 +194,8 @@ public class TeamService {
         }
         demoAccounts.forbidIfDemo(me.getUser(), "체험 계정은 팀을 나갈 수 없습니다.");
         members.delete(me);
-        events.publishEvent(new RealtimeEvents.MembershipRevoked(teamId, userId));
-        events.publishEvent(new RealtimeEvents.TeamChanged(teamId, RealtimeEvents.TeamChangeType.MEMBERS_CHANGED));
+        events.publishEvent(new ChangeEvents.MembershipRevoked(teamId, userId));
+        events.publishEvent(new ChangeEvents.TeamChanged(teamId, ChangeEvents.TeamChangeType.MEMBERS_CHANGED));
     }
 
     /** 팀장 위임. v1 은 memberId 가 다른 팀 소속인지 확인하지 않아, 남의 팀 멤버를 팀장으로 지정할 수 있었습니다. */
@@ -213,7 +213,7 @@ public class TeamService {
         team.changeOwner(next.getUser());
         notifications.notify(next.getUser(), Notification.Type.LEADERSHIP_TRANSFERRED,
                 "'" + team.getName() + "' 팀의 새 팀장이 되었습니다.", team);
-        events.publishEvent(new RealtimeEvents.TeamChanged(teamId, RealtimeEvents.TeamChangeType.MEMBERS_CHANGED));
+        events.publishEvent(new ChangeEvents.TeamChanged(teamId, ChangeEvents.TeamChangeType.MEMBERS_CHANGED));
     }
 
     /**
@@ -252,7 +252,7 @@ public class TeamService {
             notifications.notify(users.getReferenceById(u.getId()), Notification.Type.TEAM_DELETED,
                     "'" + teamName + "' 팀이 삭제되었습니다.", null);
         }
-        events.publishEvent(new RealtimeEvents.TeamChanged(teamId, RealtimeEvents.TeamChangeType.TEAM_DELETED));
+        events.publishEvent(new ChangeEvents.TeamChanged(teamId, ChangeEvents.TeamChangeType.TEAM_DELETED));
     }
 
     private TeamMember memberOf(Long teamId, Long memberId) {

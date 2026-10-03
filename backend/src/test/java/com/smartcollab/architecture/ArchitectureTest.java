@@ -18,6 +18,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  * <ul>
  *   <li>표현(컨트롤러) → 비즈니스(서비스) → 데이터 접근(리포지토리) 순서로만 의존합니다.</li>
  *   <li>공통 모듈(global)과 저장소 어댑터(storage)는 도메인 패키지를 모릅니다 (재사용·교체 가능).</li>
+ *   <li>모듈 사이 이벤트(event)는 ID·값만 담고 어느 모듈에도 의존하지 않습니다 [A-03].</li>
  *   <li>API 는 엔티티 대신 DTO 를 돌려줍니다 (비밀번호 해시 같은 내부 필드 노출·지연 로딩 오류 방지).</li>
  * </ul>
  */
@@ -70,6 +71,14 @@ class ArchitectureTest {
     @DisplayName("파일 저장소 어댑터(storage)는 도메인 패키지에 의존하지 않는다 (Azure·로컬 교체 가능)")
     void storageIsIndependentOfDomain() {
         noClasses().that().resideInAPackage("com.smartcollab.storage..")
+                .should().dependOnClassesThat().resideInAnyPackage(DOMAIN_PACKAGES)
+                .check(CLASSES);
+    }
+
+    @Test
+    @DisplayName("[A-03] 모듈 사이 이벤트(event)는 도메인 패키지에 의존하지 않는다 (ID·값만 담음)")
+    void eventsAreIndependentOfDomain() {
+        noClasses().that().resideInAPackage("com.smartcollab.event..")
                 .should().dependOnClassesThat().resideInAnyPackage(DOMAIN_PACKAGES)
                 .check(CLASSES);
     }

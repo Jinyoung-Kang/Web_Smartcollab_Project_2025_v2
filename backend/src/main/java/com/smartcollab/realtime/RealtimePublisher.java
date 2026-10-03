@@ -1,5 +1,6 @@
 package com.smartcollab.realtime;
 
+import com.smartcollab.event.ChangeEvents;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
@@ -35,24 +36,24 @@ public class RealtimePublisher {
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
-    public void on(RealtimeEvents.FolderChanged event) {
+    public void on(ChangeEvents.FolderChanged event) {
         messaging.convertAndSend(eventsTopic(event.teamId()),
                 (Object) Map.of("type", "FOLDER_CHANGED", "folderId", event.folderId()));
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
-    public void on(RealtimeEvents.TeamChanged event) {
+    public void on(ChangeEvents.TeamChanged event) {
         messaging.convertAndSend(eventsTopic(event.teamId()),
                 (Object) Map.of("type", event.change().name(), "teamId", event.teamId()));
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
-    public void on(RealtimeEvents.UserNotified event) {
+    public void on(ChangeEvents.UserNotified event) {
         messaging.convertAndSendToUser(event.username(), "/queue/notifications", event.payload());
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
-    public void on(RealtimeEvents.ChatPosted event) {
+    public void on(ChangeEvents.ChatPosted event) {
         messaging.convertAndSend(chatTopic(event.teamId()), event.payload());
     }
 }

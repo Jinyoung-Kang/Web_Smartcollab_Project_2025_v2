@@ -1,13 +1,14 @@
-package com.smartcollab.realtime;
+package com.smartcollab.event;
 
 /**
- * 트랜잭션이 커밋된 뒤 WebSocket 으로 내보낼 도메인 이벤트들.
- * 서비스는 이벤트만 발행하고, 전송은 {@link RealtimePublisher} 가 커밋 이후에 담당합니다.
- * (롤백된 변경이 다른 사용자 화면에 먼저 반영되는 일을 막기 위함)
+ * 업무 모듈이 "무엇이 바뀌었는지" 알리는 변경 이벤트들. 커밋된 뒤 실시간 모듈(realtime)이 WebSocket 으로 내보냅니다.
+ * <p>업무 모듈은 이벤트만 발행하고 전송 방법은 모릅니다. 이벤트를 실시간 패키지에 두면 업무 규칙이 바깥 어댑터에
+ * 의존하게 되어(방향 역전) 중립 패키지로 옮겼습니다 [A-03]. 롤백된 변경이 다른 사용자 화면에 먼저 반영되지 않도록
+ * 전송은 커밋 이후에만 합니다.</p>
  */
-public final class RealtimeEvents {
+public final class ChangeEvents {
 
-    private RealtimeEvents() {
+    private ChangeEvents() {
     }
 
     /** 팀 폴더 내용이 바뀜 → 같은 폴더를 보고 있는 팀원 화면을 갱신 */

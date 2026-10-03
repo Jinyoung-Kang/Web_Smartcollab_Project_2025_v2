@@ -1,14 +1,14 @@
 package com.smartcollab.file;
 
 import com.smartcollab.access.AccessPolicy;
+import com.smartcollab.event.ChangeEvents;
 import com.smartcollab.folder.Folder;
 import com.smartcollab.folder.FolderDepthPolicy;
-import com.smartcollab.folder.FolderStructureLock;
 import com.smartcollab.folder.FolderRepository;
-import com.smartcollab.global.error.ApiException;
+import com.smartcollab.folder.FolderStructureLock;
 import com.smartcollab.global.config.AppProperties;
+import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.error.ErrorCode;
-import com.smartcollab.realtime.RealtimeEvents;
 import com.smartcollab.global.tx.TransactionRunner;
 import com.smartcollab.storage.BlobLifecycle;
 import com.smartcollab.storage.BlobStorage;
@@ -311,7 +311,7 @@ public class ItemTransferService {
     private void publishChanged(Set<Folder> touched) {
         for (Folder f : touched) {
             if (f != null && f.teamId() != null) {
-                events.publishEvent(new RealtimeEvents.FolderChanged(f.teamId(), f.getId()));
+                events.publishEvent(new ChangeEvents.FolderChanged(f.teamId(), f.getId()));
             }
         }
     }

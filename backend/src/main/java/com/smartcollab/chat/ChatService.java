@@ -1,10 +1,10 @@
 package com.smartcollab.chat;
 
 import com.smartcollab.access.AccessPolicy;
+import com.smartcollab.event.ChangeEvents;
 import com.smartcollab.file.FileEntity;
 import com.smartcollab.file.FileRepository;
 import com.smartcollab.global.error.ApiException;
-import com.smartcollab.realtime.RealtimeEvents;
 import com.smartcollab.team.TeamMember;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -66,7 +66,7 @@ public class ChatService {
             message = ChatMessage.text(member.getTeam(), member.getUser(), content);
         }
         ChatDtos.MessageResponse response = ChatDtos.MessageResponse.of(messages.save(message));
-        events.publishEvent(new RealtimeEvents.ChatPosted(teamId, response));
+        events.publishEvent(new ChangeEvents.ChatPosted(teamId, response));
         return response;
     }
 
@@ -74,6 +74,6 @@ public class ChatService {
     public void clear(Long teamId, Long userId) {
         accessPolicy.requireLeader(teamId, userId);
         messages.deleteByTeam(teamId);
-        events.publishEvent(new RealtimeEvents.TeamChanged(teamId, RealtimeEvents.TeamChangeType.CHAT_CLEARED));
+        events.publishEvent(new ChangeEvents.TeamChanged(teamId, ChangeEvents.TeamChangeType.CHAT_CLEARED));
     }
 }

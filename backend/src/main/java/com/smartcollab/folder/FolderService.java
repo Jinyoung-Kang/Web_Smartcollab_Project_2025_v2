@@ -2,13 +2,13 @@ package com.smartcollab.folder;
 
 import com.smartcollab.access.Access;
 import com.smartcollab.access.AccessPolicy;
-import com.smartcollab.file.TrashService;
+import com.smartcollab.event.ChangeEvents;
 import com.smartcollab.file.DriveDtos;
 import com.smartcollab.file.FileEntity;
 import com.smartcollab.file.FileRepository;
+import com.smartcollab.file.TrashService;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.util.FileNames;
-import com.smartcollab.realtime.RealtimeEvents;
 import com.smartcollab.user.User;
 import com.smartcollab.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -94,7 +94,7 @@ public class FolderService {
         Long parentId = folder.getParent().getId();
         trash.moveFolderToTrash(folder, userId);
         if (teamId != null) {
-            events.publishEvent(new RealtimeEvents.FolderChanged(teamId, parentId));
+            events.publishEvent(new ChangeEvents.FolderChanged(teamId, parentId));
         }
     }
 
@@ -123,7 +123,7 @@ public class FolderService {
 
     private void publishChanged(Folder folder) {
         if (folder != null && folder.teamId() != null) {
-            events.publishEvent(new RealtimeEvents.FolderChanged(folder.teamId(), folder.getId()));
+            events.publishEvent(new ChangeEvents.FolderChanged(folder.teamId(), folder.getId()));
         }
     }
 }
