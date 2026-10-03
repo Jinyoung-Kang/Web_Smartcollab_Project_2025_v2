@@ -2,16 +2,16 @@
 
 | 층 | 도구 | 개수 | 실행 |
 |---|---|---:|---|
-| 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 223 | `cd backend && ./gradlew test` |
+| 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 235 | `cd backend && ./gradlew test` |
 | 프론트엔드 단위·컴포넌트 | Vitest · Testing Library · jsdom | 90 | `cd frontend && npm test` |
-| E2E (전체 스택) | Playwright · Docker Compose · axe-core | 12 (시나리오 10 + 접근성·탭 제목 2) | `docker compose up -d --wait && cd e2e && npx playwright test` |
+| E2E (전체 스택) | Playwright · Docker Compose · axe-core | 13 (시나리오 10 + 접근성 2·탭 제목 1) | `docker compose up -d --wait && cd e2e && npx playwright test` |
 
-백엔드 라인 커버리지 **91.6%**, 분기 커버리지 **80.0%** (JaCoCo, `backend/build/reports/jacoco/test/html`).
+백엔드 라인 커버리지 **91.7%**, 분기 커버리지 **80.3%** (JaCoCo, `backend/build/reports/jacoco/test/html`).
 
 ## 원칙
 
 - **H2 대신 실제 MySQL** 로 통합 테스트합니다. 재귀 CTE·`ON DELETE SET NULL`·조건부 UPDATE 처럼 DB 동작에 기대는 로직이 많아, 운영과 다른 DB 로 테스트하면 통과해도 믿을 수 없기 때문입니다.
-- 테스트마다 무작위 사용자 이름을 써서 데이터를 분리하고, 컨테이너와 Spring 컨텍스트는 한 번만 띄웁니다(전체 223건, 테스트 실행 약 2분). 테스트 JVM 은 운영 컨테이너·CI 와 같은 UTC 로 실행합니다.
+- 테스트마다 무작위 사용자 이름을 써서 데이터를 분리하고, 컨테이너와 Spring 컨텍스트는 한 번만 띄웁니다(전체 235건, `./gradlew test` 약 2분 30초). 테스트 JVM 은 운영 컨테이너·CI 와 같은 UTC 로 실행합니다.
 - v1 에서 찾은 결함마다 이름에 `[v1 …]` 을, 2026-09 코드 리뷰 항목에는 `[SEC-01]`·`[BUG-02]` 처럼 항목 ID 를 붙인 회귀 테스트가 있습니다 → [REFACTORING_REPORT.md](REFACTORING_REPORT.md), [REVIEW_2026-09.md](REVIEW_2026-09.md)
 - 인증은 실제 브라우저처럼 HttpOnly 쿠키 + CSRF 토큰으로 요청합니다(`support/Api`).
 
@@ -49,7 +49,9 @@
 | `SlidingWindowRateLimiterTest` 외 단위 테스트 | 요청 제한(동시성·키별 창으로 정리·분량 반환), 트리 구성(깊이 5,000), 요약 알고리즘, grant 서명, 파일명 검증(방향 제어 문자, S-12), DeepL 호출 형식 |
 | E2E `smoke.spec.ts` | 모든 화면의 CSP 위반 감시(`fixtures.ts`, 하나라도 있으면 실패), CSP 헤더, 문서 편집·버전, 업로드·이름 변경·휴지통 복원, **두 사용자 실시간 채팅·폴더 반영**, 비로그인 공유 다운로드, 검색 화면 새로고침, 로그아웃·비밀번호 오류 뒤 로그인 (BUG-09), 폴더를 휴지통에 넣고 복원 (UX-06), 팀 채팅에 올린 파일 미리보기(이미지가 실제로 그려지는지) |
 | 프론트 `upload.test` · `EditorPage.test` · `http.test` | 대기 중 업로드 취소, 업로드의 401·CSRF 처리, 편집기 앱 내 이동 차단, 충돌 해결 시 편집본 보관, 다시 불러오기가 실패해도 편집 내용 유지 (FB-02)·충돌 해결 실패 안내 (FB-08), CSRF 토큰 요청의 네트워크 오류를 한국어로 (FB-12) |
-| E2E `a11y.spec.ts` | 로그인·드라이브·팀(내가 보낸 채팅 파일 카드 포함)·선택 작업 바·버전 기록·알림·휴지통을 axe(WCAG 2.1 AA·모범 사례)로 검사 — 위반이 하나라도 있으면 실패, 화면별 탭 제목 (UX-01·02) |
+| `TeamMembershipRaceTest` · `UploadLockContentionTest` | 출시 기준 QA 의 경합 — 팀장 위임과 나가기·내보내기가 겹쳐도 팀장 없는 팀이 남지 않음 (QA-01), 같은 초대의 수락·거절은 한쪽만 (QA-05) / 다른 사용자의 저장 한도 확인이 내 업로드를 막지 않음(교착의 원인) (QA-06) |
+| `MultipartErrorTest` · `DatabaseFailFastTest` · `ItemRequestValidationTest` | 실제 Tomcat 에서 깨진·중단된 업로드 본문과 NUL 파일 이름은 400 이고 ERROR 로그가 없음 (QA-03) / 닿지 않는 DB 는 5초 안에 포기 (QA-02) / items 의 null 항목은 400 (QA-04) |
+| E2E `a11y.spec.ts` | 로그인·드라이브·팀(내가 보낸 채팅 파일 카드 포함)·선택 작업 바·버전 기록·알림·휴지통을 axe(WCAG 2.1 AA·모범 사례)로 검사 — 위반이 하나라도 있으면 실패, 화면별 탭 제목 (UX-01·02) / 팀 멤버·팀 메뉴·없는 폴더·공유 받기·375 폭, 보이는 글자를 포함하는 이름(실험 규칙) (QA-09~13) |
 | 프론트 `AppErrorPage.test` · `useDocumentTitle.test` · `josa.test`, 백엔드 `ApiExceptionTest` | 렌더링 오류·새 배포 안내 (ARC-04), 탭 제목 (UX-02), 받침에 맞는 조사 (UX-04) |
 | 프론트 `ChatTab.test` · `TeamActivityProvider.test` · `NotificationBell.test` | 채팅에 공유된 파일을 누르면 지금 파일 정보로 드라이브와 같은 미리보기, 내려받기 링크 분리, 지워진 파일 안내, 보일 때만 보는 중 (FB-06) / 다시 연결되면 채팅·알림 다시 받기 (FB-05) / 알림 요청 실패 안내 (FB-08) |
 | 프론트 `TrashPage.test` | 휴지통의 폴더(파일 수)·파일 구분, 폴더 복원(최상위로 옮겨진 경우 안내), 폴더 영구 삭제 확인 (UX-06) |
@@ -63,3 +65,13 @@
 로컬에서 E2E 를 1분 안에 여러 번 돌리면, 모든 요청이 한 IP 로 묶여 로그인 요청 제한(분당 10회)에 걸립니다. 반복 실행할 때는 `.env` 에 `LOGIN_RATE_PER_MINUTE=200`, `LOGIN_ACCOUNT_RATE=200` 을 넣고 `docker compose up -d --wait` 로 다시 띄우세요(CI 의 E2E 작업도 같은 값을 씁니다).
 
 E2E 가 실제로 잡아낸 결함: 넓은 화면에서도 모바일용 팀 패널이 숨은 채로 함께 렌더링되어 채팅 요청·DOM 이 중복되던 문제(`useMediaQuery` 로 한 쪽만 렌더링하도록 수정).
+
+## 출시 기준 QA 점검 스크립트
+
+CI 와 별도로, QA 스택(`docker compose -f docker-compose.yml -f qa/compose.qa.yml -p sc-qa up -d --wait`, 8080)에 돌리는 점검 스크립트가 [qa/](../qa) 에 있습니다.
+- 백엔드·API: 인가 행렬·인증·CSRF·입력 퍼징·파일 처리·경계값·동시 요청
+- 신뢰성: 장애 주입(Toxiproxy)·정합성 검사·백업 복원
+- 성능: 부하(k6)·Lighthouse
+- 화면: 화면 크롤·접근성 확장 점검(`e2e/qa`, `npx playwright test -c playwright.qa.config.ts`)
+
+방법과 결과는 [QA_2026-10-03](QA_2026-10-03.md) 에 있습니다.

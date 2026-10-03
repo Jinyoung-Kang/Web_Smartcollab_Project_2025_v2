@@ -1,0 +1,11 @@
+경계 문자열 없음 400 {"detail":"업로드 요청을 해석하지 못했습니다. 다시 시도하세요.","instance":"/api/files/upload","status":400,"title":"Bad Request","code":"INVALID_REQUEST","reques
+경계가 본문과 다름 400 {"detail":"Required part 'file' is not present.","instance":"/api/files/upload","status":400,"title":"Bad Request","code":"INVALID_REQUEST"}
+끝 경계 없음 400 {"detail":"업로드 요청을 해석하지 못했습니다. 다시 시도하세요.","instance":"/api/files/upload","status":400,"title":"Bad Request","code":"INVALID_REQUEST","reques
+file 파트 없음 400 {"detail":"Required part 'file' is not present.","instance":"/api/files/upload","status":400,"title":"Bad Request","code":"INVALID_REQUEST"}
+파일명 없음 400 {"detail":"Required part 'file' is not present.","instance":"/api/files/upload","status":400,"title":"Bad Request","code":"INVALID_REQUEST"}
+빈 파일명 400 {"detail":"이름을 입력하세요.","instance":"/api/files/upload","status":400,"title":"Bad Request","code":"INVALID_REQUEST","requestId":"c8135b5b91764
+파일 이름에 NUL 400 {"detail":"파일 이름에 쓸 수 없는 문자가 있습니다.","instance":"/api/files/upload","status":400,"title":"Bad Request","code":"INVALID_REQUEST","requestId":"
+file 파트 두 개 201 {"type":"file","id":20599,"name":"a.txt","size":1,"extension":"txt","ownerName":"qa_90ezi5","createdAt":"2026-10-03T10:18:03.660241342Z","up
+중단: 5MB 보낸 뒤 연결 끊음
+폴더 항목 [ 'a.txt' ]
+사용량 { fileCount: 1, totalBytes: 1, storedBytes: 1, quotaBytes: 1073741824 }

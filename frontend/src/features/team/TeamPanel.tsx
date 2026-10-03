@@ -121,7 +121,8 @@ function TeamMenu({ team }: { team: TeamDetail }) {
       {(close) => (
         <>
           {team.myPermissions.canDelete && (
-            <Link to={`/teams/${team.id}/trash`} onClick={close}
+            // 메뉴(role=menu) 안의 항목은 모두 menuitem 이어야 보조기기가 메뉴로 읽습니다 [QA-09]
+            <Link to={`/teams/${team.id}/trash`} onClick={close} role="menuitem"
               className="flex items-center gap-2.5 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
               <Trash2 aria-hidden className="size-4" /> 팀 휴지통
             </Link>

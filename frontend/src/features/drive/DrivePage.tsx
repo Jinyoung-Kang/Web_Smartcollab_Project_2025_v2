@@ -103,6 +103,7 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
     return (
       <EmptyState
         className="h-full"
+        titleAs="h1"
         icon={FolderX}
         title={notFound ? '폴더를 찾을 수 없습니다' : '폴더를 불러오지 못했습니다'}
         description={notFound ? '삭제되었거나 접근 권한이 없는 폴더입니다.' : (contents.error as Error).message}

@@ -1,0 +1,28 @@
+{
+  "kill-copy": {
+    "copyResult": "ERR UND_ERR_SOCKET",
+    "restartMs": 13873,
+    "dstFolders": 0,
+    "copiedFiles": 0,
+    "before": {
+      "versions": 645,
+      "blobs": 645
+    },
+    "integrity": {
+      "versions": 645,
+      "blobs": 795,
+      "missingBlobs": 0,
+      "orphanBlobs": 150,
+      "tempUploads": 0,
+      "hashMismatch(sample<=300)": 0,
+      "filesWithoutActiveVersion": 0,
+      "activeVersionOfOtherFile": 0,
+      "fileSizeMismatch": 0,
+      "childScopeMismatch": 0,
+      "trashRootNotTrashed": 0,
+      "childOfTrashedNotTrashed": 0,
+      "teamsWithoutOneLeader": 0,
+      "duplicateMembers": 0
+    }
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "db-cut": {
+    "during": [
+      {
+        "status": 500,
+        "ms": 30315,
+        "code": "INTERNAL_ERROR"
+      },
+      {
+        "status": 500,
+        "ms": 741,
+        "code": "INTERNAL_ERROR"
+      },
+      {
+        "status": 500,
+        "ms": 30314,
+        "code": "INTERNAL_ERROR"
+      },
+      {
+        "status": 200,
+        "ms": 356
+      },
+      {
+        "status": 200,
+        "ms": 342
+      }
+    ],
+    "recoveredAfterMs": 1172,
+    "createdDuringOutage": false,
+    "integrity": {
+      "versions": 38,
+      "blobs": 38,
+      "missingBlobs": 0,
+      "orphanBlobs": 0,
+      "tempUploads": 0,
+      "hashMismatch(sample<=300)": 0,
+      "filesWithoutActiveVersion": 0,
+      "activeVersionOfOtherFile": 0,
+      "fileSizeMismatch": 0,
+      "childScopeMismatch": 0,
+      "trashRootNotTrashed": 0,
+      "childOfTrashedNotTrashed": 0,
+      "teamsWithoutOneLeader": 0,
+      "duplicateMembers": 0
+    }
+  },
+  "db-latency": {
+    "statuses": {
+      "200": 20,
+      "201": 10
+    },
+    "p50": 19643,
+    "p95": 52816,
+    "max": 56992,
+    "integrity": {
+      "versions": 38,
+      "blobs": 38,
+      "missingBlobs": 0,
+      "orphanBlobs": 0,
+      "tempUploads": 0,
+      "hashMismatch(sample<=300)": 0,
+      "filesWithoutActiveVersion": 0,
+      "activeVersionOfOtherFile": 0,
+      "fileSizeMismatch": 0,
+      "childScopeMismatch": 0,
+      "trashRootNotTrashed": 0,
+      "childOfTrashedNotTrashed": 0,
+      "teamsWithoutOneLeader": 0,
+      "duplicateMembers": 0
+    }
+  }
+}

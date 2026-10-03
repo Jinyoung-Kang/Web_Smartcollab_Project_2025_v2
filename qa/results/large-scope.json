@@ -1,0 +1,31 @@
+{
+  "measuredAt": "2026-10-03T09:32:39.309Z",
+  "method": "호스트에서 QA 스택(포트 포워딩 포함), 각 7회 중앙값",
+  "bigFolder": {
+    "items": 10000,
+    "jsonBytes": 2313303,
+    "gzipBytes": 183825,
+    "contentEncoding": "gzip",
+    "medianMs": 209,
+    "note": "gzipBytes 는 curl 로 받은 압축 상태 크기"
+  },
+  "users": {
+    "bigUserFiles": 10362,
+    "smallUserFiles": 382
+  },
+  "usageMs": {
+    "bigUser": 37,
+    "smallUser": 22
+  },
+  "uploadMs": {
+    "bigUser": 51,
+    "smallUser": 17
+  },
+  "searchMs": {
+    "bigUser": 30,
+    "smallUser": 23
+  },
+  "treeMs": {
+    "bigUser": 6
+  }
+}

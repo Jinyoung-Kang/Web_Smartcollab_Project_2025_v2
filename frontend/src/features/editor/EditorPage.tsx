@@ -34,7 +34,7 @@ export default function EditorPage() {
   if (content.data) return <Editor key={fileId} fileId={fileId} initial={content.data} />
   if (content.error) {
     return (
-      <EmptyState className="h-full" icon={FileSearch} title="문서를 열 수 없습니다" description={(content.error as Error).message}
+      <EmptyState className="h-full" titleAs="h1" icon={FileSearch} title="문서를 열 수 없습니다" description={(content.error as Error).message}
         action={<Link to="/drive" className={buttonStyles('primary')}>내 드라이브로</Link>} />
     )
   }

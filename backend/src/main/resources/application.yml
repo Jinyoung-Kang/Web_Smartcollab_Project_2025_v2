@@ -11,6 +11,9 @@ spring:
     password: ${DB_PASSWORD:smartcollab}
     hikari:
       maximum-pool-size: ${DB_POOL_SIZE:10}
+      # DB 에 연결할 수 없을 때 커넥션을 기다리는 시간(ms). HikariCP 기본값 30초 그대로면 장애 중 요청마다 30초씩 붙잡혀 있다가
+      # 실패했습니다. 몇 초 안에 실패시키고, 평소 부하(동시 100명, qa/results/k6-*.json)에서는 대기가 이보다 훨씬 짧습니다 [QA-02].
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:5000}
   jpa:
     open-in-view: false
     hibernate:

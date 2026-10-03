@@ -21,6 +21,8 @@ open http://localhost:8080
 | `DB_USERNAME` / `DB_PASSWORD` | ✔ | 개발 `smartcollab` / `prod` 는 없음 | DB 계정. `prod` 에서 셋 중 하나라도 없으면 DB 에 접속하기 전에 기동을 멈춥니다 |
 | `JWT_SECRET` | ✔(운영) | 개발 시 임시 키 | 32바이트 이상 무작위 문자열 |
 | `JWT_TTL` | | `8h` | 로그인 유지 시간 |
+| `DB_POOL_SIZE` | | `10` (`prod` 는 `20`) | DB 커넥션 풀 크기 |
+| `DB_CONNECTION_TIMEOUT_MS` | | `5000` | DB 커넥션을 기다리는 최대 시간(ms). DB 장애 중 요청을 오래 붙잡지 않도록 짧게 둡니다 |
 | `STORAGE_TYPE` | | `local` (`prod` 는 `azure`) | `local` \| `azure` |
 | `STORAGE_LOCAL_ROOT` | | `~/smartcollab-data` | 로컬 저장소 경로 |
 | `AZURE_STORAGE_CONNECTION_STRING` | azure 시 ✔ | – | Blob Storage 연결 문자열 |
@@ -98,7 +100,26 @@ UPDATE folders SET trash_root_id = NULL, deleted_at = NULL, deleted_by = NULL WH
 
 v2 스키마는 v1 과 다릅니다(시각을 UTC 로 저장, 파일 원본 키를 버전 테이블로 이동, 공유 링크 토큰·비밀번호 컬럼 변경 등). **새 데이터베이스로 시작하는 것을 권장**합니다. v1 데이터를 유지해야 한다면 v1 스키마를 읽어 v2 테이블로 옮기는 일회성 이전 스크립트가 필요합니다.
 
-## 4. CI
+## 4. 백업과 복원
+
+출시 기준 QA 에서 로컬(Docker Compose, 저장소 `local`) 절차를 복원까지 검증했습니다([qa/scripts/backup-restore.sh](../qa/scripts/backup-restore.sh)).
+파일 6개의 SHA-256·버전 수·휴지통·팀·사용량이 원본과 같았고, DB·저장소 정합성 검사도 모두 0 이었습니다([QA_2026-10-03 §9-4](QA_2026-10-03.md#9-4-영역별-결과)).
+
+DB 와 저장소 파일은 따로 저장되므로 **둘을 같은 시점으로 맞춰야** 합니다. 앱을 멈추지 않고 DB 덤프와 파일 복사를 차례로 하면 그 사이의 변경이 어긋납니다.
+- 업로드는 파일을 먼저 쓰고 DB 를 나중에 씁니다. 그래서 파일을 먼저 복사하면, 그 뒤 업로드된 파일의 행은 덤프에 있는데 파일은 없습니다.
+- 삭제는 DB 를 먼저 지우고 파일을 나중에 지웁니다. 그래서 덤프 뒤 파일을 복사하면, 덤프에 남은 행의 파일이 이미 지워졌을 수 있습니다.
+
+```bash
+docker compose stop app                                                   # 쓰기 중지(검증 때 3초)
+docker compose exec -T -e MYSQL_PWD="$DB_ROOT_PASSWORD" db mysqldump -uroot --single-transaction --routines --triggers --set-gtid-purged=OFF smartcollab > db.sql
+docker compose run --rm --no-deps -T --entrypoint tar app czf - -C /data . > files.tgz
+docker compose start app
+```
+
+복원은 빈 스택에서 DB 만 먼저 띄워 `db.sql` 을 넣고, 저장소에 `files.tgz` 를 푼 뒤 앱을 띄웁니다(스크립트의 3단계).
+Azure 에서는 Database for MySQL 의 자동 백업(시점 복원)과 Blob Storage 의 소프트 삭제·버전 관리를 함께 켜고, 같은 시점으로 복원합니다. 이 경로는 실제 리소스가 필요해 검증하지 않았습니다.
+
+## 5. CI
 
 `.github/workflows/ci.yml` 이 푸시·PR 마다 실행합니다.
 

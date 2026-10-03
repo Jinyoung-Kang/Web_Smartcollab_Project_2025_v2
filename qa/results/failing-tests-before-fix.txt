@@ -1,0 +1,39 @@
+# 수정 전 실패 시험 결과 (커밋 14ed48d 의 운영 코드 + QA 시험, ./gradlew test --tests …)
+
+FAIL ItemRequestValidationTest | [QA-04] "/api/items/move" 의 items 에 null 이 있으면 400 | 1.22s | java.lang.AssertionError: Status expected:<400> but was:<500>
+FAIL ItemRequestValidationTest | [QA-04] "/api/items/copy" 의 items 에 null 이 있으면 400 | 0.39s | java.lang.AssertionError: Status expected:<400> but was:<500>
+FAIL ItemRequestValidationTest | [QA-04] "/api/items/delete" 의 items 에 null 이 있으면 400 | 0.42s | java.lang.AssertionError: Status expected:<400> but was:<500>
+FAIL DatabaseFailFastTest | [QA-02] DB 에 연결할 수 없으면 커넥션을 5초 안에 포기한다 (30초 동안 요청을 붙잡던 문제) | 30.42s | java.lang.AssertionError: [연결을 기다린 시간]  Expecting actual:   30.263547458S to be less than:   6S 
+FAIL MultipartErrorTest | [QA-03] 업로드 도중 연결이 끊겨도(업로드 취소) 처리하지 않은 예외로 ERROR 로그를 남기지 않고, 파일도 남지 않는다 | 0.88s | java.lang.AssertionError:  Expecting actual:   "QA-03-a4a32c02-05d7-4043-b065-0fceb604a6d9 2026-10-03T08:52:52.233Z  INFO 36341 --- [smartcollab] [omcat-handler-0] [] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializi
+FAIL MultipartErrorTest | [QA-03] 끝 경계가 없는 multipart 본문은 400 이고 ERROR 로그를 남기지 않는다 | 0.33s | org.opentest4j.AssertionFailedError:  expected: 400  but was: 500
+FAIL MultipartErrorTest | [QA-03] 파일 이름에 NUL 문자가 있으면 400 이고 ERROR 로그를 남기지 않는다 | 0.15s | org.opentest4j.AssertionFailedError:  expected: 400  but was: 500
+PASS TeamMembershipRaceTest | [QA-01] 멤버가 팀을 나가는 중에 그 멤버에게 위임해도 팀장 없는 팀이 남지 않는다 (회귀 방지) | 2.71s | 
+FAIL TeamMembershipRaceTest | [QA-01] 팀장 위임이 커밋되기 전에 같은 팀장이 그 멤버를 내보내도 팀장 없는 팀이 남지 않는다 | 2.59s | java.lang.AssertionError: [위임이 먼저 커밋되면 이전 팀장은 더 이상 내보낼 수 없음]  Expecting actual not to be null
+FAIL TeamMembershipRaceTest | [QA-01] 팀장으로 위임되는 중에 그 멤버가 팀을 나가도 팀장 없는 팀이 남지 않는다 | 2.62s | java.lang.AssertionError: [위임이 먼저 커밋되면 새 팀장은 나갈 수 없음]  Expecting actual not to be null
+FAIL TeamMembershipRaceTest | [QA-05] 같은 초대를 거절하는 중에 수락하면 수락은 409 이고, 거절만 반영된다 (둘 다 성공으로 응답하던 문제) | 2.53s | java.lang.AssertionError:  Expecting actual not to be null
+# Error details
+
+```
+Error: 팀 멤버 목록
+
+expect(received).toEqual(expected) // deep equality
+
+- Expected  - 1
++ Received  + 3
+
+- Array []
++ Array [
++   "aria-prohibited-attr (serious) ×3: span[aria-label=\"접속 중\"]",
++ ]
+```
+
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+
+# [QA-13] 수정 전 이미지(8081)에서 E2E a11y 실패
+label-content-name-mismatch: .p-0\.5  (내 계정 버튼 — aria-label "내 계정", 보이는 글자는 사용자 이름)
+
+# [QA-06] UploadLockContentionTest — 수정 전 7724929 에서 독립 검토가 실행 (independent-review.md)
+FAIL UploadLockContentionTest | [QA-06] 다른 사용자의 저장 한도 확인이 진행 중이어도 내 업로드는 기다리지 않는다 | 다른 사용자의 한도 확인에 2.03초 막힘(기준 1.5초)

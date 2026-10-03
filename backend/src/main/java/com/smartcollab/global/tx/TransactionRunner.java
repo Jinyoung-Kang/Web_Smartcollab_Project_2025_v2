@@ -14,23 +14,20 @@ import java.util.function.Supplier;
 @Component
 public class TransactionRunner {
 
-    private final TransactionTemplate write;
     private final TransactionTemplate writeReadCommitted;
     private final TransactionTemplate readOnly;
 
     public TransactionRunner(PlatformTransactionManager transactionManager) {
-        this.write = new TransactionTemplate(transactionManager);
         this.writeReadCommitted = new TransactionTemplate(transactionManager);
         this.writeReadCommitted.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
         this.readOnly = new TransactionTemplate(transactionManager);
         this.readOnly.setReadOnly(true);
     }
 
-    public <T> T write(Supplier<T> work) {
-        return write.execute(status -> work.get());
-    }
-
-    /** 폴더 구조를 바꾸는 쓰기 — 저장 공간을 잠근 뒤 최신 커밋 데이터를 읽도록 READ COMMITTED 로 실행합니다 [S-06]. */
+    /**
+     * 저장 공간(사용자·팀 행)을 잠근 뒤 최신 커밋 데이터를 읽어야 하는 쓰기 — 폴더 구조 변경 [S-06], 저장 한도 확인이 있는
+     * 업로드·텍스트 저장·복사 [QA-06]. READ COMMITTED 는 검색 범위의 간격을 잠그지 않아 다른 사용자의 쓰기와 교착되지 않습니다.
+     */
     public <T> T writeReadCommitted(Supplier<T> work) {
         return writeReadCommitted.execute(status -> work.get());
     }

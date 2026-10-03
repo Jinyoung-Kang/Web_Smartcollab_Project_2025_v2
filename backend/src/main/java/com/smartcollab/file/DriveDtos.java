@@ -43,16 +43,17 @@ public final class DriveDtos {
             @NotNull Long id) {
     }
 
+    /** items 의 null 항목은 400 으로 거절합니다(이전에는 NullPointerException 으로 500) [QA-04] */
     public record TransferRequest(
             @NotEmpty(message = "대상을 선택하세요.") @Size(max = 200, message = "한 번에 200개까지 처리할 수 있습니다.")
-            List<@Valid ItemRef> items,
+            List<@NotNull(message = "빈 항목이 있습니다.") @Valid ItemRef> items,
             @NotNull(message = "대상 폴더를 선택하세요.") Long targetFolderId) {
     }
 
     /** 여러 항목 삭제 [PERF-03] */
     public record DeleteRequest(
             @NotEmpty(message = "대상을 선택하세요.") @Size(max = 200, message = "한 번에 200개까지 처리할 수 있습니다.")
-            List<@Valid ItemRef> items) {
+            List<@NotNull(message = "빈 항목이 있습니다.") @Valid ItemRef> items) {
     }
 
     /**

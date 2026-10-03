@@ -47,6 +47,36 @@ test('[UX-01] 주요 화면에 접근성 위반(WCAG 2.1 AA·모범 사례)이 �
   expect(await violations(page), '휴지통').toEqual([])
 })
 
+// 출시 기준 QA 의 확장 점검(qa/results/a11y-extended.json)에서 찾은 위반: 팀 메뉴 안의 링크가 menuitem 이 아님(critical),
+// 접속 표시 점의 aria-label(역할 없는 span), 좁은 화면에서 이름 없는 로고 링크, 공유 받기 화면의 랜드마크 밖 내용, 없는 폴더 화면의 h1,
+// 그리고 Lighthouse 가 잡은 "보이는 글자를 포함하지 않는 이름"(WCAG 2.5.3, axe 에서는 기본으로 꺼진 실험 규칙이라 따로 켭니다)
+test('[QA-09~13] 팀 멤버·팀 메뉴·없는 폴더·공유 받기·좁은 화면에도 접근성 위반이 없다', async ({ page }) => {
+  await login(page, 'demo1')
+  const labelInName = await new AxeBuilder({ page }).withRules(['label-content-name-mismatch']).analyze()
+  expect(labelInName.violations.map((v) => `${v.id}: ${v.nodes[0]?.target.join(' ')}`), '보이는 글자와 접근 가능한 이름').toEqual([])
+  await openDemoTeam(page)
+  await page.getByRole('tab', { name: /멤버/ }).click()
+  expect(await violations(page), '팀 멤버 목록').toEqual([])
+
+  await page.getByRole('button', { name: '팀 메뉴' }).click()
+  await expect(page.getByRole('menu')).toBeVisible()
+  expect(await violations(page), '팀 메뉴').toEqual([])
+  await page.keyboard.press('Escape')
+
+  await page.goto('/drive/999999999')
+  await page.getByText('폴더를 찾을 수 없습니다').waitFor()
+  expect(await violations(page), '없는 폴더').toEqual([])
+
+  await page.goto('/share/no-such-share-token')
+  await page.getByText(/링크/).first().waitFor()
+  expect(await violations(page), '공유 받기(없는 링크)').toEqual([])
+
+  await page.setViewportSize({ width: 375, height: 812 })
+  await page.goto('/drive')
+  await page.getByRole('button', { name: '메뉴 열기' }).waitFor()
+  expect(await violations(page), '좁은 화면 내 드라이브').toEqual([])
+})
+
 test('[UX-02] 화면마다 탭 제목이 바뀐다', async ({ page }) => {
   await page.goto('/login')
   await expect(page).toHaveTitle('로그인 · SmartCollab')

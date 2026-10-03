@@ -75,7 +75,8 @@ public class FileService {
         }
 
         try {
-            return tx.write(() -> {
+            // READ COMMITTED: 저장 한도 확인이 잠금 읽기 없이 최신 값을 보게 합니다(다른 사용자와의 교착 방지) [QA-06]
+            return tx.writeReadCommitted(() -> {
                 Folder folder = getFolder(folderId);
                 accessPolicy.requireEdit(folder, userId);
                 quota.lockAndCheckRoom(StorageQuota.Scope.of(folder), blob.size());

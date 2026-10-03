@@ -56,9 +56,10 @@ export default function SharePage() {
 
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center bg-gradient-to-b from-slate-50 to-slate-100 px-4">
-      <div className="mb-6 flex items-center gap-2 font-bold text-slate-700">
+      {/* 모든 내용을 랜드마크(header·main·footer) 안에 둡니다 [QA-12] */}
+      <header className="mb-6 flex items-center gap-2 font-bold text-slate-700">
         <img src="/favicon.svg" alt="" className="size-7 rounded-lg" /> SmartCollab
-      </div>
+      </header>
       <main className="card w-full max-w-md p-7 shadow-sm">
         {info.isPending && <Spinner />}
         {failure && (
@@ -111,7 +112,7 @@ export default function SharePage() {
           </>
         )}
       </main>
-      <p className="mt-6 text-xs text-slate-500">공유받은 파일은 보낸 사람이 링크를 해제하면 더 이상 내려받을 수 없습니다.</p>
+      <footer className="mt-6 text-xs text-slate-500">공유받은 파일은 보낸 사람이 링크를 해제하면 더 이상 내려받을 수 없습니다.</footer>
     </div>
   )
 }

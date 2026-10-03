@@ -1,0 +1,295 @@
+{
+  "when": "2026-10-03T09:45:54.459Z",
+  "screens": 36,
+  "totalViolationTypes": 13,
+  "results": [
+    {
+      "screen": "가입",
+      "violations": []
+    },
+    {
+      "screen": "가입 — 빈 값으로 제출한 오류 상태",
+      "violations": []
+    },
+    {
+      "screen": "로그인 — 비밀번호 오류 상태",
+      "violations": []
+    },
+    {
+      "screen": "공유 받기 — 비밀번호 입력",
+      "violations": [
+        {
+          "id": "region",
+          "impact": "moderate",
+          "nodes": 2,
+          "target": ".mb-6",
+          "help": "All page content should be contained by landmarks",
+          "wcag": []
+        }
+      ]
+    },
+    {
+      "screen": "공유 받기 — 비밀번호 오류",
+      "violations": [
+        {
+          "id": "region",
+          "impact": "moderate",
+          "nodes": 2,
+          "target": ".mb-6",
+          "help": "All page content should be contained by landmarks",
+          "wcag": []
+        }
+      ]
+    },
+    {
+      "screen": "공유 받기 — 잠금 해제",
+      "violations": [
+        {
+          "id": "region",
+          "impact": "moderate",
+          "nodes": 2,
+          "target": ".mb-6",
+          "help": "All page content should be contained by landmarks",
+          "wcag": []
+        }
+      ]
+    },
+    {
+      "screen": "공유 받기 — 없는 링크",
+      "violations": [
+        {
+          "id": "region",
+          "impact": "moderate",
+          "nodes": 2,
+          "target": ".mb-6",
+          "help": "All page content should be contained by landmarks",
+          "wcag": []
+        }
+      ]
+    },
+    {
+      "screen": "새 폴더 대화상자",
+      "violations": []
+    },
+    {
+      "screen": "이름 바꾸기 대화상자",
+      "violations": []
+    },
+    {
+      "screen": "이동 대화상자",
+      "violations": []
+    },
+    {
+      "screen": "복사 대화상자",
+      "violations": []
+    },
+    {
+      "screen": "공유 링크 대화상자(링크 있음)",
+      "violations": []
+    },
+    {
+      "screen": "미리보기 대화상자(이미지)",
+      "violations": []
+    },
+    {
+      "screen": "미리보기 대화상자(텍스트)",
+      "violations": []
+    },
+    {
+      "screen": "삭제 확인 대화상자",
+      "violations": []
+    },
+    {
+      "screen": "내 계정 메뉴",
+      "violations": []
+    },
+    {
+      "screen": "회원 탈퇴 대화상자",
+      "violations": []
+    },
+    {
+      "screen": "새 팀 만들기 대화상자",
+      "violations": []
+    },
+    {
+      "screen": "업로드 진행 상황 패널",
+      "violations": []
+    },
+    {
+      "screen": "검색 결과",
+      "violations": []
+    },
+    {
+      "screen": "검색 결과 없음",
+      "violations": []
+    },
+    {
+      "screen": "없는 폴더",
+      "violations": [
+        {
+          "id": "page-has-heading-one",
+          "impact": "moderate",
+          "nodes": 1,
+          "target": "html",
+          "help": "Page should contain a level-one heading",
+          "wcag": []
+        }
+      ]
+    },
+    {
+      "screen": "편집기",
+      "violations": []
+    },
+    {
+      "screen": "편집기 — 핵심 문장 패널",
+      "violations": []
+    },
+    {
+      "screen": "편집기 — 번역 결과",
+      "violations": []
+    },
+    {
+      "screen": "휴지통(파일·폴더)",
+      "violations": []
+    },
+    {
+      "screen": "팀 멤버 탭",
+      "violations": [
+        {
+          "id": "aria-prohibited-attr",
+          "impact": "serious",
+          "nodes": 2,
+          "target": "span[aria-label=\"접속 중\"]",
+          "help": "Elements must only use permitted ARIA attributes",
+          "wcag": [
+            "wcag2a",
+            "wcag412"
+          ]
+        }
+      ]
+    },
+    {
+      "screen": "멤버 초대 대화상자",
+      "violations": []
+    },
+    {
+      "screen": "멤버 관리 메뉴",
+      "violations": [
+        {
+          "id": "aria-prohibited-attr",
+          "impact": "serious",
+          "nodes": 2,
+          "target": "span[aria-label=\"접속 중\"]",
+          "help": "Elements must only use permitted ARIA attributes",
+          "wcag": [
+            "wcag2a",
+            "wcag412"
+          ]
+        }
+      ]
+    },
+    {
+      "screen": "권한 변경 대화상자",
+      "violations": []
+    },
+    {
+      "screen": "팀 메뉴",
+      "violations": [
+        {
+          "id": "aria-prohibited-attr",
+          "impact": "serious",
+          "nodes": 2,
+          "target": "span[aria-label=\"접속 중\"]",
+          "help": "Elements must only use permitted ARIA attributes",
+          "wcag": [
+            "wcag2a",
+            "wcag412"
+          ]
+        },
+        {
+          "id": "aria-required-children",
+          "impact": "critical",
+          "nodes": 1,
+          "target": ".animate-slide-up",
+          "help": "Certain ARIA roles must contain particular children",
+          "wcag": [
+            "wcag2a",
+            "wcag131"
+          ]
+        }
+      ]
+    },
+    {
+      "screen": "팀 휴지통",
+      "violations": []
+    },
+    {
+      "screen": "375 내 드라이브",
+      "violations": [
+        {
+          "id": "link-name",
+          "impact": "serious",
+          "nodes": 1,
+          "target": ".font-bold.text-slate-900[href$=\"drive\"]",
+          "help": "Links must have discernible text",
+          "wcag": [
+            "wcag2a",
+            "wcag244",
+            "wcag412"
+          ]
+        }
+      ]
+    },
+    {
+      "screen": "375 주 메뉴 열림",
+      "violations": [
+        {
+          "id": "link-name",
+          "impact": "serious",
+          "nodes": 1,
+          "target": ".font-bold.text-slate-900[href$=\"drive\"]",
+          "help": "Links must have discernible text",
+          "wcag": [
+            "wcag2a",
+            "wcag244",
+            "wcag412"
+          ]
+        }
+      ]
+    },
+    {
+      "screen": "375 팀 패널 열림",
+      "violations": [
+        {
+          "id": "link-name",
+          "impact": "serious",
+          "nodes": 1,
+          "target": ".font-bold.text-slate-900[href$=\"drive\"]",
+          "help": "Links must have discernible text",
+          "wcag": [
+            "wcag2a",
+            "wcag244",
+            "wcag412"
+          ]
+        }
+      ]
+    },
+    {
+      "screen": "375 편집기",
+      "violations": [
+        {
+          "id": "link-name",
+          "impact": "serious",
+          "nodes": 1,
+          "target": ".text-slate-900",
+          "help": "Links must have discernible text",
+          "wcag": [
+            "wcag2a",
+            "wcag244",
+            "wcag412"
+          ]
+        }
+      ]
+    }
+  ]
+}

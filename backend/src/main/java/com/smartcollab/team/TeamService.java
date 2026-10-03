@@ -17,6 +17,7 @@ import com.smartcollab.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
@@ -114,8 +115,11 @@ public class TeamService {
                 inviter.getName() + "님이 '" + team.getName() + "' 팀에 초대했습니다.", invitation.getId(), team.getId());
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void respondToInvitation(Long invitationId, boolean accept, Long userId) {
+        // 초대 행을 먼저 잠가 같은 초대의 수락·거절을 줄 세웁니다. 잠그지 않으면 둘 다 "대기 중"으로 읽고 둘 다 성공해,
+        // 초대한 사람에게 수락·거절 알림이 모두 가고 나중에 커밋한 쪽의 상태만 남았습니다 [QA-05].
+        invitations.lockById(invitationId);
         Invitation invitation = invitations.findDetailed(invitationId)
                 .filter(i -> i.getInvitee().getId().equals(userId))
                 .orElseThrow(() -> ApiException.notFound("초대"));
@@ -140,8 +144,9 @@ public class TeamService {
                 null, team.getId());
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void updatePermissions(Long teamId, Long memberId, TeamDtos.PermissionRequest req, Long userId) {
+        lockTeam(teamId);
         accessPolicy.requireLeader(teamId, userId);
         TeamMember target = memberOf(teamId, memberId);
         if (target.isTeamLeader()) {
@@ -159,8 +164,9 @@ public class TeamService {
         }
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void removeMember(Long teamId, Long memberId, Long userId) {
+        lockTeam(teamId);
         accessPolicy.requireLeader(teamId, userId);
         TeamMember target = memberOf(teamId, memberId);
         if (target.isTeamLeader()) {
@@ -176,8 +182,9 @@ public class TeamService {
         events.publishEvent(new ChangeEvents.TeamChanged(teamId, ChangeEvents.TeamChangeType.MEMBERS_CHANGED));
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void leave(Long teamId, Long userId) {
+        lockTeam(teamId);
         TeamMember me = accessPolicy.requireMember(teamId, userId);
         if (me.isTeamLeader()) {
             throw ApiException.badRequest("팀장은 팀을 나갈 수 없습니다. 팀장을 위임하거나 팀을 삭제하세요.");
@@ -189,8 +196,12 @@ public class TeamService {
     }
 
     /** 팀장 위임. v1 은 memberId 가 다른 팀 소속인지 확인하지 않아, 남의 팀 멤버를 팀장으로 지정할 수 있었습니다. */
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void delegateLeadership(Long teamId, Long memberId, Long userId) {
+        // 새 팀장의 사용자 행(팀 수 상한 [S-10]) → 팀 행 순서로 잠근 뒤 최신 상태로 판단합니다. 폴더 구조 잠금과 같은 순서라
+        // 교착되지 않습니다(ADR-0009).
+        members.findUserId(teamId, memberId).ifPresent(users::lockById);
+        lockTeam(teamId);
         TeamMember current = accessPolicy.requireLeader(teamId, userId);
         demoAccounts.forbidIfDemo(current.getUser(), "체험 계정은 팀장을 넘길 수 없습니다.");
         TeamMember next = memberOf(teamId, memberId);
@@ -198,7 +209,6 @@ public class TeamService {
             throw ApiException.badRequest("이미 팀장입니다.");
         }
         // 팀을 만들 때와 같은 상한을 넘겨받을 때도 지킵니다 — 이전에는 위임으로 한 사람이 10개 넘게 이끌 수 있었습니다 [S-10].
-        users.lockById(next.getUser().getId());
         int max = props.quota().teamsPerUser();
         if (teams.countByOwnerId(next.getUser().getId()) >= max) {
             throw ApiException.conflict("새 팀장이 이미 팀장인 팀이 " + max + "개라 넘길 수 없습니다.");
@@ -250,6 +260,15 @@ public class TeamService {
     /** 알림은 알림 모듈이 같은 트랜잭션 안에서 저장합니다 [A-01] */
     private void notice(Long recipientUserId, NoticeEvents.Type type, String content, Long invitationId, Long teamId) {
         events.publishEvent(new NoticeEvents.Requested(recipientUserId, type, content, invitationId, teamId));
+    }
+
+    /**
+     * 팀 행을 잠가 같은 팀의 구성원 변경(위임·나가기·내보내기·권한 변경)을 줄 세웁니다. 호출하는 트랜잭션은 READ_COMMITTED 여야
+     * 잠금을 얻은 뒤의 읽기가 최신 커밋을 봅니다. 잠그지 않으면 위임과 그 멤버의 나가기·내보내기가 겹쳐, 소유자가 멤버가 아니고
+     * 팀장 표시도 없는 팀이 남았습니다(소유자는 탈퇴 불가, 남은 멤버는 팀 관리 불가) [QA-01].
+     */
+    private void lockTeam(Long teamId) {
+        teams.lockById(teamId);
     }
 
     private TeamMember memberOf(Long teamId, Long memberId) {

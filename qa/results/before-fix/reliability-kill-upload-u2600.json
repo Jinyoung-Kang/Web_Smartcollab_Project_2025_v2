@@ -1,0 +1,23 @@
+{
+  "kill-upload": {
+    "uploadResult": 201,
+    "restartMs": 27645,
+    "bigListed": true,
+    "integrity": {
+      "versions": 492,
+      "blobs": 492,
+      "missingBlobs": 0,
+      "orphanBlobs": 0,
+      "tempUploads": 0,
+      "hashMismatch(sample<=300)": 0,
+      "filesWithoutActiveVersion": 0,
+      "activeVersionOfOtherFile": 0,
+      "fileSizeMismatch": 0,
+      "childScopeMismatch": 0,
+      "trashRootNotTrashed": 0,
+      "childOfTrashedNotTrashed": 0,
+      "teamsWithoutOneLeader": 0,
+      "duplicateMembers": 0
+    }
+  }
+}
