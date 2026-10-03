@@ -20,7 +20,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -56,21 +55,21 @@ public class FileService {
      * </ol>
      * 3단계가 실패하면 2단계에서 쓴 파일을 지웁니다.
      */
-    public DriveDtos.ItemResponse upload(Long folderId, MultipartFile multipart, Long userId) {
-        if (multipart == null || multipart.isEmpty()) {
+    public DriveDtos.ItemResponse upload(Long folderId, UploadSource source, Long userId) {
+        if (source == null || source.isEmpty()) {
             throw ApiException.badRequest("빈 파일은 업로드할 수 없습니다.");
         }
-        String name = FileNames.sanitizeUploadName(multipart.getOriginalFilename());
+        String name = FileNames.sanitizeUploadName(source.filename());
         tx.readOnly(() -> {
             Folder folder = getFolder(folderId);
             accessPolicy.requireEdit(folder, userId);
-            quota.checkRoom(StorageQuota.Scope.of(folder), multipart.getSize());
+            quota.checkRoom(StorageQuota.Scope.of(folder), source.size());
         });
 
         String key = BlobLifecycle.newFileKey();
         StoredBlob blob;
-        try (InputStream in = multipart.getInputStream()) {
-            blob = storage.put(key, in, multipart.getSize());
+        try (InputStream in = source.opener().open()) {
+            blob = storage.put(key, in, source.size());
         } catch (IOException e) {
             throw new UncheckedIOException("업로드 스트림을 읽지 못했습니다.", e);
         }

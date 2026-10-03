@@ -42,7 +42,8 @@ public class FileController {
     public ResponseEntity<DriveDtos.ItemResponse> upload(@RequestParam Long folderId,
                                                          @RequestPart("file") MultipartFile file,
                                                          @CurrentUser AuthUser user) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(fileService.upload(folderId, file, user.id()));
+        UploadSource source = new UploadSource(file.getOriginalFilename(), file.getSize(), file::getInputStream);
+        return ResponseEntity.status(HttpStatus.CREATED).body(fileService.upload(folderId, source, user.id()));
     }
 
     @Operation(summary = "파일 정보", description = "이름·크기·미리보기 종류. 채팅에 공유된 파일처럼 폴더 목록 없이 미리 볼 때 씁니다.")

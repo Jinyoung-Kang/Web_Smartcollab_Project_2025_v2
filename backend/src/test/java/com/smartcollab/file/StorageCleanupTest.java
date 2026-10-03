@@ -15,7 +15,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.mock.web.MockMultipartFile;
 
 import java.io.InputStream;
 import java.util.List;
@@ -73,7 +72,7 @@ class StorageCleanupTest {
         when(tx.write(any(Supplier.class))).thenThrow(ApiException.notFound("폴더"));
         FileService service = new FileService(files, versions, folders, users, accessPolicy, blobLifecycle, storage, events, tx, quota);
 
-        assertThatThrownBy(() -> service.upload(10L, new MockMultipartFile("file", "a.txt", "text/plain", "hello".getBytes()), 1L))
+        assertThatThrownBy(() -> service.upload(10L, UploadSource.of("a.txt", "hello".getBytes()), 1L))
                 .isInstanceOf(ApiException.class);
 
         verify(blobLifecycle).discard(List.of(key.getValue()));

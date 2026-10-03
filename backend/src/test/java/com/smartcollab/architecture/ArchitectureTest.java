@@ -82,4 +82,13 @@ class ArchitectureTest {
                 .should().dependOnClassesThat().resideInAnyPackage(DOMAIN_PACKAGES)
                 .check(CLASSES);
     }
+
+    @Test
+    @DisplayName("[A-05] 서비스는 웹 타입(MultipartFile·HTTP 응답 등)과 컨트롤러에 의존하지 않는다 (요청·응답 형식은 컨트롤러 몫)")
+    void servicesDoNotDependOnWebTypes() {
+        noClasses().that().areAnnotatedWith(Service.class)
+                .should().dependOnClassesThat().resideInAnyPackage("org.springframework.web..", "org.springframework.http..")
+                .orShould().dependOnClassesThat().areAnnotatedWith(RestController.class)
+                .check(CLASSES);
+    }
 }

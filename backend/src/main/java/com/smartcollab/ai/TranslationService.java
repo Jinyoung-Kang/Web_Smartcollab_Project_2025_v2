@@ -29,7 +29,7 @@ public class TranslationService {
     private final SlidingWindowRateLimiter rateLimiter;
     private final AppProperties props;
 
-    public AiController.TranslationResponse translate(Long fileId, Long userId, String target) {
+    public TranslationResult translate(Long fileId, Long userId, String target) {
         String deeplTarget = TARGETS.get(target.toUpperCase(Locale.ROOT));
         if (deeplTarget == null) {
             throw ApiException.badRequest("target 은 EN 또는 KO 입니다.");
@@ -54,6 +54,10 @@ public class TranslationService {
             rateLimiter.release(budgetKey, text.length());
             throw e;
         }
-        return new AiController.TranslationResponse(t.text(), deeplTarget, t.detectedSourceLanguage());
+        return new TranslationResult(t.text(), deeplTarget, t.detectedSourceLanguage());
+    }
+
+    /** 번역 결과. 응답 형식은 컨트롤러가 정합니다 [A-05]. */
+    public record TranslationResult(String text, String targetLanguage, String detectedSourceLanguage) {
     }
 }

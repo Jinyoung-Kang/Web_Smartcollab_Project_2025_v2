@@ -7,6 +7,7 @@ import com.smartcollab.chat.ChatService;
 import com.smartcollab.file.DriveDtos;
 import com.smartcollab.file.FileContentService;
 import com.smartcollab.file.FileService;
+import com.smartcollab.file.UploadSource;
 import com.smartcollab.folder.FolderDtos;
 import com.smartcollab.folder.FolderService;
 import com.smartcollab.folder.RootFolders;
@@ -191,7 +192,7 @@ public class DemoDataSeeder {
     }
 
     private DriveDtos.ItemResponse upload(Long folderId, String name, byte[] bytes, User user) {
-        return fileService.upload(folderId, new BytesMultipartFile(name, bytes), user.getId());
+        return fileService.upload(folderId, UploadSource.of(name, bytes), user.getId());
     }
 
     private Long save(Long fileId, String text, User user) {
