@@ -14,3 +14,9 @@ FAIL [IMP-01] 한도 확인은 합산이 아니라 사용자 행의 사용량 �
 FAIL [IMP-01] 정리 작업은 어긋난 집계를 실제 합계로 바로잡고 고친 수를 돌려준다 | java.lang.AssertionError:  Expecting actual:   0 to be greater than or equal to:   2 
 FAIL [IMP-01] 같은 사용자가 동시에 업로드해도 집계를 잃지 않는다 | org.opentest4j.AssertionFailedError:  expected: 16120L  but was: 0L
 FAIL [IMP-01] 업로드·텍스트 저장·복사·휴지통·영구 삭제·폴더 삭제 뒤에도 집계는 실제 합계와 같다 (개인·팀) | org.opentest4j.AssertionFailedError:  expected: 3062L  but was: 0L
+
+## [IMP-02] FolderPagingTest (수정 전 — 페이지·정렬 매개변수를 무시하고 전부 돌려줌)
+FAIL [IMP-02] 아무 값도 주지 않으면 500개까지만 주고 다음 커서를 준다 | java.lang.AssertionError:  Expected size: 500 but was: 503 in: ["하위 0",     "하위 1",     "하위 10",     "하위 100",     "하위 101",     "하위 102",  
+FAIL [IMP-02] 잘못된 limit·커서·정렬 기준은 400 | java.lang.AssertionError: Status expected:<400> but was:<200>
+FAIL [IMP-02] limit 만큼 나눠 주고, 커서로 이어 받으면 빠짐·겹침 없이 끝까지 온다 (폴더 우선·자연 정렬) | com.jayway.jsonpath.PathNotFoundException: No results for path: $['itemCount']
+FAIL [IMP-02] 정렬 기준·방향을 서버가 적용한다 (폴더는 늘 앞) | org.opentest4j.AssertionFailedError:  Expecting actual:   ["폴더", "작은.bin", "중간.bin", "큰.bin"] to contain exactly (and in same order):   ["폴더
