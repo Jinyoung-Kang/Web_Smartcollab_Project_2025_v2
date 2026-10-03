@@ -16,6 +16,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.support.AbstractSubscribableChannel;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import tools.jackson.core.type.TypeReference;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -63,8 +64,8 @@ class EventOriginTest extends IntegrationTest {
             brokerChannel.removeInterceptor(capture);
         }
 
-        assertThat(payloads).anySatisfy(p -> assertThat(json.readValue(p, Map.class))
-                .containsEntry("type", "FOLDER_CHANGED").containsEntry("origin", "tab-1234abcd"));
+        assertThat(payloads).anySatisfy(p -> assertThat(json.readValue(p, new TypeReference<Map<String, Object>>() {
+        })).containsEntry("type", "FOLDER_CHANGED").containsEntry("origin", "tab-1234abcd"));
     }
 
     @Test
