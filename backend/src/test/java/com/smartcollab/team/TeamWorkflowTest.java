@@ -82,6 +82,53 @@ class TeamWorkflowTest extends IntegrationTest {
         member.get("/api/trash?teamId={t}", team[0]).andExpect(jsonPath("$", hasSize(1)));
     }
 
+    private boolean canEditOf(Api.Session viewer, long teamId, String username) throws Exception {
+        java.util.List<Boolean> values = Api.read(viewer.get("/api/teams/{t}", teamId),
+                "$.members[?(@.username == '" + username + "')].canEdit");
+        return values.getFirst();
+    }
+
+    @Test
+    @DisplayName("[S-08] 편집 권한 없이 초대 권한만 가진 멤버가 초대한 사람은 편집 권한 없이 들어온다")
+    void inviteeDoesNotGetMoreThanInviter() throws Exception {
+        Api.Session leader = api().signUp("invl");
+        Api.Session inviter = api().signUp("invm");
+        Api.Session guest = api().signUp("invg");
+        long[] team = leader.createTeam("초대 권한 팀");
+        long inviterId = join(leader, inviter, team[0]);
+        leader.putJson("/api/teams/{t}/members/{m}/permissions",
+                Map.of("canEdit", false, "canDelete", false, "canInvite", true), team[0], inviterId).andExpect(status().isNoContent());
+
+        inviter.postJson("/api/teams/{t}/invitations", Map.of("username", guest.username), team[0]).andExpect(status().isCreated());
+        guest.post("/api/invitations/{id}/accept", invitationIdOf(guest)).andExpect(status().isNoContent());
+
+        assertThat(canEditOf(leader, team[0], guest.username)).isFalse();
+        // 팀장이 초대하면 지금처럼 편집 권한으로 들어옴
+        Api.Session byLeader = api().signUp("invl2");
+        join(leader, byLeader, team[0]);
+        assertThat(canEditOf(leader, team[0], byLeader.username)).isTrue();
+    }
+
+    @Test
+    @DisplayName("[S-08] 초대한 멤버가 팀에서 나가면, 그 사람이 보낸 대기 중 초대는 수락할 수 없다")
+    void staleInvitationCannotBeAccepted() throws Exception {
+        Api.Session leader = api().signUp("stalel");
+        Api.Session inviter = api().signUp("stalem");
+        Api.Session guest = api().signUp("staleg");
+        long[] team = leader.createTeam("내보낸 팀");
+        long inviterId = join(leader, inviter, team[0]);
+        leader.putJson("/api/teams/{t}/members/{m}/permissions",
+                Map.of("canEdit", true, "canDelete", false, "canInvite", true), team[0], inviterId).andExpect(status().isNoContent());
+        inviter.postJson("/api/teams/{t}/invitations", Map.of("username", guest.username), team[0]).andExpect(status().isCreated());
+        long invitation = invitationIdOf(guest);
+
+        leader.delete("/api/teams/{t}/members/{m}", team[0], inviterId).andExpect(status().isNoContent());
+
+        guest.post("/api/invitations/{id}/accept", invitation).andExpect(status().isConflict());
+        guest.get("/api/teams/{t}", team[0]).andExpect(status().isNotFound());
+        guest.post("/api/invitations/{id}/reject", invitation).andExpect(status().isNoContent());   // 받은 사람은 거절로 정리
+    }
+
     @Test
     @DisplayName("팀장 위임 후 이전 팀장은 편집 권한만 남고, 새 팀장만 팀을 삭제할 수 있다")
     void delegateLeadership() throws Exception {

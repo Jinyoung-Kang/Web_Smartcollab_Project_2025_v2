@@ -110,11 +110,17 @@ public class TeamService {
                 .filter(i -> i.getInvitee().getId().equals(userId))
                 .orElseThrow(() -> ApiException.notFound("초대"));
         Team team = invitation.getTeam();
-        invitation.respond(accept ? Invitation.Status.ACCEPTED : Invitation.Status.REJECTED);
         User invitee = invitation.getInvitee();
+        // 수락 시점에 초대한 사람이 아직 이 팀에서 초대할 수 있는지 다시 확인합니다. 내보낸 멤버·초대 권한을 회수한 멤버가
+        // 미리 보낸 초대로 팀에 들어오는 것을 막습니다 [S-08]. 받은 사람은 거절로 초대를 정리할 수 있습니다.
+        TeamMember inviter = accept ? members.findByTeamIdAndUserId(team.getId(), invitation.getInviter().getId())
+                .filter(TeamMember::mayInvite)
+                .orElseThrow(() -> ApiException.conflict("초대한 사람이 더 이상 이 팀에 초대할 수 없어 수락할 수 없습니다. 초대를 거절해 정리하세요."))
+                : null;
+        invitation.respond(accept ? Invitation.Status.ACCEPTED : Invitation.Status.REJECTED);
         if (accept) {
             if (!members.existsByTeamIdAndUserId(team.getId(), userId)) {
-                members.save(TeamMember.member(team, invitee));
+                members.save(TeamMember.invitedBy(inviter, invitee));
             }
             events.publishEvent(new RealtimeEvents.TeamChanged(team.getId(), RealtimeEvents.TeamChangeType.MEMBERS_CHANGED));
         }
