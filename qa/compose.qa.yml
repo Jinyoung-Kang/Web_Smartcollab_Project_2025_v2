@@ -1,0 +1,46 @@
+# QA 스택: docker compose -f docker-compose.yml -f qa/compose.qa.yml -p sc-qa up -d --wait
+# - DB 앞에 Toxiproxy 를 두어 지연·끊김을 주입하고, 느린 쿼리 로그를 켭니다.
+# - DeepL 대신 목 서버(qa/deepl-mock.mjs)를 부릅니다. 실제 외부 API 는 호출하지 않습니다.
+# - 시험용 사용자를 많이 만들 수 있게 가입·로그인 요청 제한을 높입니다(제한 자체는 백엔드 통합 테스트가 검증).
+services:
+  db:
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --slow-query-log=ON
+      - --long-query-time=0.05
+      - --log-queries-not-using-indexes=ON
+      - --slow-query-log-file=/var/lib/mysql/slow.log
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy:2.12.0
+    command: ["-host=0.0.0.0", "-config=/config/toxiproxy.json"]
+    volumes:
+      - ./qa/toxiproxy.json:/config/toxiproxy.json:ro
+    ports:
+      - "127.0.0.1:18474:8474"
+    depends_on:
+      db:
+        condition: service_healthy
+  deepl-mock:
+    image: node:24-bookworm-slim
+    command: ["node", "/mock/deepl-mock.mjs"]
+    volumes:
+      - ./qa/deepl-mock.mjs:/mock/deepl-mock.mjs:ro
+    ports:
+      - "127.0.0.1:19000:9000"
+  app:
+    depends_on:
+      toxiproxy:
+        condition: service_started
+      deepl-mock:
+        condition: service_started
+    environment:
+      DB_URL: jdbc:mysql://toxiproxy:13306/smartcollab?characterEncoding=UTF-8&serverTimezone=UTC
+      DEEPL_API_KEY: qa-mock-key
+      DEEPL_API_URL: http://deepl-mock:9000
+      SIGNUP_RATE_PER_HOUR: "100000"
+      LOGIN_RATE_PER_MINUTE: "100000"
+      LOGIN_ACCOUNT_RATE: "100000"
+      SHARE_PASSWORD_RATE: "100000"
+      SHARE_PASSWORD_LINK_RATE: "100000"
+      DEMO_ENABLED: "false"
