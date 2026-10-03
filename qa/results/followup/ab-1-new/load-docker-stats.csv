@@ -1,0 +1,78 @@
+20:56:53,sc-qa-app-1,198.45%,829MiB / 2GiB
+20:56:53,sc-qa-db-1,30.61%,473.7MiB / 7.749GiB
+20:56:53,app-anon,795MiB
+20:56:53,app-file,393MiB
+20:57:00,sc-qa-app-1,143.93%,908.2MiB / 2GiB
+20:57:00,sc-qa-db-1,38.96%,474.7MiB / 7.749GiB
+20:57:00,app-anon,873MiB
+20:57:00,app-file,411MiB
+20:57:07,sc-qa-app-1,194.34%,870.7MiB / 2GiB
+20:57:07,sc-qa-db-1,56.36%,475.4MiB / 7.749GiB
+20:57:07,app-anon,838MiB
+20:57:07,app-file,398MiB
+20:57:13,sc-qa-app-1,218.83%,831.3MiB / 2GiB
+20:57:13,sc-qa-db-1,50.39%,476.6MiB / 7.749GiB
+20:57:13,app-anon,789MiB
+20:57:13,app-file,402MiB
+20:57:20,sc-qa-app-1,99.23%,918.1MiB / 2GiB
+20:57:20,sc-qa-db-1,54.04%,477.2MiB / 7.749GiB
+20:57:20,app-anon,860MiB
+20:57:20,app-file,414MiB
+20:57:28,sc-qa-app-1,163.84%,917.6MiB / 2GiB
+20:57:28,sc-qa-db-1,70.51%,477.9MiB / 7.749GiB
+20:57:28,app-anon,871MiB
+20:57:28,app-file,408MiB
+20:57:35,sc-qa-app-1,199.33%,868.4MiB / 2GiB
+20:57:35,sc-qa-db-1,51.70%,478.8MiB / 7.749GiB
+20:57:35,app-anon,811MiB
+20:57:35,app-file,396MiB
+20:57:42,sc-qa-app-1,217.44%,825.5MiB / 2GiB
+20:57:42,sc-qa-db-1,53.90%,479.7MiB / 7.749GiB
+20:57:42,app-anon,775MiB
+20:57:42,app-file,411MiB
+20:57:49,sc-qa-app-1,137.41%,825.3MiB / 2GiB
+20:57:49,sc-qa-db-1,52.95%,480MiB / 7.749GiB
+20:57:49,app-anon,775MiB
+20:57:49,app-file,424MiB
+20:57:56,sc-qa-app-1,0.14%,824.4MiB / 2GiB
+20:57:56,sc-qa-db-1,0.44%,479.5MiB / 7.749GiB
+20:57:56,app-anon,775MiB
+20:57:56,app-file,435MiB
+20:58:02,sc-qa-app-1,178.56%,983.7MiB / 2GiB
+20:58:02,sc-qa-db-1,51.30%,480.4MiB / 7.749GiB
+20:58:02,app-anon,946MiB
+20:58:02,app-file,141MiB
+20:58:09,sc-qa-app-1,188.34%,1.139GiB / 2GiB
+20:58:09,sc-qa-db-1,44.63%,484.5MiB / 7.749GiB
+20:58:09,app-anon,1145MiB
+20:58:09,app-file,290MiB
+20:58:17,sc-qa-app-1,166.29%,1.343GiB / 2GiB
+20:58:17,sc-qa-db-1,63.63%,484.8MiB / 7.749GiB
+20:58:17,app-anon,1326MiB
+20:58:17,app-file,315MiB
+20:58:24,sc-qa-app-1,189.25%,1.151GiB / 2GiB
+20:58:24,sc-qa-db-1,55.94%,486MiB / 7.749GiB
+20:58:24,app-anon,1149MiB
+20:58:24,app-file,294MiB
+20:58:31,sc-qa-app-1,111.82%,1.004GiB / 2GiB
+20:58:31,sc-qa-db-1,55.99%,486.4MiB / 7.749GiB
+20:58:31,app-anon,978MiB
+20:58:31,app-file,331MiB
+20:58:38,sc-qa-app-1,161.46%,1.165GiB / 2GiB
+20:58:38,sc-qa-db-1,61.33%,488.3MiB / 7.749GiB
+20:58:38,app-anon,1134MiB
+20:58:38,app-file,330MiB
+20:58:45,sc-qa-app-1,158.36%,1.136GiB / 2GiB
+20:58:45,sc-qa-db-1,55.35%,489.1MiB / 7.749GiB
+20:58:45,app-anon,1104MiB
+20:58:45,app-file,335MiB
+20:58:52,sc-qa-app-1,169.69%,1.281GiB / 2GiB
+20:58:52,sc-qa-db-1,61.47%,490.8MiB / 7.749GiB
+20:58:52,app-anon,1254MiB
+20:58:52,app-file,172MiB
+20:58:59,sc-qa-app-1,161.26%,1.13GiB / 2GiB
+20:58:59,sc-qa-db-1,14.09%,490.9MiB / 7.749GiB
+20:58:59,app-anon,1095MiB
+20:58:59,app-file,287MiB
+20:59:06,sc-qa-app-1,0.15%,1.13GiB / 2GiB
+20:59:06,sc-qa-db-1,1.51%,491.1MiB / 7.749GiB

@@ -1,0 +1,32 @@
+# QA 후속 — 수정 뒤 결과 (./gradlew clean build --warning-mode all, 2026-10-03)
+# 백엔드 전체 261건 통과, 경고 0, JaCoCo 라인 92.04%·분기 80.52%
+# 아래는 이번 후속 항목의 시험 (수정 전 실패: failing-tests-before-fix.txt)
+PASS	AuthSessionTest	[IMP-10] 로그인 전에는 200 과 authenticated=false	0.006s
+PASS	AuthSessionTest	[IMP-10] 만료·위조된 쿠키면 200 과 authenticated=false 이고, 쿠키를 지운다 (/me 는 그대로 401)	0.008s
+PASS	AuthSessionTest	[IMP-10] 로그인했으면 내 정보를 함께 돌려준다	0.121s
+PASS	OrphanBlobCleanerTest	[IMP-05] 유예 시간보다 오래된 고아 파일·임시 파일만 지우고, DB 가 가리키는 파일과 새 고아는 남긴다	0.262s
+PASS	StorageUsageCounterTest	[IMP-01] 한도 확인은 합산이 아니라 사용자 행의 사용량 집계를 쓴다	0.189s
+PASS	StorageUsageCounterTest	[IMP-01] 정리 작업은 어긋난 집계를 실제 합계로 바로잡고 고친 수를 돌려준다	0.203s
+PASS	StorageUsageCounterTest	[IMP-01] 같은 사용자가 동시에 업로드해도 집계를 잃지 않는다	0.365s
+PASS	StorageUsageCounterTest	[IMP-01] 업로드·텍스트 저장·복사·휴지통·영구 삭제·폴더 삭제 뒤에도 집계는 실제 합계와 같다 (개인·팀)	0.365s
+PASS	FolderPagingTest	[IMP-02] 아무 값도 주지 않으면 500개까지만 주고 다음 커서를 준다	5.846s
+PASS	FolderPagingTest	[IMP-02] 잘못된 limit·커서·정렬 기준은 400	0.12s
+PASS	FolderPagingTest	[IMP-02] limit 만큼 나눠 주고, 커서로 이어 받으면 빠짐·겹침 없이 끝까지 온다 (폴더 우선·자연 정렬)	0.24s
+PASS	FolderPagingTest	[IMP-02] 정렬 기준·방향을 서버가 적용한다 (폴더는 늘 앞)	0.195s
+PASS	HealthReadinessTest	[IMP-04] readiness 는 DB 상태를 포함하고 liveness 는 포함하지 않는다	0.003s
+PASS	TransactionTimeoutTest	[IMP-08] 시간 제한을 넘는 쿼리는 DB 에서 취소되어 그 시간 즈음 실패한다	1.038s
+PASS	TransactionTimeoutTest	[IMP-08] 트랜잭션 기본 시간 제한은 30초다	0.003s
+PASS	GlobalExceptionHandlerTest	[IMP-08] 쿼리 시간 제한에 걸리면 503 SERVICE_UNAVAILABLE	0.001s
+PASS	GlobalExceptionHandlerTest	[IMP-04] DB 연결을 얻지 못하면 500 이 아니라 503 SERVICE_UNAVAILABLE 이고, 스택 없이 한 줄만 남긴다	0.001s
+PASS	EventOriginTest	[IMP-03] 요청의 X-Client-Id 가 그 요청이 일으킨 폴더 변경 이벤트에 실린다	0.112s
+PASS	EventOriginTest	[IMP-03] 탭 ID 가 없거나 형식이 틀리면 이벤트에 싣지 않는다	0.127s
+PASS	WebSocketSessionExpiryTest	[QA-07] 탈퇴한 계정의 세션은 로그인이 남아 있어도 닫는다	0.167s
+PASS	AuthorizationMatrixTest	[IMP-09] 외부인은 남의 개인 자원·팀을 읽지도 바꾸지도 못한다 (404, 부수 효과 없음)	1.371s
+PASS	AuthorizationMatrixTest	[IMP-09] 경로의 앞 ID 는 내 것, 뒤 ID·본문은 남의 것인 요청은 거절한다 (부수 효과 없음)	0.727s
+PASS	AuthorizationMatrixTest	[IMP-09] 읽기 전용 멤버는 팀 자원을 바꾸거나 관리하지 못한다 (403, 부수 효과 없음)	0.872s
+PASS	AzureBlobStorageTest	[IMP-05] 접두어 아래의 키와 마지막 수정 시각을 나열한다 (고아 파일 정리용)	0.035s
+PASS	DeletedAccountTokenTest	[QA-07] 탈퇴한 계정의 토큰은 모든 API 에서 401 이다 (쿠키·Bearer)	0.297s
+PASS	DeletedAccountTokenTest	[QA-07] 탈퇴가 거절되면(비밀번호 오류) 토큰은 그대로 쓸 수 있다	0.182s
+
+# 프론트: npm test 94건 통과, typecheck·lint 오류 0
+# [IMP-09] AuthorizationMatrixTest 는 이미 막혀 있는 동작을 CI 로 옮긴 것이라 수정 전에도 통과합니다. 대신 AccessPolicy 의 권한 확인 한 줄을 지워 이 시험이 실패하는지(변이 확인) 확인했습니다.

@@ -1,0 +1,80 @@
+{
+  "db-cut": {
+    "during": [
+      {
+        "status": 503,
+        "ms": 178,
+        "code": "SERVICE_UNAVAILABLE"
+      },
+      {
+        "status": 503,
+        "ms": 5145,
+        "code": "SERVICE_UNAVAILABLE"
+      },
+      {
+        "status": 503,
+        "ms": 5148,
+        "code": "SERVICE_UNAVAILABLE"
+      },
+      {
+        "status": 503,
+        "ms": 5137
+      },
+      {
+        "status": 200,
+        "ms": 29
+      }
+    ],
+    "recoveredAfterMs": 606,
+    "createdDuringOutage": false,
+    "integrity": {
+      "versions": 41844,
+      "blobs": 41844,
+      "missingBlobs": 0,
+      "orphanBlobs": 0,
+      "tempUploads": 0,
+      "hashMismatch(sample<=300)": 0,
+      "filesWithoutActiveVersion": 0,
+      "activeVersionOfOtherFile": 0,
+      "fileSizeMismatch": 0,
+      "childScopeMismatch": 0,
+      "trashRootNotTrashed": 0,
+      "childOfTrashedNotTrashed": 0,
+      "teamsWithoutOneLeader": 0,
+      "duplicateMembers": 0,
+      "usageCounterDrift": {
+        "users": 0,
+        "teams": 0
+      }
+    }
+  },
+  "db-latency": {
+    "statuses": {
+      "200": 10,
+      "503": 20
+    },
+    "p50": 5076,
+    "p95": 10102,
+    "max": 10103,
+    "integrity": {
+      "versions": 41844,
+      "blobs": 41844,
+      "missingBlobs": 0,
+      "orphanBlobs": 0,
+      "tempUploads": 0,
+      "hashMismatch(sample<=300)": 0,
+      "filesWithoutActiveVersion": 0,
+      "activeVersionOfOtherFile": 0,
+      "fileSizeMismatch": 0,
+      "childScopeMismatch": 0,
+      "trashRootNotTrashed": 0,
+      "childOfTrashedNotTrashed": 0,
+      "teamsWithoutOneLeader": 0,
+      "duplicateMembers": 0,
+      "usageCounterDrift": {
+        "users": 0,
+        "teams": 0
+      }
+    }
+  }
+}

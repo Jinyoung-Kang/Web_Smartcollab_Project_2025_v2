@@ -1,0 +1,38 @@
+{
+  "measuredAt": "2026-10-03T11:55:46.572Z",
+  "method": "호스트에서 QA 스택(포트 포워딩 포함), 각 7회 중앙값",
+  "bigFolder": {
+    "items": 500,
+    "itemCount": 10000,
+    "paged": true,
+    "jsonBytes": 115766,
+    "gzipBytes": 9155,
+    "contentEncoding": "gzip",
+    "medianMs": 42
+  },
+  "bigFolderAllPages": {
+    "pages": 20,
+    "items": 10000,
+    "jsonBytes": 2317309,
+    "medianMs": 814
+  },
+  "users": {
+    "bigUserFiles": 10039,
+    "smallUserFiles": 39
+  },
+  "usageMs": {
+    "bigUser": 14,
+    "smallUser": 8
+  },
+  "uploadMs": {
+    "bigUser": 12,
+    "smallUser": 11
+  },
+  "searchMs": {
+    "bigUser": 16,
+    "smallUser": 7
+  },
+  "treeMs": {
+    "bigUser": 3
+  }
+}

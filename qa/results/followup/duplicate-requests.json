@@ -1,0 +1,29 @@
+[
+  {
+    "label": "새 폴더 만들기(개인)",
+    "counts": {
+      "/api/folders/9568?sort=name&order=asc&limit=500": 1,
+      "/api/files/usage": 1
+    }
+  },
+  {
+    "label": "업로드(개인)",
+    "counts": {
+      "/api/folders/9568?sort=name&order=asc&limit=500": 1,
+      "/api/files/usage": 1
+    }
+  },
+  {
+    "label": "새 폴더 만들기(팀)",
+    "counts": {
+      "/api/folders/9573?sort=name&order=asc&limit=500": 1,
+      "/api/files/usage": 1
+    }
+  },
+  {
+    "label": "알림 모두 읽음",
+    "counts": {
+      "/api/notifications": 1
+    }
+  }
+]
