@@ -1,5 +1,5 @@
 # QA 후속 — 수정 뒤 결과 (./gradlew clean build --warning-mode all, 2026-10-03)
-# 백엔드 전체 261건 통과, 경고 0, JaCoCo 라인 92.04%·분기 80.52%
+# 백엔드 전체 266건 통과, 경고 0, JaCoCo 라인 92.11%·분기 80.71% (QA-08 반영 뒤 다시 잼)
 # 아래는 이번 후속 항목의 시험 (수정 전 실패: failing-tests-before-fix.txt)
 PASS	AuthSessionTest	[IMP-10] 로그인 전에는 200 과 authenticated=false	0.006s
 PASS	AuthSessionTest	[IMP-10] 만료·위조된 쿠키면 200 과 authenticated=false 이고, 쿠키를 지운다 (/me 는 그대로 401)	0.008s
@@ -30,3 +30,11 @@ PASS	DeletedAccountTokenTest	[QA-07] 탈퇴가 거절되면(비밀번호 오류)
 
 # 프론트: npm test 94건 통과, typecheck·lint 오류 0
 # [IMP-09] AuthorizationMatrixTest 는 이미 막혀 있는 동작을 CI 로 옮긴 것이라 수정 전에도 통과합니다. 대신 AccessPolicy 의 권한 확인 한 줄을 지워 이 시험이 실패하는지(변이 확인) 확인했습니다.
+
+# [QA-08] (QA-08 반영 뒤 clean build)
+PASS	PreRoutingErrorFormatTest	[QA-08] Tomcat 이 주소를 해석하지 못해 라우팅 전에 거절한 요청(%00·%2F)도 problem+json 400 과 추적 ID
+PASS	PreRoutingErrorFormatTest	[QA-08] 보안 방화벽이 거절한 요청(//·;)도 problem+json 400 과 추적 ID
+PASS	PreRoutingErrorFormatTest	[QA-08] 오류 처리 경로(/error)를 직접 부르면 없는 주소처럼 problem+json 404
+PASS	ProblemWriterTest	[QA-08] 상태 코드에 맞는 오류 코드를 고른다 (정하지 않은 4xx 는 INVALID_REQUEST, 5xx 는 INTERNAL_ERROR)
+PASS	ProblemWriterTest	[QA-08] 400 은 주소·형식 안내와 추적 ID, 알려지지 않은 상태는 그 상태 그대로 problem+json
+# QA 스택 퍼징(api-fuzz.md): 1,291요청, 문제 88 → 1건(오류 형식 불일치 87 → 0). E2E 13/13 × 3회 연속.
