@@ -2,8 +2,8 @@
 
 | 층 | 도구 | 개수 | 실행 |
 |---|---|---:|---|
-| 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 219 | `cd backend && ./gradlew test` |
-| 프론트엔드 단위·컴포넌트 | Vitest · Testing Library · jsdom | 89 | `cd frontend && npm test` |
+| 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 223 | `cd backend && ./gradlew test` |
+| 프론트엔드 단위·컴포넌트 | Vitest · Testing Library · jsdom | 90 | `cd frontend && npm test` |
 | E2E (전체 스택) | Playwright · Docker Compose · axe-core | 12 (시나리오 10 + 접근성·탭 제목 2) | `docker compose up -d --wait && cd e2e && npx playwright test` |
 
 백엔드 라인 커버리지 **91.6%**, 분기 커버리지 **80.0%** (JaCoCo, `backend/build/reports/jacoco/test/html`).
@@ -11,7 +11,7 @@
 ## 원칙
 
 - **H2 대신 실제 MySQL** 로 통합 테스트합니다. 재귀 CTE·`ON DELETE SET NULL`·조건부 UPDATE 처럼 DB 동작에 기대는 로직이 많아, 운영과 다른 DB 로 테스트하면 통과해도 믿을 수 없기 때문입니다.
-- 테스트마다 무작위 사용자 이름을 써서 데이터를 분리하고, 컨테이너와 Spring 컨텍스트는 한 번만 띄웁니다(전체 219건, 테스트 실행 약 2분). 테스트 JVM 은 운영 컨테이너·CI 와 같은 UTC 로 실행합니다.
+- 테스트마다 무작위 사용자 이름을 써서 데이터를 분리하고, 컨테이너와 Spring 컨텍스트는 한 번만 띄웁니다(전체 223건, 테스트 실행 약 2분). 테스트 JVM 은 운영 컨테이너·CI 와 같은 UTC 로 실행합니다.
 - v1 에서 찾은 결함마다 이름에 `[v1 …]` 을, 2026-09 코드 리뷰 항목에는 `[SEC-01]`·`[BUG-02]` 처럼 항목 ID 를 붙인 회귀 테스트가 있습니다 → [REFACTORING_REPORT.md](REFACTORING_REPORT.md), [REVIEW_2026-09.md](REVIEW_2026-09.md)
 - 인증은 실제 브라우저처럼 HttpOnly 쿠키 + CSRF 토큰으로 요청합니다(`support/Api`).
 
@@ -23,10 +23,10 @@
 | `WebSocketSecurityTest` · `StompSubscriptionLimitTest` | 실제 서버(랜덤 포트)에 WebSocket 으로 접속 — 비로그인 거부, 사칭 불가, 비멤버 구독 차단, 알림 푸시, 접속자 갱신, 같은 목적지 중복 구독 거절 / 연결당 구독 상한·해제·끊김 정리, 거절된 구독은 자리를 차지하지 않음 (S-11) |
 | `DriveWorkflowTest` | 업로드·다운로드 파일명, 안전한 inline 미리보기, 휴지통 수명주기(커밋 후 저장소 삭제), 폴더 삭제(휴지통·서명 포함), 복사본 다운로드, 순환 이동 차단, 검색 |
 | `TextEditingTest` | 낙관적 잠금(409), 버전 복원, 현재 버전 서명·무효화, 추출 요약, 번역 키 없음 처리 |
-| `TeamWorkflowTest` | 초대·수락·중복 방지, 권한 적용, 팀장 위임, 팀 삭제 정리, 채팅 커서 페이지, 채팅에 공유된 파일의 정보(미리보기 종류)·휴지통이면 404, 새 멤버의 편집 권한은 초대자를 따름·초대 권한을 잃은 사람의 초대는 수락 불가 (S-08), 팀장인 팀 10개 (S-10) |
+| `TeamWorkflowTest` | 초대·수락·중복 방지, 권한 적용, 팀장 위임, 팀 삭제 정리, 채팅 커서 페이지, 채팅에 공유된 파일의 정보(미리보기 종류)·휴지통이면 404, 새 멤버의 편집 권한은 초대자를 따름·초대 권한을 잃은 사람의 초대는 수락 불가 (S-08), 팀장인 팀 10개·위임으로도 넘지 않음 (S-10) |
 | `ShareLinkTest` | 비밀번호·grant 흐름, **동시 다운로드 12건 중 정확히 3건만 성공**, 만료·해제·휴지통, 만든 사람이 팀에서 나가면 링크 동작 중지 (S-09) |
 | `AuthFlowTest` | 쿠키·CSRF 인증 흐름, 요청 제한, 악센트 변형 아이디로 로그인 불가·긴 아이디 조기 거절 (S-02·S-03), 체험 계정 아이디로 가입 불가 (S-19) |
-| `FolderLimitsTest` · `FolderConcurrencyTest` · `FileContentConcurrencyTest` | 폴더 깊이 50단계·복사 폴더 1,000개·중복 항목 (S-04·S-05) / 다른 트랜잭션이 잠금을 쥔 채 기다리는 동안 요청을 보내(`support/TransactionRace`) 경합을 결정적으로 재현 — 휴지통 표시 유실·순환 이동·휴지통 폴더 아래 생성 (S-06), 저장·복원과 겹친 서명 (S-17) |
+| `FolderLimitsTest` · `FolderConcurrencyTest` · `FileContentConcurrencyTest` | 폴더 깊이 50단계·복사 폴더 1,000개·중복 항목 (S-04·S-05) / 다른 트랜잭션이 잠금을 쥔 채 기다리는 동안 요청을 보내(`support/TransactionRace`) 경합을 결정적으로 재현 — 휴지통 표시 유실·순환 이동·휴지통 폴더 아래 생성 (S-06), 저장·복원과 겹친 서명 (S-17), 복사 중 대상이 깊은 곳으로 옮겨지면 잠근 뒤 깊이 재확인 / `TrashConcurrencyTest`: 휴지통 비우기·자동 비우기와 겹친 파일 복원 (독립 검토) |
 | `AccountDeletionTest` | 복잡한 이력이 있는 사용자의 탈퇴와 팀 자료 이관 |
 | `QueryCountBenchmarkTest` · `DownloadMemoryBenchmarkTest` · `StorageConnectionBenchmarkTest` | 성능 측정값 산출 ([PERFORMANCE.md](PERFORMANCE.md)). 마지막은 업로드·복사·텍스트 저장·읽기·커밋 뒤 삭제가 저장소 입출력 중 DB 커넥션을 붙잡지 않는지 검증 (PERF-01·P-01~P-03) |
 | `CsrfEndpointTest` | 실제 서버에서 CSRF 발급 토큰이 헤더로 쓸 수 있는 값인지, 로그인한 요청이 토큰을 바꾸지 않는지 (BUG-07·08) |
@@ -53,7 +53,7 @@
 | 프론트 `AppErrorPage.test` · `useDocumentTitle.test` · `josa.test`, 백엔드 `ApiExceptionTest` | 렌더링 오류·새 배포 안내 (ARC-04), 탭 제목 (UX-02), 받침에 맞는 조사 (UX-04) |
 | 프론트 `ChatTab.test` · `TeamActivityProvider.test` · `NotificationBell.test` | 채팅에 공유된 파일을 누르면 지금 파일 정보로 드라이브와 같은 미리보기, 내려받기 링크 분리, 지워진 파일 안내, 보일 때만 보는 중 (FB-06) / 다시 연결되면 채팅·알림 다시 받기 (FB-05) / 알림 요청 실패 안내 (FB-08) |
 | 프론트 `TrashPage.test` | 휴지통의 폴더(파일 수)·파일 구분, 폴더 복원(최상위로 옮겨진 경우 안내), 폴더 영구 삭제 확인 (UX-06) |
-| 프론트 `FileTable.test` · `RowMenu.test` · `DrivePage.test`(구조 정리 전 동작 고정 6개 포함) | 큰 폴더를 200개씩 그리기·더 보기, 전체 선택은 전부, 키보드로 다음 묶음 이동, 정렬 시 처음부터 (PERF-02), Delete·F2 는 키를 누른 행 기준 (FB-01), 행 안 버튼의 Enter·Space 한 번만 (FB-09) / 다시 그려도 메뉴 초점 유지 (FB-10) / 하위 폴더로 옮겨도 팀 패널 유지 (FB-07)·좁은 화면의 보는 중 표시 (FB-06) |
+| 프론트 `FileTable.test` · `RowMenu.test` · `DrivePage.test`(구조 정리 전 동작 고정 6개 포함) | 큰 폴더를 200개씩 그리기·더 보기, 전체 선택은 전부, 키보드로 다음 묶음 이동, 정렬 시 처음부터 (PERF-02), Delete·F2 는 키를 누른 행 기준 (FB-01), 행 안 버튼의 Enter·Space 한 번만 (FB-09) / 다시 그려도 메뉴 초점 유지 (FB-10) / 하위 폴더로 옮겨도 팀 패널 유지 (FB-07)·옮긴 뒤 끝난 삭제는 지운 폴더를 갱신·좁은 화면의 보는 중 표시 (FB-06) |
 | 프론트 `ShareDialog.test` · `VersionHistoryDialog.test` · `MoveCopyDialog.test` | 다른 파일로 열면 입력이 남지 않음 (FB-03), 닫은 뒤 끝난 요청도 그 파일의 캐시 갱신·링크 해제 실패 안내 (FB-11), 다시 열면 이전 대상 폴더가 남지 않음 (FB-04) |
 | 프론트 순수 함수 `chatMessages.test` · `teamEvents.test` · `validateUpload.test` · `keepDraft.test` | 메시지 묶기·검사, 팀 이벤트·알림의 캐시 반영(React 없이), 업로드 전 검사, 편집본 파일 이름 (5단계) |
 | 프론트 `AuthProvider.test` | 실제 App·데이터 라우터로 로그아웃·세션 만료(401)·탈퇴 뒤 로그인 화면에 머무는지, 이전 사용자 캐시 삭제, 편집 중 세션 만료 시 확인, 비밀번호 오류 뒤 로그인 (BUG-09), 세션 만료 안내 (UX-03) |
