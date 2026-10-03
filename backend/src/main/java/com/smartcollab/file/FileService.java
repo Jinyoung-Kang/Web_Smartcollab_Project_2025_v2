@@ -128,14 +128,6 @@ public class FileService {
         publishChanged(file.getFolder());
     }
 
-    @Transactional
-    public void moveToTrash(Long fileId, Long userId) {
-        FileEntity file = getActive(fileId);
-        accessPolicy.requireFileDelete(file, userId);
-        file.moveToTrash(users.getReferenceById(userId));
-        publishChanged(file.getFolder());
-    }
-
     /** Office 문서 미리보기용 읽기 전용 임시 URL (Azure 저장소일 때만). */
     @Transactional(readOnly = true)
     public String officePreviewUrl(Long fileId, Long userId) {
@@ -197,21 +189,20 @@ public class FileService {
         return new DriveDtos.UsageResponse(usage.fileCount(), usage.totalBytes(), quota.usedBytes(scope), quota.limitBytes(scope));
     }
 
-    FileEntity getActive(Long fileId) {
-        return active(files.findWithFolder(fileId));
+    /** 휴지통이 아닌 파일, 없으면 404 [A-07] */
+    public FileEntity getActive(Long fileId) {
+        return files.findActive(fileId).orElseThrow(() -> ApiException.notFound("파일"));
+    }
+
+    /** 휴지통이 아닌 파일 (없으면 빈 값) [A-07] */
+    public Optional<FileEntity> findActive(Long fileId) {
+        return files.findActive(fileId);
     }
 
     /** 파일 행을 잠그고 읽습니다. 트랜잭션에서 이 파일을 처음 읽을 때 불러야 최신 상태를 얻습니다 [S-17]. */
     public FileEntity lockActive(Long fileId) {
-        return active(files.lockWithFolder(fileId));
-    }
-
-    private static FileEntity active(Optional<FileEntity> found) {
-        FileEntity file = found.orElseThrow(() -> ApiException.notFound("파일"));
-        if (file.isInTrash()) {
-            throw ApiException.notFound("파일");
-        }
-        return file;
+        return files.lockWithFolder(fileId).filter(file -> !file.isInTrash())
+                .orElseThrow(() -> ApiException.notFound("파일"));
     }
 
     private void publishChanged(Folder folder) {

@@ -31,7 +31,6 @@ public class FolderService {
     private final AccessPolicy accessPolicy;
     private final FolderDepthPolicy depthPolicy;
     private final FolderStructureLock structureLock;
-    private final FolderTrash folderTrash;
     private final ApplicationEventPublisher events;
 
     @Transactional(readOnly = true)
@@ -79,23 +78,6 @@ public class FolderService {
         }
         folder.rename(FileNames.validate(name));
         publishChanged(folder.getParent());
-    }
-
-    /** 폴더를 하위 폴더·파일과 함께 휴지통으로 옮깁니다(30일 뒤 자동 영구 삭제) [UX-06]. 이전에는 즉시 영구 삭제였습니다. */
-    @Transactional(isolation = Isolation.READ_COMMITTED)
-    public void delete(Long folderId, Long userId) {
-        structureLock.lockScopesOf(List.of(folderId));
-        Folder folder = get(folderId);
-        accessPolicy.requireDelete(folder, userId);
-        if (folder.isRoot()) {
-            throw ApiException.badRequest("최상위 폴더는 삭제할 수 없습니다.");
-        }
-        Long teamId = folder.teamId();
-        Long parentId = folder.getParent().getId();
-        folderTrash.moveToTrash(folder, userId);
-        if (teamId != null) {
-            events.publishEvent(new ChangeEvents.FolderChanged(teamId, parentId));
-        }
     }
 
     @Transactional(readOnly = true)

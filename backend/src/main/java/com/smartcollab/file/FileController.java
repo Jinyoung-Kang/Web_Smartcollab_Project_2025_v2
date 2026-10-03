@@ -35,6 +35,7 @@ import java.util.Map;
 public class FileController {
 
     private final FileService fileService;
+    private final ItemDeletionService itemDeletionService;
     private final FileContentService contentService;
 
     @Operation(summary = "업로드", description = "multipart/form-data 의 file 파트를 folderId 폴더에 저장합니다.")
@@ -82,7 +83,7 @@ public class FileController {
     @Operation(summary = "휴지통으로 이동")
     @DeleteMapping("/{fileId}")
     public ResponseEntity<Void> trash(@PathVariable Long fileId, @CurrentUser AuthUser user) {
-        fileService.moveToTrash(fileId, user.id());
+        itemDeletionService.delete(new DriveDtos.DeleteRequest(List.of(new DriveDtos.ItemRef("file", fileId))), user.id());
         return ResponseEntity.noContent().build();
     }
 

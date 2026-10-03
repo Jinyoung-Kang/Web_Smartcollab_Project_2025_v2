@@ -18,7 +18,6 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Predicate;
 
 /**
  * 여러 항목 삭제 [PERF-03]. 이전에는 선택한 항목마다 요청·트랜잭션·실시간 알림이 하나씩 생겼습니다.
@@ -56,8 +55,7 @@ public class ItemDeletionService {
         int trashed = 0;
         for (DriveDtos.ItemRef ref : refs) {
             if (!ref.type().equals("file")) continue;
-            FileEntity file = files.findWithFolder(ref.id()).filter(Predicate.not(FileEntity::isDeleted))
-                    .orElseThrow(() -> ApiException.notFound("파일"));
+            FileEntity file = files.findActive(ref.id()).orElseThrow(() -> ApiException.notFound("파일"));
             trashed++;
             if (insideSelected.contains(file.getFolder().getId())) continue;   // 고른 폴더와 함께 휴지통으로 [S-15]
             accessPolicy.requireFileDelete(file, userId);

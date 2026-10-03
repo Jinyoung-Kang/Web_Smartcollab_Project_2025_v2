@@ -20,6 +20,14 @@ public interface FileRepository extends JpaRepository<FileEntity, Long> {
     @Query("select f from FileEntity f join fetch f.folder where f.id = :id")
     Optional<FileEntity> findWithFolder(@Param("id") Long id);
 
+    /**
+     * 휴지통이 아닌 파일 — 파일 자신이 휴지통에 있거나 휴지통에 넣은 폴더 안에 있으면 없는 것으로 봅니다.
+     * "지금 쓸 수 있는 파일"의 기준은 이 한 곳입니다 [A-07]. 다른 모듈은 {@link FileService#getActive} 를 씁니다.
+     */
+    default Optional<FileEntity> findActive(Long id) {
+        return findWithFolder(id).filter(file -> !file.isInTrash());
+    }
+
     /** 내용 변경(저장·복원)과 서명을 한 파일 안에서 차례로 처리하려고 파일 행을 잠급니다 [S-17]. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select f from FileEntity f join fetch f.folder where f.id = :id")

@@ -7,6 +7,7 @@ import com.smartcollab.chat.ChatService;
 import com.smartcollab.file.DriveDtos;
 import com.smartcollab.file.FileContentService;
 import com.smartcollab.file.FileService;
+import com.smartcollab.file.ItemDeletionService;
 import com.smartcollab.file.UploadSource;
 import com.smartcollab.folder.FolderDtos;
 import com.smartcollab.folder.FolderService;
@@ -64,6 +65,7 @@ public class DemoDataSeeder {
     private final FolderService folderService;
     private final RootFolders rootFolders;
     private final FileService fileService;
+    private final ItemDeletionService itemDeletionService;
     private final FileContentService contentService;
     private final SignatureService signatureService;
     private final ChatService chatService;
@@ -155,7 +157,7 @@ public class DemoDataSeeder {
         upload(personalRoot, "할 일.txt", TODO, leader);
         upload(refs, "읽을거리.md", READING, leader);
         DriveDtos.ItemResponse old = upload(personalRoot, "지난 초안.txt", "이전 버전의 초안입니다.", leader);
-        fileService.moveToTrash(old.id(), leader.getId());
+        itemDeletionService.delete(new DriveDtos.DeleteRequest(List.of(new DriveDtos.ItemRef("file", old.id()))), leader.getId());
 
         // 알림: 다른 팀에서 온 초대(수락/거절 대기)
         TeamDtos.TeamSummary review = teamService.createDemoTeam("디자인 리뷰", editor.getId());

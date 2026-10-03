@@ -3,7 +3,7 @@ package com.smartcollab.chat;
 import com.smartcollab.access.AccessPolicy;
 import com.smartcollab.event.ChangeEvents;
 import com.smartcollab.file.FileEntity;
-import com.smartcollab.file.FileRepository;
+import com.smartcollab.file.FileService;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.team.TeamMember;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +24,7 @@ public class ChatService {
     static final int MAX_PAGE = 100;
 
     private final ChatMessageRepository messages;
-    private final FileRepository files;
+    private final FileService fileService;
     private final AccessPolicy accessPolicy;
     private final ApplicationEventPublisher events;
 
@@ -50,7 +50,7 @@ public class ChatService {
         TeamMember member = accessPolicy.requireMember(teamId, userId);
         ChatMessage message;
         if (req.fileId() != null) {
-            FileEntity file = files.findWithFolder(req.fileId()).orElseThrow(() -> ApiException.notFound("이 팀의 파일"));
+            FileEntity file = fileService.findActive(req.fileId()).orElseThrow(() -> ApiException.notFound("이 팀의 파일"));
             accessPolicy.requireTeamChatFile(file, teamId);
             message = ChatMessage.fileShare(member.getTeam(), member.getUser(), file.getId(), file.getName(), file.getSize());
         } else {

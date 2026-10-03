@@ -89,8 +89,8 @@ class StorageCleanupTest {
         when(folders.findById(100L)).thenReturn(Optional.of(target));
         FileEntity first = file("first.txt", "files/source-1");
         FileEntity second = file("second.txt", "files/source-2");
-        when(files.findWithFolder(1L)).thenReturn(Optional.of(first));
-        when(files.findWithFolder(2L)).thenReturn(Optional.of(second));
+        when(files.findActive(1L)).thenReturn(Optional.of(first));
+        when(files.findActive(2L)).thenReturn(Optional.of(second));
         ArgumentCaptor<String> firstCopy = ArgumentCaptor.forClass(String.class);
         doAnswer(inv -> null).when(storage).copy(eq("files/source-1"), firstCopy.capture());
         doThrow(new BlobNotFoundException("files/source-2")).when(storage).copy(eq("files/source-2"), anyString());

@@ -29,7 +29,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Predicate;
 
 /**
  * 파일·폴더 이동과 복사.
@@ -91,7 +90,7 @@ public class ItemTransferService {
                 touched.add(folder.getParent());
                 folder.moveUnder(target);
             } else {
-                FileEntity file = files.findWithFolder(ref.id()).filter(Predicate.not(FileEntity::isDeleted))
+                FileEntity file = files.findActive(ref.id())
                         .orElseThrow(() -> ApiException.notFound("파일"));
                 accessPolicy.requireFileEdit(file, userId);
                 requireSameScope(file.getFolder(), target);
@@ -160,7 +159,7 @@ public class ItemTransferService {
                 folderCopies.add(tree);
                 count += tree.fileCount();
             } else {
-                FileEntity source = files.findWithFolder(ref.id()).filter(Predicate.not(FileEntity::isDeleted))
+                FileEntity source = files.findActive(ref.id())
                         .orElseThrow(() -> ApiException.notFound("파일"));
                 accessPolicy.requireFileRead(source, userId);
                 fileCopies.add(FileCopy.of(source, uniqueName(source.getName(), takenNames)));

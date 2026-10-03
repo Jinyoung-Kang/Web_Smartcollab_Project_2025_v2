@@ -1,6 +1,7 @@
 package com.smartcollab.folder;
 
 import com.smartcollab.file.DriveDtos;
+import com.smartcollab.file.ItemDeletionService;
 import com.smartcollab.global.security.AuthUser;
 import com.smartcollab.global.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,6 +20,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @Tag(name = "Folders", description = "폴더 탐색·생성·이름 변경·삭제")
 @RestController
 @RequestMapping("/api/folders")
@@ -26,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class FolderController {
 
     private final FolderService folderService;
+    private final ItemDeletionService itemDeletionService;
 
     @Operation(summary = "폴더 내용", description = "하위 폴더·파일, 경로(breadcrumb), 이 폴더에서의 내 권한을 함께 반환합니다.")
     @GetMapping("/{folderId}")
@@ -55,7 +59,7 @@ public class FolderController {
     @Operation(summary = "폴더 영구 삭제", description = "하위 폴더와 파일(휴지통 포함)까지 함께 삭제됩니다.")
     @DeleteMapping("/{folderId}")
     public ResponseEntity<Void> delete(@PathVariable Long folderId, @CurrentUser AuthUser user) {
-        folderService.delete(folderId, user.id());
+        itemDeletionService.delete(new DriveDtos.DeleteRequest(List.of(new DriveDtos.ItemRef("folder", folderId))), user.id());
         return ResponseEntity.noContent().build();
     }
 }
