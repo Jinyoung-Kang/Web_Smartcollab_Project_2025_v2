@@ -73,8 +73,9 @@ public class TrashService {
         return items;
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void restore(Long fileId, Long userId) {
+        lockScopeOfFile(fileId);
         FileEntity file = getTrashed(fileId);
         accessPolicy.requireFileDelete(file, userId);
         file.restoreFromTrash();
@@ -101,8 +102,9 @@ public class TrashService {
         return new DriveDtos.RestoreResponse(restored.destinationId(), restored.relocated());
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void deletePermanently(Long fileId, Long userId) {
+        lockScopeOfFile(fileId);
         FileEntity file = getTrashed(fileId);
         accessPolicy.requireFileDelete(file, userId);
         cleanup.purgeFiles(List.of(file.getId()));
@@ -152,7 +154,11 @@ public class TrashService {
         for (int from = 0; from < ids.size(); from += PURGE_BATCH) {
             List<Long> batch = ids.subList(from, Math.min(from + PURGE_BATCH, ids.size()));
             try {
-                purged += tx.write(() -> cleanup.purgeFiles(batch));
+                // 대상을 고른 뒤 복원됐을 수 있어, 저장 공간을 잠근 뒤 아직 휴지통에 있는 것만 지웁니다
+                purged += tx.writeReadCommitted(() -> {
+                    structureLock.lockScopesOf(files.findFolderIds(batch));
+                    return cleanup.purgeFiles(files.findStillTrashedBefore(batch, cutoff));
+                });
                 batches++;
             } catch (RuntimeException e) {
                 log.error("Trash purge batch failed ({} files); will retry at the next run", batch.size(), e);
@@ -181,6 +187,14 @@ public class TrashService {
 
     private void requireTeamTrashAccess(Long teamId, Long userId) {
         accessPolicy.requireTeamTrash(teamId, userId);
+    }
+
+    /**
+     * 파일 복원·영구 삭제는 휴지통 비우기·자동 비우기와 같은 저장 공간 행을 잠가 차례로 처리합니다. 잠그지 않으면 비우기가
+     * 고른 뒤 복원된 파일을 지워, 복원 응답을 받은 파일이 사라질 수 있었습니다(3차 점검 독립 검토). 엔티티를 읽기 전에 잠급니다.
+     */
+    private void lockScopeOfFile(Long fileId) {
+        files.findFolderId(fileId).ifPresent(folderId -> structureLock.lockScopesOf(List.of(folderId)));
     }
 
     private FileEntity getTrashed(Long fileId) {

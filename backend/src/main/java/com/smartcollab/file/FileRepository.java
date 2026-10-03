@@ -83,6 +83,17 @@ public interface FileRepository extends JpaRepository<FileEntity, Long> {
             """)
     StorageUsage usageOf(@Param("folderIds") Collection<Long> folderIds);
 
+    /** 파일이 든 폴더 ID — 엔티티를 읽기 전에 그 저장 공간을 잠그려고 씁니다 */
+    @Query("select f.folder.id from FileEntity f where f.id = :id")
+    Optional<Long> findFolderId(@Param("id") Long id);
+
+    @Query("select distinct f.folder.id from FileEntity f where f.id in :ids")
+    List<Long> findFolderIds(@Param("ids") Collection<Long> ids);
+
+    /** ids 가운데 지금도 휴지통에 있고 cutoff 전에 넣은 파일 (자동 비우기에서 잠근 뒤 다시 확인) */
+    @Query("select f.id from FileEntity f where f.id in :ids and f.deleted = true and f.deletedAt < :cutoff")
+    List<Long> findStillTrashedBefore(@Param("ids") Collection<Long> ids, @Param("cutoff") Instant cutoff);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update FileEntity f set f.activeVersion = null where f.id in :ids")
     int detachActiveVersions(@Param("ids") Collection<Long> ids);
