@@ -59,6 +59,10 @@ public interface FileVersionRepository extends JpaRepository<FileVersion, Long> 
             """, nativeQuery = true)
     List<Long> findTeamsWithDriftedUsage();
 
+    /** 주어진 저장소 키 중 버전 행이 가리키는 것만(고아 파일 정리용, stored_path 유일 인덱스) [IMP-05] */
+    @Query("select v.storedPath from FileVersion v where v.storedPath in :keys")
+    List<String> findReferencedStoredPaths(@Param("keys") Collection<String> keys);
+
     @Query("select v.storedPath from FileVersion v where v.file.id in :fileIds")
     List<String> findStoredPaths(@Param("fileIds") Collection<Long> fileIds);
 

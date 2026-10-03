@@ -33,7 +33,6 @@ public interface BlobStorage {
     record Listed(String key, Instant lastModified) {
     }
 
-    /** 접두어 아래의 모든 파일을 나열합니다(고아 파일 정리용) [IMP-05] */
-    default void list(String prefix, Consumer<Listed> sink) {
-    }
+    /** 접두어 아래의 모든 파일을 나열합니다(고아 파일 정리용). 쓰는 중인 임시 파일도 포함합니다 [IMP-05] */
+    void list(String prefix, Consumer<Listed> sink);
 }
