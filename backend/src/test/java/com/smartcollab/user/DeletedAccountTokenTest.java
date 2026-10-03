@@ -9,7 +9,6 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 import java.util.Map;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -35,7 +34,7 @@ class DeletedAccountTokenTest extends IntegrationTest {
         api().perform(MockMvcRequestBuilders.get("/api/teams")
                         .header("Authorization", "Bearer " + otherDevice.cookie.getValue()))
                 .andExpect(status().isUnauthorized());
-        api().perform(MockMvcRequestBuilders.post("/api/folders").with(csrf())
+        api().perform(MockMvcRequestBuilders.post("/api/folders").with(Api.xsrf())
                         .header("Authorization", "Bearer " + otherDevice.cookie.getValue())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"parentId\":" + s.rootFolderId + ",\"name\":\"x\"}"))
                 .andExpect(status().isUnauthorized());
