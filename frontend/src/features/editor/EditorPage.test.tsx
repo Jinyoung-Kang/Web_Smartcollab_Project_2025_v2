@@ -137,3 +137,25 @@ describe('EditorPage — 편집 충돌 해결', () => {
     expect(screen.getByRole('button', { name: /내 내용으로/ })).toBeInTheDocument()
   })
 })
+
+describe('EditorPage — 핵심 문장·번역', () => {
+  it('[5단계] 핵심 문장을 누르고 끝나기 전에 번역을 누르면, 늦게 온 핵심 문장이 번역 결과를 덮지 않는다', async () => {
+    const user = userEvent.setup()
+    renderEditor({ translationEnabled: true })
+    let finishSummary: (s: { sentences: string[]; totalSentences: number; method: string }) => void = () => {}
+    vi.spyOn(fileApi, 'summary').mockReturnValue(new Promise((resolve) => { finishSummary = resolve }))
+    vi.spyOn(fileApi, 'translate').mockResolvedValue({ text: 'First content', targetLang: 'EN-US' })
+    await screen.findByLabelText('문서 내용')
+
+    await user.click(screen.getByRole('button', { name: /핵심 문장/ }))
+    const english = await screen.findByRole('button', { name: 'EN' })
+    await vi.waitFor(() => expect(english).toBeEnabled())
+    await user.click(english)
+    expect(await screen.findByText('First content')).toBeInTheDocument()
+    await act(async () => finishSummary({ sentences: ['늦게 온 요약'], totalSentences: 1, method: 'extractive' }))
+
+    expect(screen.getByText('First content')).toBeInTheDocument()
+    expect(screen.queryByText('늦게 온 요약')).not.toBeInTheDocument()
+  })
+})
+
