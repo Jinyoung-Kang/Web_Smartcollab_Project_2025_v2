@@ -47,8 +47,7 @@ export function DrivePage() {
   const params = useParams()
   const folderId = params.folderId ? Number(params.folderId) : me.rootFolderId
   const routeTeamId = params.teamId ? Number(params.teamId) : undefined
-  // 폴더가 바뀌면 선택·메뉴·대화상자 상태를 모두 새로 시작합니다 (key 로 컴포넌트 재생성).
-  return <DriveView key={folderId} folderId={folderId} routeTeamId={routeTeamId} />
+  return <DriveView folderId={folderId} routeTeamId={routeTeamId} />
 }
 
 function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: number }) {
@@ -66,6 +65,17 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
   const [panelOpen, setPanelOpen] = useState(false)
   const wide = useMediaQuery('(min-width: 1280px)')
   const dragDepth = useRef(0)
+
+  // 폴더가 바뀌면 선택·메뉴·대화상자만 새로 시작합니다. 화면 전체를 다시 만들면(key) 팀 패널까지 다시 만들어져
+  // 입력 중이던 채팅·스크롤이 사라지고 접속 표시를 다시 구독했습니다 [FB-07]. 표는 폴더마다 새로 그립니다(key).
+  const [shownFolderId, setShownFolderId] = useState(folderId)
+  if (shownFolderId !== folderId) {
+    setShownFolderId(folderId)
+    setSelected(new Set())
+    setDialog({ kind: 'none' })
+    setMenu(null)
+    setDragging(false)
+  }
 
   const data = contents.data
   useDocumentTitle(data?.folder.name)
@@ -205,6 +215,7 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
           )}
           {data && items.length > 0 && (
             <FileTable
+              key={folderId}
               items={items}
               selected={selected}
               onSelectionChange={setSelected}
@@ -229,7 +240,7 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
 
       {teamId && (wide ? (
         <aside aria-label="팀 패널" className="flex w-96 shrink-0 border-l border-slate-200 bg-white">
-          <TeamPanel teamId={teamId} />
+          <TeamPanel key={teamId} teamId={teamId} visible />
         </aside>
       ) : (
         <div className={cn('fixed inset-0 z-40', panelOpen ? 'visible' : 'invisible')}>
@@ -237,7 +248,7 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
             onClick={() => setPanelOpen(false)} />
           <aside aria-label="팀 패널" className={cn('absolute inset-y-0 right-0 flex w-96 max-w-[90vw] bg-white shadow-xl transition-transform',
             panelOpen ? 'translate-x-0' : 'translate-x-full')}>
-            <TeamPanel teamId={teamId} onClose={() => setPanelOpen(false)} />
+            <TeamPanel key={teamId} teamId={teamId} visible={panelOpen} onClose={() => setPanelOpen(false)} />
           </aside>
         </div>
       ))}

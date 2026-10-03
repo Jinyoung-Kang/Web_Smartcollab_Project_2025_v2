@@ -15,7 +15,10 @@ import { ChatTab } from './ChatTab'
 import { InviteDialog, PermissionsDialog } from './MemberDialogs'
 import { useTeamActivity } from '@/realtime/TeamActivity'
 
-export function TeamPanel({ teamId, onClose }: { teamId: number; onClose?: () => void }) {
+/**
+ * @param visible 화면에 보이는지. 좁은 화면에서는 닫혀 있어도 그려 두므로, 보일 때만 채팅을 "보는 중"으로 칩니다 [FB-06].
+ */
+export function TeamPanel({ teamId, visible = true, onClose }: { teamId: number; visible?: boolean; onClose?: () => void }) {
   const [tab, setTab] = useState<'chat' | 'members'>('chat')
   const team = useQuery({ queryKey: ['team', teamId], queryFn: () => teamApi.detail(teamId) })
   const presence = useQuery({ queryKey: ['presence', teamId], queryFn: () => teamApi.presence(teamId) })
@@ -70,7 +73,7 @@ export function TeamPanel({ teamId, onClose }: { teamId: number; onClose?: () =>
       {!team.data ? (
         <Spinner className="p-4" />
       ) : tab === 'chat' ? (
-        <ChatTab teamId={teamId} team={team.data} />
+        <ChatTab teamId={teamId} team={team.data} active={visible} />
       ) : (
         <MembersTab team={team.data} online={online} />
       )}
