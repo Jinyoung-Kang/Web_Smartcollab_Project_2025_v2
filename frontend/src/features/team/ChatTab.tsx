@@ -22,7 +22,7 @@ import { cn } from '@/lib/cn'
  * 보낸 사람은 서버가 인증 정보로 결정합니다 (v1: 클라이언트가 보낸 sender 를 그대로 신뢰).
  * 공유된 파일은 눌러서 드라이브와 같은 미리보기로 열고, 옆의 아이콘으로 바로 내려받습니다.
  */
-export function ChatTab({ teamId, team }: { teamId: number; team: TeamDetail }) {
+export function ChatTab({ teamId, team, active = true }: { teamId: number; team: TeamDetail; active?: boolean }) {
   const me = useMe()
   const qc = useQueryClient()
   const toast = useToast()
@@ -47,10 +47,13 @@ export function ChatTab({ teamId, team }: { teamId: number; team: TeamDetail }) 
     staleTime: Infinity,
   })
 
+  // 보이는 동안만 이 팀의 새 메시지를 "읽음"으로 칩니다. 좁은 화면에서 닫힌 패널이 보는 중으로 등록해 새 메시지
+  // 표시가 뜨지 않았습니다 [FB-06].
   useEffect(() => {
+    if (!active) return
     setActiveChat(teamId)
     return () => setActiveChat(null)
-  }, [teamId, setActiveChat])
+  }, [teamId, active, setActiveChat])
 
   const messages: ChatMessage[] = chat.data ? [...chat.data.pages].reverse().flatMap((p) => p.messages) : []
   const lastId = messages.at(-1)?.id

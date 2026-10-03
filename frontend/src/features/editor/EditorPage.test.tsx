@@ -13,6 +13,8 @@ const doc: TextContent = {
   name: '회의록.md', folderId: 5, content: '처음 내용', versionId: 1, editable: true, updatedAt: '2026-09-27T00:00:00Z',
 }
 
+let client: QueryClient
+
 function renderEditor() {
   vi.spyOn(fileApi, 'content').mockResolvedValue(doc)
   vi.spyOn(configApi, 'get').mockResolvedValue({ translationEnabled: false } as PublicConfig)
@@ -23,7 +25,7 @@ function renderEditor() {
     ],
     { initialEntries: ['/files/1/edit'] },
   )
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={client}>
       <ToastProvider>
@@ -74,6 +76,24 @@ describe('EditorPage — 저장하지 않은 변경 보호', () => {
   })
 })
 
+describe('EditorPage — 다시 불러오기 실패 [FB-02]', () => {
+  it('창으로 돌아올 때 하는 새로고침이 실패해도 편집 화면과 저장하지 않은 내용을 그대로 둔다', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+    await user.type(await screen.findByLabelText('문서 내용'), ' 추가')
+    vi.mocked(fileApi.content).mockRejectedValue(new ApiError(0, 'NETWORK', '네트워크에 연결할 수 없습니다.'))
+
+    await act(async () => {
+      await client.refetchQueries({ queryKey: ['file-content', 1] })
+      await new Promise((resolve) => setTimeout(resolve, 0))   // 쿼리 상태 알림은 다음 틱에 화면에 반영됩니다
+    })
+    expect(client.getQueryState(['file-content', 1])?.status).toBe('error')
+
+    expect(screen.queryByText('문서를 열 수 없습니다')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('문서 내용')).toHaveValue('처음 내용 추가')
+  })
+})
+
 describe('EditorPage — 편집 충돌 해결', () => {
   afterEach(() => {
     Reflect.deleteProperty(navigator, 'clipboard')
@@ -102,5 +122,18 @@ describe('EditorPage — 편집 충돌 해결', () => {
     expect(createUrl).toHaveBeenCalledOnce()
     expect(click).toHaveBeenCalledOnce()
   })
-})
 
+  it('[FB-08] 충돌을 내 내용으로 해결하려는데 최신 내용을 받지 못하면 알리고 충돌 안내를 그대로 둔다', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+    vi.spyOn(fileApi, 'save').mockRejectedValue(new ApiError(409, 'EDIT_CONFLICT', '다른 사용자가 먼저 저장했습니다.'))
+    await user.type(await screen.findByLabelText('문서 내용'), ' 내 수정')
+    await user.click(screen.getByRole('button', { name: '저장' }))
+    vi.mocked(fileApi.content).mockRejectedValue(new ApiError(0, 'NETWORK', '네트워크에 연결할 수 없습니다.'))
+
+    await user.click(await screen.findByRole('button', { name: /내 내용으로/ }))
+
+    expect(await screen.findByText('네트워크에 연결할 수 없습니다.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /내 내용으로/ })).toBeInTheDocument()
+  })
+})

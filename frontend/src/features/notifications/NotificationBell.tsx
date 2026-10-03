@@ -18,6 +18,8 @@ export function NotificationBell() {
   const navigate = useNavigate()
   const { data } = useQuery({ queryKey: ['notifications'], queryFn: notificationApi.list, refetchInterval: 120_000 })
   const invalidate = () => qc.invalidateQueries({ queryKey: ['notifications'] })
+  /** 알림 요청이 실패해도 조용히 넘어가지 않고 알립니다 [FB-08] */
+  const run = (request: Promise<unknown>) => request.then(invalidate, (e: Error) => toast.error(e.message))
 
   const respond = useMutation({
     mutationFn: ({ n, accept }: { n: AppNotification; accept: boolean }) =>
@@ -25,7 +27,7 @@ export function NotificationBell() {
     onSuccess: (_, { n, accept }) => {
       void invalidate()
       void qc.invalidateQueries({ queryKey: ['teams'] })
-      void notificationApi.read(n.id).then(invalidate)
+      void run(notificationApi.read(n.id))
       toast.success(accept ? '팀에 참여했습니다.' : '초대를 거절했습니다.')
       if (accept && n.teamId) navigate(`/teams/${n.teamId}`)
     },
@@ -61,11 +63,11 @@ export function NotificationBell() {
             <span className="text-sm font-semibold">알림</span>
             <div className="flex gap-1">
               <IconButton label="모두 읽음" disabled={unread === 0}
-                onClick={() => notificationApi.readAll().then(invalidate)}>
+                onClick={() => void run(notificationApi.readAll())}>
                 <Check className="size-4" />
               </IconButton>
               <IconButton label="모두 삭제" disabled={!data?.items.length}
-                onClick={() => notificationApi.removeAll().then(invalidate)}>
+                onClick={() => void run(notificationApi.removeAll())}>
                 <Trash2 className="size-4" />
               </IconButton>
             </div>
@@ -95,11 +97,11 @@ export function NotificationBell() {
                   </div>
                   <div className="flex flex-col gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
                     {!n.read && (
-                      <IconButton label="읽음 표시" onClick={() => notificationApi.read(n.id).then(invalidate)}>
+                      <IconButton label="읽음 표시" onClick={() => void run(notificationApi.read(n.id))}>
                         <Check className="size-3.5" />
                       </IconButton>
                     )}
-                    <IconButton label="삭제" onClick={() => notificationApi.remove(n.id).then(invalidate)}>
+                    <IconButton label="삭제" onClick={() => void run(notificationApi.remove(n.id))}>
                       <X className="size-3.5" />
                     </IconButton>
                   </div>

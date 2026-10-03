@@ -14,7 +14,8 @@ vi.mock('@/auth/AuthProvider', () => ({
   usePublicConfig: () => ({ translationEnabled: false, officePreviewEnabled: false, maxUploadBytes: 1024, demo: { enabled: false, accounts: [] } }),
 }))
 vi.mock('@/realtime/RealtimeProvider', () => ({ useRealtime: () => ({ publish: () => false }) }))
-vi.mock('@/realtime/TeamActivity', () => ({ useTeamActivity: () => ({ setActiveChat: () => {} }), appendChatMessage: vi.fn() }))
+const activity = vi.hoisted(() => ({ setActiveChat: vi.fn() }))
+vi.mock('@/realtime/TeamActivity', () => ({ useTeamActivity: () => activity, appendChatMessage: vi.fn() }))
 
 const team: TeamDetail = {
   id: 3, name: '데모 팀', ownerUsername: 'demo1', rootFolderId: 10,
@@ -30,10 +31,10 @@ const current: Item = {
   createdAt, updatedAt: createdAt, previewKind: 'IMAGE', textEditable: false,
 }
 
-function renderChat() {
+function renderChat(active = true) {
   vi.spyOn(chatApi, 'history').mockResolvedValue({ messages: [shared], hasMore: false })
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  const router = createMemoryRouter([{ path: '/', element: <ChatTab teamId={3} team={team} /> }])
+  const router = createMemoryRouter([{ path: '/', element: <ChatTab teamId={3} team={team} active={active} /> }])
   render(
     <QueryClientProvider client={client}>
       <ToastProvider>
@@ -74,5 +75,21 @@ describe('ChatTab — 채팅에 공유된 파일 미리보기', () => {
 
     expect(await screen.findByText('파일을 찾을 수 없습니다. 삭제되었거나 휴지통에 있을 수 있습니다.')).toBeInTheDocument()
     expect(document.querySelector('dialog[open]')).toBeNull()
+  })
+})
+
+describe('ChatTab — 보는 중 표시 [FB-06]', () => {
+  it('보이지 않는 동안에는 이 팀 채팅을 보는 중으로 등록하지 않는다 (새 메시지 표시가 뜸)', async () => {
+    activity.setActiveChat.mockClear()
+    renderChat(false)
+    await screen.findByRole('button', { name: '화면 스케치.png 미리보기' })
+    expect(activity.setActiveChat).not.toHaveBeenCalledWith(3)
+  })
+
+  it('보이면 보는 중으로 등록한다', async () => {
+    activity.setActiveChat.mockClear()
+    renderChat(true)
+    await screen.findByRole('button', { name: '화면 스케치.png 미리보기' })
+    expect(activity.setActiveChat).toHaveBeenCalledWith(3)
   })
 })

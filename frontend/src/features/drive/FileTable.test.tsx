@@ -45,7 +45,8 @@ describe('FileTable', () => {
   })
 })
 
-describe('FileTable — 항목이 많은 폴더 [PERF-02]', () => {
+// 행 450개를 jsdom 에 그리는 테스트라 느린 환경에서는 기본 제한(5초)을 넘었습니다(동시 실행 재현 6.5초).
+describe('FileTable — 항목이 많은 폴더 [PERF-02]', { timeout: 20_000 }, () => {
   const many = Array.from({ length: 450 }, (_, i) => item({ id: i + 1, name: `파일-${String(i).padStart(3, '0')}.txt` }))
   const rowCount = () => document.querySelectorAll('tbody tr[data-row]').length
 
@@ -85,5 +86,60 @@ describe('FileTable — 항목이 많은 폴더 [PERF-02]', () => {
     expect(rowCount()).toBe(400)
     fireEvent.click(button('크기'))
     expect(rowCount()).toBe(200)
+  })
+})
+
+describe('FileTable — 키보드 단축키의 대상 [FB-01]', () => {
+  // 정렬 결과: 자료(folder-3), 보고서 2.txt(file-2), 보고서 10.txt(file-1)
+  const row = (i: number) => {
+    const r = document.querySelectorAll<HTMLTableRowElement>('tbody tr[data-row]')[i]
+    if (!r) throw new Error(`행 ${i} 없음`)
+    return r
+  }
+  const setup = (selected: string[]) => {
+    const onDeleteKey = vi.fn()
+    const onRenameKey = vi.fn()
+    render(
+      <FileTable items={items} selected={new Set(selected)} onSelectionChange={vi.fn()} onOpen={vi.fn()}
+        onContextAction={vi.fn()} onDeleteKey={onDeleteKey} onRenameKey={onRenameKey} />,
+    )
+    return { onDeleteKey, onRenameKey }
+  }
+
+  it('선택하지 않은 행에서 Delete 를 누르면 이전 선택이 아니라 그 행만 지운다', () => {
+    const { onDeleteKey } = setup(['file-1'])
+    fireEvent.keyDown(row(1), { key: 'Delete' })
+    expect(onDeleteKey).toHaveBeenCalledWith([items[1]])
+  })
+
+  it('선택한 행에서 Delete 를 누르면 선택한 항목을 모두 지운다', () => {
+    const { onDeleteKey } = setup(['file-1', 'file-2'])
+    fireEvent.keyDown(row(1), { key: 'Delete' })
+    expect(onDeleteKey).toHaveBeenCalledWith([items[1], items[0]])
+  })
+
+  it('F2 는 이전 선택과 상관없이 키를 누른 행의 이름을 바꾼다', () => {
+    const { onRenameKey } = setup(['file-2'])
+    fireEvent.keyDown(row(2), { key: 'F2' })
+    expect(onRenameKey).toHaveBeenCalledWith(items[0])
+  })
+})
+
+describe('FileTable — 행 안의 버튼 [FB-09]', () => {
+  it('작업 메뉴 버튼에서 Enter 를 누르면 메뉴만 열고 폴더는 열지 않는다 (Enter 가 두 번 처리되던 문제)', async () => {
+    const onOpen = vi.fn()
+    const onContextAction = vi.fn()
+    const onSelectionChange = vi.fn()
+    render(<FileTable items={items} selected={new Set()} onSelectionChange={onSelectionChange} onOpen={onOpen} onContextAction={onContextAction} />)
+    const user = userEvent.setup()
+
+    screen.getByRole('button', { name: '자료 작업 메뉴' }).focus()
+    await user.keyboard('{Enter}')
+    expect(onContextAction).toHaveBeenCalledOnce()
+    expect(onOpen).not.toHaveBeenCalled()
+
+    screen.getByLabelText('보고서 2.txt 선택').focus()
+    await user.keyboard(' ')
+    expect(onSelectionChange).toHaveBeenCalledTimes(1)
   })
 })
