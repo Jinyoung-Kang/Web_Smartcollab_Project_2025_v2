@@ -1,53 +1,42 @@
-import { Fragment, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
-import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
+import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { Download, Eraser, MessagesSquare, Paperclip, SendHorizontal } from 'lucide-react'
-import { chatApi, fileApi } from '@/api/endpoints'
-import { ApiError } from '@/api/http'
-import { uploadFile } from '@/api/upload'
-import type { ChatMessage, Item, TeamDetail } from '@/api/types'
+import { fileApi } from '@/api/endpoints'
+import type { TeamDetail } from '@/api/types'
 import { useMe } from '@/auth/AuthProvider'
 import { Button, IconButton } from '@/components/ui/Button'
-import { useConfirm } from '@/components/ui/Confirm'
 import { Avatar, EmptyState, Spinner } from '@/components/ui/misc'
 import { useToast } from '@/components/ui/Toast'
 import { PreviewDialog } from '@/features/drive/dialogs/PreviewDialog'
-import { useRealtime } from '@/realtime/RealtimeProvider'
-import { appendChatMessage, useTeamActivity } from '@/realtime/TeamActivity'
+import { useTeamActivity } from '@/realtime/TeamActivity'
 import { ItemIcon } from '@/lib/fileIcons'
-import { formatBytes, formatDay, formatTime, sameDay } from '@/lib/format'
+import { formatBytes, formatDay, formatTime } from '@/lib/format'
 import { cn } from '@/lib/cn'
-import { invalidateDriveChange } from '@/api/driveCache'
-import { queryKeys } from '@/api/queryKeys'
+import { groupChatMessages, validateChatMessage } from './chatMessages'
+import { useChatScroll } from './useChatScroll'
+import { useSharedFilePreview } from './useSharedFilePreview'
+import { useTeamChat } from './useTeamChat'
 
 /**
- * 팀 채팅. 최근 30개부터 보여 주고 위로 스크롤하면 이전 메시지를 커서 기반으로 더 불러옵니다.
+ * 팀 채팅 화면. 데이터·보내기·첨부는 useTeamChat, 스크롤은 useChatScroll, 공유 파일 미리보기는 useSharedFilePreview,
+ * 메시지 묶기는 순수 함수 groupChatMessages 가 맡습니다. 최근 30개부터 보여 주고 위로 스크롤하면 이전 메시지를 불러옵니다.
  * 보낸 사람은 서버가 인증 정보로 결정합니다 (v1: 클라이언트가 보낸 sender 를 그대로 신뢰).
  * 공유된 파일은 눌러서 드라이브와 같은 미리보기로 열고, 옆의 아이콘으로 바로 내려받습니다.
  */
 export function ChatTab({ teamId, team, active = true }: { teamId: number; team: TeamDetail; active?: boolean }) {
   const me = useMe()
-  const qc = useQueryClient()
   const toast = useToast()
-  const confirm = useConfirm()
-  const { publish } = useRealtime()
   const { setActiveChat } = useTeamActivity()
-  const [text, setText] = useState('')
-  const [uploading, setUploading] = useState(false)
-  const [preview, setPreview] = useState<Item | null>(null)
-  const [opening, setOpening] = useState<number | null>(null)
-  const latestPreview = useRef<number | null>(null)
-  const scroller = useRef<HTMLDivElement>(null)
-  const fileInput = useRef<HTMLInputElement>(null)
-  const stickToBottom = useRef(true)
-  const prevHeight = useRef(0)
-
-  const chat = useInfiniteQuery({
-    queryKey: queryKeys.chat.of(teamId),
-    queryFn: ({ pageParam }) => chatApi.history(teamId, pageParam),
-    initialPageParam: undefined as number | undefined,
-    getNextPageParam: (last) => (last.hasMore ? last.messages[0]?.id : undefined),
-    staleTime: Infinity,
+  const { chat, messages, send, attach, uploading, clear } = useTeamChat(teamId, team.rootFolderId)
+  const { scroller, onScroll, followNewMessages } = useChatScroll({
+    lastId: messages.at(-1)?.id,
+    pageCount: chat.data?.pages.length,
+    canLoadOlder: chat.hasNextPage && !chat.isFetchingNextPage,
+    loadOlder: () => void chat.fetchNextPage(),
   })
+  const shared = useSharedFilePreview()
+  const rows = useMemo(() => groupChatMessages(messages, me.username), [messages, me.username])
+  const [text, setText] = useState('')
+  const fileInput = useRef<HTMLInputElement>(null)
 
   // 보이는 동안만 이 팀의 새 메시지를 "읽음"으로 칩니다. 좁은 화면에서 닫힌 패널이 보는 중으로 등록해 새 메시지
   // 표시가 뜨지 않았습니다 [FB-06].
@@ -57,95 +46,20 @@ export function ChatTab({ teamId, team, active = true }: { teamId: number; team:
     return () => setActiveChat(null)
   }, [teamId, active, setActiveChat])
 
-  const messages: ChatMessage[] = chat.data ? [...chat.data.pages].reverse().flatMap((p) => p.messages) : []
-  const lastId = messages.at(-1)?.id
-
-  // 새 메시지가 오면 맨 아래에 있을 때만 따라 내려갑니다. 이전 메시지를 불러오면 보던 위치를 유지합니다.
-  useLayoutEffect(() => {
-    const el = scroller.current
-    if (!el) return
-    if (stickToBottom.current) {
-      el.scrollTop = el.scrollHeight
-    } else if (prevHeight.current && el.scrollHeight > prevHeight.current && el.scrollTop < 50) {
-      el.scrollTop = el.scrollHeight - prevHeight.current
-    }
-    prevHeight.current = el.scrollHeight
-  }, [lastId, chat.data?.pages.length])
-
-  const onScroll = () => {
-    const el = scroller.current
-    if (!el) return
-    stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80
-    if (el.scrollTop < 40 && chat.hasNextPage && !chat.isFetchingNextPage) {
-      prevHeight.current = el.scrollHeight
-      void chat.fetchNextPage()
-    }
-  }
-
-  const send = async (body: { content?: string; fileId?: number }) => {
-    stickToBottom.current = true
-    // WebSocket 이 연결돼 있으면 STOMP 로, 아니면 HTTP 로 보냅니다 (결과는 둘 다 구독자에게 방송됨).
-    if (publish(`/app/teams/${teamId}/chat`, body)) return
-    try {
-      const msg = await chatApi.send(teamId, body)
-      appendChatMessage(qc, teamId, msg)
-    } catch (e) {
-      toast.error((e as Error).message)
-    }
-  }
-
   const submit = (e?: FormEvent) => {
     e?.preventDefault()
-    const content = text.trim()
-    if (!content) return
-    if (content.length > 2000) return toast.error('메시지는 2000자 이하로 입력하세요.')
+    const checked = validateChatMessage(text)
+    if (!checked) return
+    if ('error' in checked) return toast.error(checked.error)
     setText('')
-    void send({ content })
+    followNewMessages()
+    void send({ content: checked.content })
   }
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault()
       submit()
-    }
-  }
-
-  const attach = async (file: File) => {
-    setUploading(true)
-    try {
-      const item = await uploadFile(team.rootFolderId, file, () => {})
-      invalidateDriveChange(qc, { folderIds: [team.rootFolderId], scope: teamId })
-      await send({ fileId: item.id })
-    } catch (e) {
-      toast.error((e as Error).message)
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  // 공유한 뒤 이름이 바뀌거나 지워졌을 수 있어, 메시지에 담긴 값 대신 지금 파일 정보로 드라이브와 같은 미리보기를 엽니다.
-  const openPreview = async (fileId: number) => {
-    latestPreview.current = fileId
-    setOpening(fileId)
-    try {
-      const file = await fileApi.get(fileId)
-      if (latestPreview.current === fileId) setPreview(file)
-    } catch (e) {
-      toast.error(e instanceof ApiError && e.status === 404
-        ? '파일을 찾을 수 없습니다. 삭제되었거나 휴지통에 있을 수 있습니다.'
-        : (e as Error).message)
-    } finally {
-      setOpening((current) => (current === fileId ? null : current))
-    }
-  }
-
-  const clear = async () => {
-    const ok = await confirm({ title: '채팅 기록을 모두 지울까요?', message: '모든 멤버의 화면에서 대화가 사라지며 되돌릴 수 없습니다.', confirmLabel: '모두 지우기', danger: true })
-    if (!ok) return
-    try {
-      await chatApi.clear(teamId)
-    } catch (e) {
-      toast.error((e as Error).message)
     }
   }
 
@@ -157,12 +71,7 @@ export function ChatTab({ teamId, team, active = true }: { teamId: number; team:
         {chat.data && messages.length === 0 && (
           <EmptyState icon={MessagesSquare} title="아직 대화가 없습니다" description="첫 메시지를 보내 보세요. 파일도 바로 공유할 수 있어요." />
         )}
-        {messages.map((m, i) => {
-          const prev = messages[i - 1]
-          const mine = m.sender.username === me.username
-          const newDay = !prev || !sameDay(prev.createdAt, m.createdAt)
-          const grouped = !newDay && prev && prev.sender.username === m.sender.username &&
-            new Date(m.createdAt).getTime() - new Date(prev.createdAt).getTime() < 5 * 60_000
+        {rows.map(({ message: m, mine, newDay, grouped }) => {
           return (
             <Fragment key={m.id}>
               {newDay && (
@@ -183,11 +92,11 @@ export function ChatTab({ teamId, team, active = true }: { teamId: number; team:
                         mine ? 'border-brand-200 bg-brand-50' : 'border-slate-200 bg-white')}>
                         <button
                           type="button"
-                          onClick={() => void openPreview(m.file!.id)}
+                          onClick={() => void shared.open(m.file!.id)}
                           aria-label={`${m.file.name} 미리보기`}
-                          aria-busy={opening === m.file.id}
+                          aria-busy={shared.opening === m.file.id}
                           className={cn('flex min-w-0 items-center gap-3 rounded-l-2xl py-2.5 pr-1 pl-3 text-left',
-                            opening === m.file.id && 'cursor-wait opacity-70')}
+                            shared.opening === m.file.id && 'cursor-wait opacity-70')}
                         >
                           <ItemIcon type="file" name={m.file.name} className="size-8" />
                           <span className="min-w-0">
@@ -228,7 +137,10 @@ export function ChatTab({ teamId, team, active = true }: { teamId: number; team:
           </IconButton>
           <input ref={fileInput} type="file" hidden onChange={(e) => {
             const f = e.target.files?.[0]
-            if (f) void attach(f)
+            if (f) {
+              followNewMessages()
+              void attach(f)
+            }
             e.target.value = ''
           }} />
           <textarea
@@ -250,7 +162,7 @@ export function ChatTab({ teamId, team, active = true }: { teamId: number; team:
           </Button>
         )}
       </form>
-      <PreviewDialog file={preview} onClose={() => setPreview(null)} />
+      <PreviewDialog file={shared.preview} onClose={shared.close} />
     </div>
   )
 }
