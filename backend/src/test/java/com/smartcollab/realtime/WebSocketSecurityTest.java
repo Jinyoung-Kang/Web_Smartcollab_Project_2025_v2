@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.messaging.converter.JacksonJsonMessageConverter;
+import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompFrameHandler;
 import org.springframework.messaging.simp.stomp.StompHeaders;
 import org.springframework.messaging.simp.stomp.StompSession;
@@ -53,12 +54,32 @@ class WebSocketSecurityTest extends IntegrationTest {
     }
 
     private StompSession connect(Api.Session user) throws Exception {
+        return connect(user, new StompSessionHandlerAdapter() {
+        });
+    }
+
+    private StompSession connect(Api.Session user, StompSessionHandlerAdapter handler) throws Exception {
         WebSocketHttpHeaders headers = new WebSocketHttpHeaders();
         if (user != null) {
             headers.add("Cookie", "SC_AUTH=" + user.cookie.getValue());
         }
-        return client.connectAsync("ws://localhost:" + port + "/ws", headers, new StompSessionHandlerAdapter() {
-        }).get(5, TimeUnit.SECONDS);
+        return client.connectAsync("ws://localhost:" + port + "/ws", headers, handler).get(5, TimeUnit.SECONDS);
+    }
+
+    /** 서버가 보낸 ERROR 프레임의 message 헤더를 모읍니다. */
+    private static StompSessionHandlerAdapter collectingErrors(BlockingQueue<String> errors) {
+        return new StompSessionHandlerAdapter() {
+            @Override
+            public void handleFrame(StompHeaders headers, Object payload) {
+                errors.add(String.valueOf(headers.getFirst("message")));
+            }
+
+            @Override
+            public void handleException(StompSession session, StompCommand command, StompHeaders headers, byte[] payload,
+                                        Throwable exception) {
+                errors.add(String.valueOf(headers.getFirst("message")));
+            }
+        };
     }
 
     private static BlockingQueue<Map<String, Object>> subscribe(StompSession session, String destination) {
@@ -128,6 +149,23 @@ class WebSocketSecurityTest extends IntegrationTest {
         member.postJson("/api/teams/{t}/messages", Map.of("content", "비밀 이야기"), team[0]);
 
         assertThat(spied.poll(1500, TimeUnit.MILLISECONDS)).isNull();
+    }
+
+    @Test
+    @DisplayName("[S-11] 한 연결에서 같은 팀 토픽을 다시 구독하면 ERROR 로 거절한다 — 구독마다 DB 조회·접속자 방송이 늘던 문제")
+    void duplicateSubscriptionIsRejected() throws Exception {
+        Api.Session leader = api().signUp("wsdup");
+        long[] team = leader.createTeam("중복 구독 팀");
+        BlockingQueue<String> errors = new LinkedBlockingQueue<>();
+        StompSession ws = connect(leader, collectingErrors(errors));
+        String presence = "/topic/teams/" + team[0] + "/presence";
+
+        subscribe(ws, presence);
+        Thread.sleep(300);
+        assertThat(errors).isEmpty();
+        subscribe(ws, presence);
+
+        assertThat(errors.poll(5, TimeUnit.SECONDS)).contains("이미 구독 중");
     }
 
     @Test
