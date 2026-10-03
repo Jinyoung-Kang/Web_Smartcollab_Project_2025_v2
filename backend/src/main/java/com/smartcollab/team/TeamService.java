@@ -5,13 +5,12 @@ import com.smartcollab.access.AccessPolicy;
 import com.smartcollab.access.PermissionsResponse;
 import com.smartcollab.event.ChangeEvents;
 import com.smartcollab.event.DeletionEvents;
+import com.smartcollab.event.NoticeEvents;
 import com.smartcollab.folder.Folder;
 import com.smartcollab.folder.RootFolders;
 import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.error.ErrorCode;
-import com.smartcollab.notification.Notification;
-import com.smartcollab.notification.NotificationService;
 import com.smartcollab.user.DemoAccounts;
 import com.smartcollab.user.User;
 import com.smartcollab.user.UserRepository;
@@ -35,7 +34,6 @@ public class TeamService {
     private final RootFolders rootFolders;
     private final UserRepository users;
     private final AccessPolicy accessPolicy;
-    private final NotificationService notifications;
     private final ApplicationEventPublisher events;
     private final DemoAccounts demoAccounts;
     private final AppProperties props;
@@ -112,8 +110,8 @@ public class TeamService {
         Team team = inviterMembership.getTeam();
         User inviter = inviterMembership.getUser();
         Invitation invitation = invitations.save(new Invitation(team, inviter, invitee));
-        notifications.notify(invitee, Notification.Type.TEAM_INVITE,
-                inviter.getName() + "님이 '" + team.getName() + "' 팀에 초대했습니다.", invitation, team);
+        notice(invitee.getId(), NoticeEvents.Type.TEAM_INVITE,
+                inviter.getName() + "님이 '" + team.getName() + "' 팀에 초대했습니다.", invitation.getId(), team.getId());
     }
 
     @Transactional
@@ -136,10 +134,10 @@ public class TeamService {
             }
             events.publishEvent(new ChangeEvents.TeamChanged(team.getId(), ChangeEvents.TeamChangeType.MEMBERS_CHANGED));
         }
-        notifications.notify(invitation.getInviter(),
-                accept ? Notification.Type.INVITE_ACCEPTED : Notification.Type.INVITE_REJECTED,
+        notice(invitation.getInviter().getId(),
+                accept ? NoticeEvents.Type.INVITE_ACCEPTED : NoticeEvents.Type.INVITE_REJECTED,
                 invitee.getName() + "님이 '" + team.getName() + "' 팀 초대를 " + (accept ? "수락" : "거절") + "했습니다.",
-                team);
+                null, team.getId());
     }
 
     @Transactional
@@ -155,8 +153,8 @@ public class TeamService {
         describe(changes, "초대", target.isCanInvite(), req.canInvite());
         target.updatePermissions(req.canEdit(), req.canDelete(), req.canInvite());
         if (!changes.isEmpty()) {
-            notifications.notify(target.getUser(), Notification.Type.PERMISSION_CHANGED,
-                    "'" + target.getTeam().getName() + "' 팀 권한 변경: " + String.join(", ", changes), target.getTeam());
+            notice(target.getUser().getId(), NoticeEvents.Type.PERMISSION_CHANGED,
+                    "'" + target.getTeam().getName() + "' 팀 권한 변경: " + String.join(", ", changes), null, teamId);
             events.publishEvent(new ChangeEvents.TeamChanged(teamId, ChangeEvents.TeamChangeType.MEMBERS_CHANGED));
         }
     }
@@ -173,7 +171,7 @@ public class TeamService {
         User removed = target.getUser();
         members.delete(target);
         // 알림에 팀 ID 를 담아, 그 팀 화면을 보고 있던 사용자를 화면에서 내보낼 수 있게 합니다.
-        notifications.notify(removed, Notification.Type.REMOVED_FROM_TEAM, "'" + team.getName() + "' 팀에서 제외되었습니다.", team);
+        notice(removed.getId(), NoticeEvents.Type.REMOVED_FROM_TEAM, "'" + team.getName() + "' 팀에서 제외되었습니다.", null, teamId);
         events.publishEvent(new ChangeEvents.MembershipRevoked(teamId, removed.getId()));
         events.publishEvent(new ChangeEvents.TeamChanged(teamId, ChangeEvents.TeamChangeType.MEMBERS_CHANGED));
     }
@@ -203,8 +201,8 @@ public class TeamService {
         current.demoteFromLeader();
         next.promoteToLeader();
         team.changeOwner(next.getUser());
-        notifications.notify(next.getUser(), Notification.Type.LEADERSHIP_TRANSFERRED,
-                "'" + team.getName() + "' 팀의 새 팀장이 되었습니다.", team);
+        notice(next.getUser().getId(), NoticeEvents.Type.LEADERSHIP_TRANSFERRED,
+                "'" + team.getName() + "' 팀의 새 팀장이 되었습니다.", null, teamId);
         events.publishEvent(new ChangeEvents.TeamChanged(teamId, ChangeEvents.TeamChangeType.MEMBERS_CHANGED));
     }
 
@@ -238,10 +236,14 @@ public class TeamService {
         teams.deleteById(teamId);
 
         for (User u : others) {
-            notifications.notify(users.getReferenceById(u.getId()), Notification.Type.TEAM_DELETED,
-                    "'" + teamName + "' 팀이 삭제되었습니다.", null);
+            notice(u.getId(), NoticeEvents.Type.TEAM_DELETED, "'" + teamName + "' 팀이 삭제되었습니다.", null, null);
         }
         events.publishEvent(new ChangeEvents.TeamChanged(teamId, ChangeEvents.TeamChangeType.TEAM_DELETED));
+    }
+
+    /** 알림은 알림 모듈이 같은 트랜잭션 안에서 저장합니다 [A-01] */
+    private void notice(Long recipientUserId, NoticeEvents.Type type, String content, Long invitationId, Long teamId) {
+        events.publishEvent(new NoticeEvents.Requested(recipientUserId, type, content, invitationId, teamId));
     }
 
     private TeamMember memberOf(Long teamId, Long memberId) {

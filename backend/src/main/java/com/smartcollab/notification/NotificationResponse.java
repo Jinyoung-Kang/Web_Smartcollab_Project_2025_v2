@@ -1,10 +1,11 @@
 package com.smartcollab.notification;
 
+import com.smartcollab.event.NoticeEvents;
 import java.time.Instant;
 
 public record NotificationResponse(
         Long id,
-        Notification.Type type,
+        NoticeEvents.Type type,
         String content,
         boolean read,
         Long invitationId,
