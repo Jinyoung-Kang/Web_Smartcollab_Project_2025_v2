@@ -14,7 +14,7 @@
 | **프론트엔드** | React 19 · TypeScript · Vite · TanStack Query · Tailwind CSS 4 |
 | **데이터·저장소** | MySQL 8 · Azure Blob Storage(또는 로컬 디스크) |
 | **배포 구성** | Azure App Service(Docker 이미지 또는 jar) · Azure Database for MySQL · Azure Blob Storage — 절차는 [DEPLOYMENT](docs/DEPLOYMENT.md) |
-| **CI·테스트** | GitHub Actions · JUnit 6 + Testcontainers(MySQL·Azurite) 261건 · Vitest 94건 · Playwright E2E 13건(접근성 자동 검사 포함) · ArchUnit 구조 규칙 |
+| **CI·테스트** | GitHub Actions · JUnit 6 + Testcontainers(MySQL·Azurite) 266건 · Vitest 94건 · Playwright E2E 13건(접근성 자동 검사 포함) · ArchUnit 구조 규칙 |
 
 ---
 
@@ -93,12 +93,12 @@ API 문서: <http://localhost:8080/swagger-ui.html> · 전체 목록 [docs/API.m
 ## 테스트
 
 ```bash
-cd backend && ./gradlew test          # 261건 (MySQL·Azurite 컨테이너 자동 실행), 커버리지 리포트 포함
+cd backend && ./gradlew test          # 266건 (MySQL·Azurite 컨테이너 자동 실행), 커버리지 리포트 포함
 cd frontend && npm test               # 94건
 docker compose up -d --wait && cd e2e && npm ci && npx playwright test   # E2E 13건 (접근성 자동 검사 포함)
 ```
 
-백엔드 라인 커버리지 92.0%(분기 80.5%). 첫 완성본(v1)에서 찾은 결함마다 회귀 테스트가 있습니다 → [docs/TESTING.md](docs/TESTING.md)
+백엔드 라인 커버리지 92.1%(분기 80.7%). 첫 완성본(v1)에서 찾은 결함마다 회귀 테스트가 있습니다 → [docs/TESTING.md](docs/TESTING.md)
 GitHub Actions 가 PR 과 main 푸시마다 백엔드·프론트엔드·E2E(Docker 이미지)·비밀값 검사(gitleaks)를 실행합니다.
 E2E 를 1분 안에 여러 번 돌리면 로그인 요청 제한에 걸리므로, 반복 실행 방법은 [TESTING](docs/TESTING.md) 을 참고하세요.
 

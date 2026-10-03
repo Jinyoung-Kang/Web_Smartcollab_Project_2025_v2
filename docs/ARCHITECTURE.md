@@ -68,6 +68,7 @@ com.smartcollab
 
 **요청이 거치는 필터 순서**: `RequestTraceFilter`(추적 ID·접근 기록) → `RequestBodyLimitFilter`(본문 6MB) →
 Spring Security(쿠키 JWT 인증·CSRF·보안 헤더) → 컨트롤러. 추적 필터가 가장 앞에 있어 413·401 같은 거절 응답에도 추적 ID 가 붙습니다.
+필터에 닿기 전에 Tomcat 이 거절한 요청(해석할 수 없는 주소)은 `ProblemErrorReportValve` 가, 컨트롤러 밖에서 끝나 `/error` 로 넘어온 요청(보안 방화벽 거절 등)은 `ProblemErrorController` 가 같은 problem+json·추적 ID 로 답합니다 [QA-08].
 
 v1 은 `controller/ service/ repository/ entity/ dto/` 로 계층만 나눠, 한 기능을 고치려면 다섯 폴더를 오가야 했고 권한 규칙이 서비스 4곳에 따로 흩어져 서로 달랐습니다.
 

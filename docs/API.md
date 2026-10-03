@@ -8,7 +8,7 @@
 |---|---|
 | 인증 | 로그인·가입 시 HttpOnly 쿠키 `SC_AUTH`(JWT, 기본 8시간)가 설정됩니다. API 클라이언트는 `Authorization: Bearer <JWT>` 헤더도 쓸 수 있습니다. |
 | CSRF | 쿠키로 인증된 `POST/PUT/PATCH/DELETE` 는 `XSRF-TOKEN` 쿠키 값을 `X-XSRF-TOKEN` 헤더로 보내야 합니다. 토큰은 `GET /api/auth/csrf` 로 받습니다. |
-| 오류 형식 | RFC 9457 `application/problem+json` — `{ "status", "title", "detail", "code", "requestId", "errors"? }` |
+| 오류 형식 | RFC 9457 `application/problem+json` — `{ "status", "title", "detail", "code", "requestId", "errors"? }`. 경로에 `%00`·`%2F`·`//`·`;` 가 들어 Tomcat·보안 방화벽이 라우팅 전에 거절한 요청도 같은 형식의 400 입니다 |
 | 요청 추적 | 모든 응답에 `X-Request-Id` 헤더. 오류 본문의 `requestId` 와 서버 로그의 추적 ID 가 같습니다 (프록시가 보낸 값은 `[A-Za-z0-9._-]{8,64}` 일 때만 이어 씀) |
 | 요청한 화면 | 선택 헤더 `X-Client-Id`(`[A-Za-z0-9-]{8,64}`, 탭마다 하나). 이 요청이 만든 `FOLDER_CHANGED` 이벤트의 `origin` 에 그대로 실려, 보낸 탭은 자기 변경을 다시 불러오지 않습니다. 형식이 맞지 않으면 무시 |
 | 일시적 장애 | DB 연결 실패·응답 지연(트랜잭션 30초 초과) 등 잠시 뒤 다시 시도하면 될 수 있는 오류는 503 `SERVICE_UNAVAILABLE` 과 `Retry-After: 5` |

@@ -2,18 +2,18 @@
 
 | 층 | 도구 | 개수 | 실행 |
 |---|---|---:|---|
-| 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 261 | `cd backend && ./gradlew test` |
+| 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 266 | `cd backend && ./gradlew test` |
 | 프론트엔드 단위·컴포넌트 | Vitest · Testing Library · jsdom | 94 | `cd frontend && npm test` |
 | E2E (전체 스택) | Playwright · Docker Compose · axe-core | 13 (시나리오 10 + 접근성 2·탭 제목 1) | `docker compose up -d --wait && cd e2e && npx playwright test` |
 
-백엔드 라인 커버리지 **92.0%**, 분기 커버리지 **80.5%** (JaCoCo, `backend/build/reports/jacoco/test/html`).
+백엔드 라인 커버리지 **92.1%**, 분기 커버리지 **80.7%** (JaCoCo, `backend/build/reports/jacoco/test/html`).
 
 ## 원칙
 
 - **H2 대신 실제 MySQL** 로 통합 테스트합니다. 재귀 CTE·`ON DELETE SET NULL`·조건부 UPDATE 처럼 DB 동작에 기대는 로직이 많아, 운영과 다른 DB 로 테스트하면 통과해도 믿을 수 없기 때문입니다.
-- 테스트마다 무작위 사용자 이름을 써서 데이터를 분리하고, 컨테이너와 Spring 컨텍스트는 한 번만 띄웁니다(전체 261건, `./gradlew test` 약 2분 30초). 테스트 JVM 은 운영 컨테이너·CI 와 같은 UTC 로 실행합니다.
+- 테스트마다 무작위 사용자 이름을 써서 데이터를 분리하고, 컨테이너와 Spring 컨텍스트는 한 번만 띄웁니다(전체 266건, `./gradlew test` 약 2분 30초). 테스트 JVM 은 운영 컨테이너·CI 와 같은 UTC 로 실행합니다.
 - v1 에서 찾은 결함마다 이름에 `[v1 …]` 을, 2026-09 코드 리뷰 항목에는 `[SEC-01]`·`[BUG-02]` 처럼 항목 ID 를 붙인 회귀 테스트가 있습니다 → [REFACTORING_REPORT.md](REFACTORING_REPORT.md), [REVIEW_2026-09.md](REVIEW_2026-09.md)
-- 인증은 실제 브라우저처럼 HttpOnly 쿠키 + CSRF 토큰으로 요청합니다(`support/Api`).
+- 인증은 실제 브라우저처럼 HttpOnly 쿠키 + CSRF 토큰으로 요청합니다(`support/Api`). CSRF 는 Spring Security 의 `csrf()` 도우미 대신 같은 토큰을 쿠키·헤더로 보내는 `Api.xsrf()` 를 씁니다 — `csrf()` 는 공유 CSRF 필터의 저장소를 바꿔, 같은 컨텍스트의 실제 HTTP 시험이 실행 순서에 따라 실패했습니다.
 
 ## 주요 테스트
 
@@ -55,6 +55,7 @@
 | `StorageUsageCounterTest` · `FolderPagingTest` | 한도 확인은 사용량 집계를 쓰고, 업로드·저장·복사·휴지통·영구 삭제·동시 업로드 뒤에도 집계 = 실제 합계, 정리 작업이 어긋난 집계를 바로잡음 (IMP-01) / 폴더 목록을 나눠 주고 커서로 빠짐·겹침 없이 끝까지, 서버 정렬(폴더 우선·자연 정렬), 잘못된 매개변수 400 (IMP-02) |
 | `HealthReadinessTest` · `TransactionTimeoutTest` · `OrphanBlobCleanerTest` | readiness 에 DB 포함·liveness 제외, DB 연결 실패는 503 + Retry-After (IMP-04) / 시간 제한을 넘는 쿼리는 DB 에서 취소 (IMP-08) / 유예 시간보다 오래된 고아·임시 파일만 지움 (IMP-05) |
 | `AuthorizationMatrixTest` | 출시 기준 QA 의 인가 행렬을 CI 로 — 외부인 42요청·남의 ID 섞기 8요청·읽기 전용 멤버 17요청이 모두 404·403 이고, 주인이 다시 조회해 부수 효과가 없는지 (IMP-09) |
+| `PreRoutingErrorFormatTest` · `ProblemWriterTest` | 실제 Tomcat 에서 라우팅 전에 거절된 주소(`%00`·`%2F`)와 방화벽이 거절한 주소(`//`·`;`)도 problem+json·추적 ID, `/error` 를 직접 부르면 404, 상태별 오류 코드 (QA-08) |
 | `EventOriginTest`, 프론트 `teamEvents.test` · `http.test` | 요청의 탭 ID 가 폴더 변경 이벤트에 실리고 형식이 틀리면 버림, 자기 탭의 이벤트는 다시 불러오지 않음, 모든 요청에 탭 ID 헤더 (IMP-03) |
 | E2E `a11y.spec.ts` | 로그인·드라이브·팀(내가 보낸 채팅 파일 카드 포함)·선택 작업 바·버전 기록·알림·휴지통을 axe(WCAG 2.1 AA·모범 사례)로 검사 — 위반이 하나라도 있으면 실패, 화면별 탭 제목 (UX-01·02) / 팀 멤버·팀 메뉴·없는 폴더·공유 받기·375 폭, 보이는 글자를 포함하는 이름(실험 규칙) (QA-09~13) |
 | 프론트 `AppErrorPage.test` · `useDocumentTitle.test` · `josa.test`, 백엔드 `ApiExceptionTest` | 렌더링 오류·새 배포 안내 (ARC-04), 탭 제목 (UX-02), 받침에 맞는 조사 (UX-04) |
