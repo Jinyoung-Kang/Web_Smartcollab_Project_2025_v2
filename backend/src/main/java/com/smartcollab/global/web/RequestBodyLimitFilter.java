@@ -25,8 +25,13 @@ import java.util.Locale;
  * <p>JSON 본문에는 기본 한도가 없어, 로그인하지 않은 사용자도 공개 API 에 수십 MB 를 보내 서버가 끝까지 읽어
  * 메모리에 올리게 할 수 있었습니다(60MB 로 재현). 길이를 알리면 읽기 전에, 길이를 알리지 않는 전송(chunked)은
  * 한도를 넘는 순간 413 으로 끊습니다. 파일 업로드(multipart)는 업로드 한도({@code spring.servlet.multipart.*})가 따로 막습니다.</p>
+ * <p>multipart 는 업로드 경로에서만 받습니다 [S-18]. 다른 경로로 온 multipart 도 서버(Tomcat·Spring)가 업로드 한도까지
+ * 본문을 끝까지 해석한 뒤에야 415 를 돌려줘, 로그인하지 않은 사용자도 공개 API 로 큰 본문을 읽힐 수 있었습니다.</p>
  */
 public class RequestBodyLimitFilter extends OncePerRequestFilter {
+
+    /** multipart 를 받는 유일한 경로 (FileController 의 업로드) */
+    static final String UPLOAD_PATH = "/api/files/upload";
 
     private final long maxBytes;
     private final ObjectMapper mapper;
@@ -37,14 +42,17 @@ public class RequestBodyLimitFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
-        String type = request.getContentType();
-        return type != null && type.toLowerCase(Locale.ROOT).startsWith("multipart/");
-    }
-
-    @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
+        if (isMultipart(request)) {
+            if (UPLOAD_PATH.equals(request.getRequestURI().substring(request.getContextPath().length()))) {
+                chain.doFilter(request, response);   // 업로드 한도가 막습니다
+            } else {
+                ProblemWriter.write(response, mapper, ErrorCode.UNSUPPORTED_MEDIA_TYPE,
+                        "파일 업로드 주소가 아니면 multipart 요청을 받지 않습니다.");
+            }
+            return;
+        }
         long length = request.getContentLengthLong();
         if (length > maxBytes) {
             reject(response);
@@ -59,6 +67,11 @@ public class RequestBodyLimitFilter extends OncePerRequestFilter {
                 reject(response);
             }
         }
+    }
+
+    private static boolean isMultipart(HttpServletRequest request) {
+        String type = request.getContentType();
+        return type != null && type.toLowerCase(Locale.ROOT).startsWith("multipart/");
     }
 
     private void reject(HttpServletResponse response) throws IOException {
