@@ -56,7 +56,7 @@ public class FolderController {
         return ResponseEntity.noContent().build();
     }
 
-    @Operation(summary = "폴더 영구 삭제", description = "하위 폴더와 파일(휴지통 포함)까지 함께 삭제됩니다.")
+    @Operation(summary = "휴지통으로 이동", description = "하위 폴더·파일과 함께 휴지통으로 옮깁니다. 보관 기간(기본 30일)이 지나면 자동으로 영구 삭제됩니다.")
     @DeleteMapping("/{folderId}")
     public ResponseEntity<Void> delete(@PathVariable Long folderId, @CurrentUser AuthUser user) {
         itemDeletionService.delete(new DriveDtos.DeleteRequest(List.of(new DriveDtos.ItemRef("folder", folderId))), user.id());

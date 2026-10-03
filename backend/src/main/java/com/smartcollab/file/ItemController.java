@@ -36,7 +36,7 @@ public class ItemController {
         return Map.of("copiedFiles", transferService.copy(request, user.id()));
     }
 
-    @Operation(summary = "삭제", description = "파일은 휴지통으로, 폴더는 안의 파일까지 영구 삭제합니다. 하나라도 지울 수 없으면 아무것도 지우지 않습니다.")
+    @Operation(summary = "휴지통으로 이동", description = "파일은 휴지통으로, 폴더는 안의 폴더·파일과 함께 휴지통으로 옮깁니다. 고른 폴더 안의 항목은 그 폴더와 함께 갑니다. 하나라도 지울 수 없으면 아무것도 지우지 않습니다.")
     @PostMapping("/delete")
     public DriveDtos.DeleteResponse delete(@Valid @RequestBody DriveDtos.DeleteRequest request, @CurrentUser AuthUser user) {
         return deletionService.delete(request, user.id());
