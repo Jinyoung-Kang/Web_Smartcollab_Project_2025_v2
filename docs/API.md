@@ -18,7 +18,7 @@
 
 | code | HTTP | 의미 |
 |---|---|---|
-| `INVALID_REQUEST` | 400 | 입력 검증 실패 (`errors` 에 필드별 메시지) |
+| `INVALID_REQUEST` | 400 | 입력 검증 실패 (`errors` 에 필드별 메시지), 해석할 수 없는 업로드 본문(끝 경계 없음·쓸 수 없는 파일 이름) |
 | `UNAUTHORIZED` / `INVALID_CREDENTIALS` | 401 | 로그인 필요 / 아이디·비밀번호 불일치 |
 | `FORBIDDEN` / `CSRF_INVALID` | 403 | 권한 부족 / CSRF 토큰 없음·만료 (클라이언트는 토큰을 새로 받아 1회 재시도) |
 | `NOT_FOUND` | 404 | 대상 없음 또는 접근 불가 |
