@@ -69,7 +69,7 @@ class StorageCleanupTest {
         when(folders.findById(10L)).thenReturn(Optional.of(folder));
         ArgumentCaptor<String> key = ArgumentCaptor.forClass(String.class);
         when(storage.put(key.capture(), any(InputStream.class), anyLong())).thenAnswer(inv -> new StoredBlob(inv.getArgument(0), 5, "h"));
-        when(tx.write(any(Supplier.class))).thenThrow(ApiException.notFound("폴더"));
+        when(tx.writeReadCommitted(any(Supplier.class))).thenThrow(ApiException.notFound("폴더"));
         FileService service = new FileService(files, versions, folders, users, accessPolicy, blobLifecycle, storage, events, tx, quota);
 
         assertThatThrownBy(() -> service.upload(10L, UploadSource.of("a.txt", "hello".getBytes()), 1L))
@@ -103,7 +103,7 @@ class StorageCleanupTest {
         assertThatThrownBy(() -> service.copy(request, 1L)).isInstanceOf(BlobNotFoundException.class);
 
         verify(blobLifecycle).discard(List.of(firstCopy.getValue()));
-        verify(tx, never()).write(any(Supplier.class));
+        verify(tx, never()).writeReadCommitted(any(Supplier.class));   // 복사의 DB 쓰기(이전에는 쓰지 않는 write 를 확인해 늘 통과)
     }
 
     private static FileEntity file(String name, String storedPath) {

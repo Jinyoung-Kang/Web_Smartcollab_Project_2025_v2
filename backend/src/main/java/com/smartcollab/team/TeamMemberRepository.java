@@ -15,6 +15,10 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember, Long> {
 
     boolean existsByTeamIdAndUserId(Long teamId, Long userId);
 
+    /** 멤버의 사용자 ID 만 읽습니다(엔티티를 영속성 컨텍스트에 올리지 않아, 잠근 뒤 다시 읽을 때 최신 행을 봅니다) [QA-01] */
+    @Query("select m.user.id from TeamMember m where m.id = :memberId and m.team.id = :teamId")
+    Optional<Long> findUserId(@Param("teamId") Long teamId, @Param("memberId") Long memberId);
+
     @Query("""
             select m from TeamMember m join fetch m.user
             where m.team.id = :teamId

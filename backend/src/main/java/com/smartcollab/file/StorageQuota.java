@@ -73,19 +73,18 @@ public class StorageQuota {
 
     /**
      * 저장 트랜잭션 안에서: 저장소 주인 행을 잠가 동시 저장을 줄 세운 뒤, 최신 커밋 데이터로 다시 확인합니다.
-     * (일반 읽기는 트랜잭션 스냅샷을 봐서, 먼저 커밋된 다른 저장을 놓칩니다 — 동시 업로드 테스트로 확인)
+     * <p><b>READ COMMITTED 트랜잭션에서 불러야 합니다</b>(TransactionRunner.writeReadCommitted). 잠근 뒤의 일반 읽기가 최신 커밋을
+     * 보기 때문입니다. 이전에는 REPEATABLE READ 에서 최신 값을 보려고 잠금 읽기(SUM … FOR SHARE)를 썼는데, 이 읽기가 인덱스 간격까지
+     * 잠가 <b>서로 다른 사용자</b>의 업로드·저장이 서로의 간격 잠금을 기다리다 교착(MySQL 1213)으로 500 이 났습니다 [QA-06].</p>
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public void lockAndCheckRoom(Scope scope, long additionalBytes) {
-        long used;
         if (scope.isTeam()) {
             teams.lockById(scope.teamId());
-            used = versions.sumTeamBytesCurrent(scope.teamId());
         } else {
             users.lockById(scope.ownerId());
-            used = versions.sumPersonalBytesCurrent(scope.ownerId());
         }
-        requireRoom(scope, used, additionalBytes);
+        requireRoom(scope, usedBytes(scope), additionalBytes);
     }
 
     private void requireRoom(Scope scope, long additionalBytes) {

@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import java.util.LinkedHashMap;
@@ -69,6 +70,43 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     ResponseEntity<ProblemDetail> handleAccessDenied(AccessDeniedException e) {
         return problem(ErrorCode.FORBIDDEN, ErrorCode.FORBIDDEN.defaultMessage());
+    }
+
+    /**
+     * 업로드 본문(multipart)을 해석하지 못한 경우 — 끝 경계 없음, 쓸 수 없는 파일 이름(NUL), 업로드 도중 연결 끊김.
+     * 요청 쪽 문제라 400 으로 답합니다. 연결 끊김은 화면의 "업로드 취소"처럼 평소에도 생기므로 DEBUG 로만 남기고, 나머지도
+     * 스택 없이 한 줄만 남깁니다(이전에는 처리하지 않은 예외로 500 과 ERROR 스택이 남아, 취소할 때마다 오류 경보가 울릴 수 있었음) [QA-03].
+     * 업로드 한도 초과(MaxUploadSizeExceededException)는 더 구체적인 처리기가 413 으로 답합니다.
+     */
+    @ExceptionHandler(MultipartException.class)
+    ResponseEntity<ProblemDetail> handleMultipart(MultipartException e) {
+        if (hasCause(e, "ClientAbortException") || hasCause(e, "EOFException")) {
+            log.debug("Multipart upload aborted by client");
+        } else {
+            log.info("Unreadable multipart request: {}", deepestCause(e).getClass().getSimpleName());
+        }
+        String message = hasCause(e, "InvalidFileNameException")
+                ? "파일 이름에 쓸 수 없는 문자가 있습니다."
+                : "업로드 요청을 해석하지 못했습니다. 다시 시도하세요.";
+        return problem(ErrorCode.INVALID_REQUEST, message);
+    }
+
+    /** Tomcat 의 내부 예외 클래스에 직접 의존하지 않도록 원인 사슬을 이름으로 찾습니다 */
+    private static boolean hasCause(Throwable e, String simpleName) {
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            if (t.getClass().getSimpleName().equals(simpleName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static Throwable deepestCause(Throwable e) {
+        Throwable t = e;
+        while (t.getCause() != null && t.getCause() != t) {
+            t = t.getCause();
+        }
+        return t;
     }
 
     @ExceptionHandler(Exception.class)
