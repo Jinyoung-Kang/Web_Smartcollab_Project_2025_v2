@@ -8,6 +8,7 @@ import type { ChatMessage, Item, TeamDetail } from '@/api/types'
 import { ConfirmProvider } from '@/components/ui/Confirm'
 import { ToastProvider } from '@/components/ui/Toast'
 import { queryKeys } from '@/api/queryKeys'
+import { formatBytes } from '@/lib/format'
 import { ChatTab } from './ChatTab'
 
 vi.mock('@/auth/AuthProvider', () => ({
@@ -112,6 +113,20 @@ describe('ChatTab — 파일 첨부 뒤 다시 불러오기', () => {
 
     await vi.waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.usage.of(team.id) }))
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.folder.of(team.rootFolderId) })
+  })
+})
+
+describe('ChatTab — 첨부 파일 검사', () => {
+  it('[5단계] 업로드 한도를 넘는 파일은 올리기 전에 거른다 (드라이브 업로드와 같은 검사)', async () => {
+    upload.uploadFile.mockClear()
+    renderChat()
+    await screen.findByRole('button', { name: '화면 스케치.png 미리보기' })
+
+    const input = document.querySelector<HTMLInputElement>('input[type=file]')!
+    fireEvent.change(input, { target: { files: [new File([new Uint8Array(2048)], '큰 파일.bin')] } })
+
+    expect(await screen.findByText(`최대 ${formatBytes(1024)}까지 올릴 수 있습니다.`)).toBeInTheDocument()
+    expect(upload.uploadFile).not.toHaveBeenCalled()
   })
 })
 

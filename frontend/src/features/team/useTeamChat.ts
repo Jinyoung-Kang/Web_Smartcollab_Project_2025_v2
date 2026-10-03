@@ -5,10 +5,12 @@ import { invalidateDriveChange } from '@/api/driveCache'
 import { queryKeys } from '@/api/queryKeys'
 import { uploadFile } from '@/api/upload'
 import type { ChatMessage } from '@/api/types'
+import { usePublicConfig } from '@/auth/AuthProvider'
 import { useConfirm } from '@/components/ui/Confirm'
 import { useToast } from '@/components/ui/Toast'
 import { useRealtime } from '@/realtime/RealtimeProvider'
 import { appendChatMessage } from '@/realtime/TeamActivity'
+import { validateUpload } from '@/features/drive/validateUpload'
 
 /**
  * 팀 채팅 데이터: 최근 30개부터 불러오고 위로 스크롤하면 이전 메시지를 커서 기반으로 더 불러옵니다.
@@ -19,6 +21,7 @@ export function useTeamChat(teamId: number, rootFolderId: number) {
   const toast = useToast()
   const confirm = useConfirm()
   const { publish } = useRealtime()
+  const config = usePublicConfig()
   const [uploading, setUploading] = useState(false)
 
   const chat = useInfiniteQuery({
@@ -46,6 +49,8 @@ export function useTeamChat(teamId: number, rootFolderId: number) {
 
   /** 파일을 팀 최상위 폴더에 올리고 채팅에 공유합니다. */
   const attach = async (file: File) => {
+    const refused = validateUpload(file, config?.maxUploadBytes)
+    if (refused) return toast.error(refused)
     setUploading(true)
     try {
       const item = await uploadFile(rootFolderId, file, () => {})
