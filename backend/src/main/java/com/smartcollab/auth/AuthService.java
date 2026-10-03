@@ -1,7 +1,7 @@
 package com.smartcollab.auth;
 
 import com.smartcollab.folder.Folder;
-import com.smartcollab.folder.FolderRepository;
+import com.smartcollab.folder.RootFolders;
 import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.error.ErrorCode;
@@ -28,7 +28,7 @@ import java.util.regex.Pattern;
 public class AuthService {
 
     private final UserRepository users;
-    private final FolderRepository folders;
+    private final RootFolders rootFolders;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenService tokens;
     private final SlidingWindowRateLimiter rateLimiter;
@@ -68,7 +68,7 @@ public class AuthService {
         }
         User user = users.save(new User(req.username(), passwordEncoder.encode(req.password()), req.name().strip(),
                 email, Role.USER));
-        folders.save(Folder.personalRoot(user));
+        rootFolders.createPersonal(user);
         return user;
     }
 
@@ -127,7 +127,7 @@ public class AuthService {
     public AuthDtos.MeResponse me(Long userId) {
         User user = users.findById(userId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
         // 루트 폴더가 없는 계정(과거 데이터)은 이 시점에 만들어 줍니다.
-        Folder root = folders.findPersonalRoot(userId).orElseGet(() -> folders.save(Folder.personalRoot(user)));
+        Folder root = rootFolders.personalOf(user);
         return new AuthDtos.MeResponse(user.getId(), user.getUsername(), user.getName(), user.getEmail(), root.getId(),
                 user.getCreatedAt());
     }

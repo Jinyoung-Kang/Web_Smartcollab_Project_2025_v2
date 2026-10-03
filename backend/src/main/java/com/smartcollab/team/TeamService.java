@@ -2,12 +2,11 @@ package com.smartcollab.team;
 
 import com.smartcollab.access.Access;
 import com.smartcollab.access.AccessPolicy;
+import com.smartcollab.access.PermissionsResponse;
 import com.smartcollab.event.ChangeEvents;
 import com.smartcollab.event.DeletionEvents;
-import com.smartcollab.file.DriveDtos;
 import com.smartcollab.folder.Folder;
-import com.smartcollab.folder.FolderRepository;
-import com.smartcollab.folder.TeamRoot;
+import com.smartcollab.folder.RootFolders;
 import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.error.ErrorCode;
@@ -33,7 +32,7 @@ public class TeamService {
     private final TeamRepository teams;
     private final TeamMemberRepository members;
     private final InvitationRepository invitations;
-    private final FolderRepository folders;
+    private final RootFolders rootFolders;
     private final UserRepository users;
     private final AccessPolicy accessPolicy;
     private final NotificationService notifications;
@@ -65,9 +64,9 @@ public class TeamService {
     private TeamDtos.TeamSummary createTeam(String name, User owner) {
         Team team = teams.save(new Team(name.strip(), owner));
         TeamMember leader = members.save(TeamMember.leader(team, owner));
-        Folder root = folders.save(Folder.teamRoot(team, owner));
+        Folder root = rootFolders.createTeam(team, owner);
         return new TeamDtos.TeamSummary(team.getId(), team.getName(), owner.getName(), 1, root.getId(),
-                DriveDtos.PermissionsResponse.of(Access.of(leader)));
+                PermissionsResponse.of(Access.of(leader)));
     }
 
     /** 내 팀 목록. 소속·팀장(1회) + 인원 수(1회) + 루트 폴더(1회) = 쿼리 3회 (팀 수와 무관). */
@@ -80,12 +79,11 @@ public class TeamService {
         List<Long> teamIds = memberships.stream().map(m -> m.getTeam().getId()).toList();
         Map<Long, Long> counts = members.countMembers(teamIds).stream()
                 .collect(Collectors.toMap(TeamSize::teamId, TeamSize::members));
-        Map<Long, Long> roots = folders.findTeamRootIds(teamIds).stream()
-                .collect(Collectors.toMap(TeamRoot::teamId, TeamRoot::folderId, (a, b) -> Math.min(a, b)));
+        Map<Long, Long> roots = rootFolders.teamRootIds(teamIds);
         return memberships.stream()
                 .map(m -> new TeamDtos.TeamSummary(m.getTeam().getId(), m.getTeam().getName(),
                         m.getTeam().getOwner().getName(), counts.getOrDefault(m.getTeam().getId(), 0L),
-                        roots.get(m.getTeam().getId()), DriveDtos.PermissionsResponse.of(Access.of(m))))
+                        roots.get(m.getTeam().getId()), PermissionsResponse.of(Access.of(m))))
                 .toList();
     }
 
@@ -93,10 +91,10 @@ public class TeamService {
     public TeamDtos.TeamDetail detail(Long teamId, Long userId) {
         TeamMember me = accessPolicy.requireMember(teamId, userId);
         Team team = teams.findWithOwner(teamId).orElseThrow(() -> ApiException.notFound("팀"));
-        Long rootId = folders.findTeamRoot(teamId).map(Folder::getId).orElse(null);
+        Long rootId = rootFolders.teamRootId(teamId);
         List<TeamDtos.MemberResponse> list = members.findMembers(teamId).stream().map(TeamDtos.MemberResponse::of).toList();
         return new TeamDtos.TeamDetail(team.getId(), team.getName(), team.getOwner().getUsername(), rootId,
-                DriveDtos.PermissionsResponse.of(Access.of(me)), list);
+                PermissionsResponse.of(Access.of(me)), list);
     }
 
     @Transactional

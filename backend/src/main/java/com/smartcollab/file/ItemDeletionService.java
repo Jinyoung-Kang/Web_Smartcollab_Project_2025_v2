@@ -5,6 +5,7 @@ import com.smartcollab.event.ChangeEvents;
 import com.smartcollab.folder.Folder;
 import com.smartcollab.folder.FolderRepository;
 import com.smartcollab.folder.FolderStructureLock;
+import com.smartcollab.folder.FolderTrash;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -39,7 +40,7 @@ public class ItemDeletionService {
     private final FolderRepository folders;
     private final UserRepository users;
     private final AccessPolicy accessPolicy;
-    private final TrashService trash;
+    private final FolderTrash folderTrash;
     private final ApplicationEventPublisher events;
     private final FolderStructureLock structureLock;
 
@@ -75,7 +76,7 @@ public class ItemDeletionService {
                 throw ApiException.badRequest("최상위 폴더는 삭제할 수 없습니다.");
             }
             changed(changes, folder.getParent());
-            trash.moveFolderToTrash(folder, userId);
+            folderTrash.moveToTrash(folder, userId);
         }
 
         changes.forEach(events::publishEvent);

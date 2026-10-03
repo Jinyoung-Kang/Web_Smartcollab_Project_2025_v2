@@ -29,18 +29,18 @@ public class FolderController {
 
     @Operation(summary = "폴더 내용", description = "하위 폴더·파일, 경로(breadcrumb), 이 폴더에서의 내 권한을 함께 반환합니다.")
     @GetMapping("/{folderId}")
-    public DriveDtos.FolderContents contents(@PathVariable Long folderId, @CurrentUser AuthUser user) {
+    public FolderDtos.FolderContents contents(@PathVariable Long folderId, @CurrentUser AuthUser user) {
         return folderService.contents(folderId, user.id());
     }
 
     @Operation(summary = "폴더 트리", description = "teamId 가 없으면 내 드라이브, 있으면 팀 스토리지 전체 트리 (쿼리 1회)")
     @GetMapping("/tree")
-    public DriveDtos.FolderTreeResponse tree(@RequestParam(required = false) Long teamId, @CurrentUser AuthUser user) {
+    public FolderDtos.FolderTreeResponse tree(@RequestParam(required = false) Long teamId, @CurrentUser AuthUser user) {
         return folderService.tree(teamId, user.id());
     }
 
     @PostMapping
-    public ResponseEntity<DriveDtos.ItemResponse> create(@Valid @RequestBody DriveDtos.CreateFolderRequest request,
+    public ResponseEntity<DriveDtos.ItemResponse> create(@Valid @RequestBody FolderDtos.CreateFolderRequest request,
                                                          @CurrentUser AuthUser user) {
         return ResponseEntity.status(HttpStatus.CREATED).body(folderService.create(request, user.id()));
     }
