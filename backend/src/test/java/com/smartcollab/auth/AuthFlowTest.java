@@ -171,6 +171,25 @@ class AuthFlowTest extends IntegrationTest {
         login(s.username, Api.PASSWORD, "10.20.31.1").andExpect(status().isOk());   // 초기화되지 않았다면 429
     }
 
+    @Test
+    @DisplayName("[S-03] 악센트 등으로 바꾼 아이디로는 로그인할 수 없다 — DB 콜레이션이 악센트를 무시해 계정 단위 시도 제한을 우회했음")
+    void accentVariantCannotLogIn() throws Exception {
+        Api.Session s = api().signUp("accento");
+        login(s.username.replaceFirst("e", "é"), Api.PASSWORD, "10.20.32.1").andExpect(status().isUnauthorized());
+        login(s.username.replaceFirst("o", "ó"), Api.PASSWORD, "10.20.32.1").andExpect(status().isUnauthorized());
+        login(s.username.toUpperCase(), Api.PASSWORD, "10.20.32.1").andExpect(status().isOk());   // 대소문자 무시는 그대로
+    }
+
+    @Test
+    @DisplayName("[S-02] 비정상적으로 긴 아이디·비밀번호는 요청 제한 기록을 남기기 전에 400, 72바이트를 넘는 비밀번호는 401")
+    void overlongCredentialsAreRejectedEarly() throws Exception {
+        login("a".repeat(100_000), "x", "10.20.33.1").andExpect(status().isBadRequest());
+        login("nobody", "p".repeat(100_000), "10.20.33.1").andExpect(status().isBadRequest());
+        login("nobody", "p".repeat(100), "10.20.33.1").andExpect(status().isUnauthorized());
+        login("bad name!", "x", "10.20.33.1").andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
+    }
+
     private org.springframework.test.web.servlet.ResultActions login(String username, String password, String ip) {
         return api().perform(MockMvcRequestBuilders.post("/api/auth/login").with(csrf())
                 .with(r -> {
