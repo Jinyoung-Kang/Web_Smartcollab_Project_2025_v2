@@ -54,6 +54,13 @@ dependencies {
         }
     }
 
+    // Boot 4.1.1 이 관리하는 Jackson 3.1.5·2.22.1 에는 파서·역직렬화 DoS 공지가 있습니다(GHSA-7hhh-6rmp-j9qf, GHSA-p6pp-m3f8-5c89,
+    // GHSA-cxp5-3px4-pw24, GHSA-wv8q-qhhj-9h54, GHSA-q4xh-88c3-wmh7 등, 2026-09-28~10-01 공개). 로그인처럼 비로그인 JSON 입력이 있어
+    // 고쳐진 패치 버전의 BOM 을 더합니다(높은 버전이 선택됨). Jackson 2 는 springdoc·Azure SDK 가 씁니다 [S-01].
+    // Boot 를 올릴 때 이 두 줄을 지우고 DependencyVersionTest 가 계속 통과하는지 확인하세요.
+    implementation(platform("tools.jackson:jackson-bom:3.1.7"))
+    implementation(platform("com.fasterxml.jackson:jackson-bom:2.22.3"))
+
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
     testCompileOnly("org.projectlombok:lombok")
