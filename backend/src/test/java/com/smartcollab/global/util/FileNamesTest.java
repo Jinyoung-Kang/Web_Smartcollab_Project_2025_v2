@@ -28,6 +28,28 @@ class FileNamesTest {
     }
 
     @Test
+    @DisplayName("[S-12] 방향 제어·보이지 않는 문자로 확장자를 위장할 수 없다 — 업로드는 지우고, 입력한 이름은 거절")
+    void bidiAndInvisibleCharacters() {
+        String spoofed = "report\u202Efdp.exe";   // 화면에는 "reportexe.pdf" 로 보임
+        assertThat(FileNames.sanitizeUploadName(spoofed)).isEqualTo("reportfdp.exe");
+        assertThat(FileNames.sanitizeUploadName("a\u2066b\u2069\u200B\uFEFF.txt")).isEqualTo("ab.txt");
+        assertThatThrownBy(() -> FileNames.validate(spoofed))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("방향 제어");
+        assertThatThrownBy(() -> FileNames.validate("a\u200Fb")).isInstanceOf(ApiException.class);
+        assertThatThrownBy(() -> FileNames.sanitizeUploadName("\u202E\u200B")).isInstanceOf(ApiException.class);
+    }
+
+    @Test
+    @DisplayName("[S-12] 이모지 결합(ZWJ)·페르시아어 등에 필요한 ZWNJ 는 그대로 둔다")
+    void keepsJoinersNeededByScripts() {
+        String family = "가족\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67.jpg";
+        assertThat(FileNames.validate(family)).isEqualTo(family);
+        assertThat(FileNames.sanitizeUploadName("\u0645\u06CC\u200C\u062E\u0648\u0627\u0647\u0645.txt"))
+                .isEqualTo("\u0645\u06CC\u200C\u062E\u0648\u0627\u0647\u0645.txt");
+    }
+
+    @Test
     @DisplayName("확장자로 미리보기 종류를 판별한다")
     void previewKind() {
         assertThat(FileNames.previewKind("A.PNG")).isEqualTo(FileNames.PreviewKind.IMAGE);
