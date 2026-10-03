@@ -148,25 +148,29 @@ function Editor({ fileId, initial }: { fileId: number; initial: TextContent }) {
   const close = () => navigate(backTo)
 
   /** 충돌 해결 1: 최신 내용을 불러오고, 내 편집본은 클립보드(쓸 수 없으면 파일)로 보관 */
+  // 실패하면 알리고 충돌 안내를 그대로 둡니다(이전에는 처리되지 않은 오류로 아무 안내도 없었음) [FB-08].
   const loadLatest = async () => {
-    const keptIn = await keepDraft(draft, initial.name)
-    const latest = await qc.fetchQuery({ queryKey: ['file-content', fileId], queryFn: () => fileApi.content(fileId), staleTime: 0 })
-    setDraft(latest.content)
-    setSaved(latest.content)
-    setBaseVersion(latest.versionId)
-    setConflict(false)
-    toast.info(keptIn === 'clipboard'
-      ? '최신 내용을 불러왔습니다. 내가 쓰던 내용은 클립보드에 복사해 두었습니다.'
-      : '최신 내용을 불러왔습니다. 클립보드를 쓸 수 없어 내가 쓰던 내용을 파일로 내려받았습니다.')
+    try {
+      const keptIn = await keepDraft(draft, initial.name)
+      const latest = await qc.fetchQuery({ queryKey: ['file-content', fileId], queryFn: () => fileApi.content(fileId), staleTime: 0 })
+      setDraft(latest.content)
+      setSaved(latest.content)
+      setBaseVersion(latest.versionId)
+      setConflict(false)
+      toast.info(keptIn === 'clipboard'
+        ? '최신 내용을 불러왔습니다. 내가 쓰던 내용은 클립보드에 복사해 두었습니다.'
+        : '최신 내용을 불러왔습니다. 클립보드를 쓸 수 없어 내가 쓰던 내용을 파일로 내려받았습니다.')
+    } catch (e) {
+      toast.error((e as Error).message)
+    }
   }
 
   /** 충돌 해결 2: 최신 버전을 기준으로 내 내용을 새 버전으로 저장 (이전 버전은 기록에 남음) */
   const overwrite = async () => {
-    const latest = await fileApi.content(fileId)
-    setBaseVersion(latest.versionId)
-    setConflict(false)
     try {
+      const latest = await fileApi.content(fileId)
       const res = await fileApi.save(fileId, draft, latest.versionId)
+      setConflict(false)
       setBaseVersion(res.versionId)
       setSavedAt(res.updatedAt)
       setSaved(draft)
@@ -264,7 +268,7 @@ function Editor({ fileId, initial }: { fileId: number; initial: TextContent }) {
                 {tool.kind === 'summary' ? '핵심 문장 (추출 요약)' : tool.kind === 'translation' ? `번역 결과 (${tool.target})` : '문서 도구'}
               </p>
               {tool.kind === 'translation' && (
-                <IconButton label="번역 결과 복사" onClick={() => navigator.clipboard.writeText(tool.text).then(() => toast.success('복사했습니다.'))}>
+                <IconButton label="번역 결과 복사" onClick={() => navigator.clipboard.writeText(tool.text).then(() => toast.success('복사했습니다.'), () => toast.error('클립보드에 복사하지 못했습니다.'))}>
                   <Copy className="size-4" />
                 </IconButton>
               )}
@@ -299,7 +303,7 @@ function Editor({ fileId, initial }: { fileId: number; initial: TextContent }) {
             setDraft(latest.content)
             setSaved(latest.content)
             setBaseVersion(latest.versionId)
-          })
+          }, (e: Error) => toast.error(`최신 내용을 불러오지 못했습니다. ${e.message}`))
         }
       }} />
     </div>

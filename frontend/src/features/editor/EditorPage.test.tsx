@@ -122,5 +122,18 @@ describe('EditorPage — 편집 충돌 해결', () => {
     expect(createUrl).toHaveBeenCalledOnce()
     expect(click).toHaveBeenCalledOnce()
   })
-})
 
+  it('[FB-08] 충돌을 내 내용으로 해결하려는데 최신 내용을 받지 못하면 알리고 충돌 안내를 그대로 둔다', async () => {
+    const user = userEvent.setup()
+    renderEditor()
+    vi.spyOn(fileApi, 'save').mockRejectedValue(new ApiError(409, 'EDIT_CONFLICT', '다른 사용자가 먼저 저장했습니다.'))
+    await user.type(await screen.findByLabelText('문서 내용'), ' 내 수정')
+    await user.click(screen.getByRole('button', { name: '저장' }))
+    vi.mocked(fileApi.content).mockRejectedValue(new ApiError(0, 'NETWORK', '네트워크에 연결할 수 없습니다.'))
+
+    await user.click(await screen.findByRole('button', { name: /내 내용으로/ }))
+
+    expect(await screen.findByText('네트워크에 연결할 수 없습니다.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /내 내용으로/ })).toBeInTheDocument()
+  })
+})
