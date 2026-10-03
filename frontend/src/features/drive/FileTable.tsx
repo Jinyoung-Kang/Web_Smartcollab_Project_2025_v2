@@ -106,6 +106,9 @@ export function FileTable({ items, selected, onSelectionChange, onOpen, onContex
       } else {
         focusRow(next)
       }
+    } else if ((e.key === 'Enter' || e.key === ' ') && e.target !== e.currentTarget) {
+      // 행 안의 버튼·체크박스는 Enter·Space 를 스스로 처리합니다. 행이 또 처리하면 작업 메뉴 버튼의 Enter 가 메뉴와
+      // 폴더 열기를 함께 하고, 체크박스의 Space 가 선택을 두 번 바꿨습니다 [FB-09].
     } else if (e.key === 'Enter') {
       onOpen(item)
     } else if (e.key === ' ') {

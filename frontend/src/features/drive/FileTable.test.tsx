@@ -124,3 +124,22 @@ describe('FileTable — 키보드 단축키의 대상 [FB-01]', () => {
     expect(onRenameKey).toHaveBeenCalledWith(items[0])
   })
 })
+
+describe('FileTable — 행 안의 버튼 [FB-09]', () => {
+  it('작업 메뉴 버튼에서 Enter 를 누르면 메뉴만 열고 폴더는 열지 않는다 (Enter 가 두 번 처리되던 문제)', async () => {
+    const onOpen = vi.fn()
+    const onContextAction = vi.fn()
+    const onSelectionChange = vi.fn()
+    render(<FileTable items={items} selected={new Set()} onSelectionChange={onSelectionChange} onOpen={onOpen} onContextAction={onContextAction} />)
+    const user = userEvent.setup()
+
+    screen.getByRole('button', { name: '자료 작업 메뉴' }).focus()
+    await user.keyboard('{Enter}')
+    expect(onContextAction).toHaveBeenCalledOnce()
+    expect(onOpen).not.toHaveBeenCalled()
+
+    screen.getByLabelText('보고서 2.txt 선택').focus()
+    await user.keyboard(' ')
+    expect(onSelectionChange).toHaveBeenCalledTimes(1)
+  })
+})
