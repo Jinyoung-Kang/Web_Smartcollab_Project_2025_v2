@@ -16,6 +16,7 @@ import type {
   SearchResult,
   ShareLink,
   Summary,
+  TargetLanguage,
   TeamDetail,
   TeamSummary,
   TextContent,
@@ -71,7 +72,7 @@ export const fileApi = {
   search: (query: string, teamId?: number) => http.get<SearchResult[]>(`/api/files/search${q({ q: query, teamId })}`),
   usage: (teamId?: number) => http.get<Usage>(`/api/files/usage${q({ teamId })}`),
   summary: (fileId: number) => http.post<Summary>(`/api/files/${fileId}/summary`),
-  translate: (fileId: number, target: 'EN' | 'KO') => http.post<Translation>(`/api/files/${fileId}/translation${q({ target })}`),
+  translate: (fileId: number, target: TargetLanguage) => http.post<Translation>(`/api/files/${fileId}/translation${q({ target })}`),
   downloadUrl: (fileId: number) => `/api/files/${fileId}/download`,
   viewUrl: (fileId: number) => `/api/files/${fileId}/view`,
 }
