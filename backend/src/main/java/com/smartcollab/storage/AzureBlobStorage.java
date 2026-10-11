@@ -1,7 +1,10 @@
 package com.smartcollab.storage;
 
+import com.azure.core.util.polling.LongRunningOperationStatus;
+import com.azure.core.util.polling.PollResponse;
 import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.BlobContainerClient;
+import com.azure.storage.blob.models.BlobCopyInfo;
 import com.azure.storage.blob.models.BlobStorageException;
 import com.azure.storage.blob.models.ListBlobsOptions;
 import com.azure.storage.blob.sas.BlobSasPermission;
@@ -50,11 +53,26 @@ public class AzureBlobStorage implements BlobStorage {
         }
     }
 
+    /**
+     * 서버 측 복사. 원본이 없으면 BlobNotFoundException, 복사가 성공으로 끝나지 않으면(실패·중단) 예외 [L-1] —
+     * waitForCompletion 은 시간 초과 때만 예외를 던져, 실패한 복사본을 가리키는 버전이 커밋될 수 있었습니다.
+     */
     @Override
     public void copy(String sourceKey, String targetKey) {
         BlobClient source = container.getBlobClient(sourceKey);
         String sourceUrl = source.getBlobUrl() + "?" + readSas(source, Duration.ofMinutes(10));
-        container.getBlobClient(targetKey).beginCopy(sourceUrl, null).waitForCompletion(COPY_TIMEOUT);
+        PollResponse<BlobCopyInfo> done;
+        try {
+            done = container.getBlobClient(targetKey).beginCopy(sourceUrl, null).waitForCompletion(COPY_TIMEOUT);
+        } catch (BlobStorageException e) {
+            if (e.getStatusCode() == 404) {
+                throw new BlobNotFoundException(sourceKey);
+            }
+            throw e;
+        }
+        if (done.getStatus() != LongRunningOperationStatus.SUCCESSFULLY_COMPLETED) {
+            throw new IllegalStateException("Azure blob copy did not complete: " + done.getStatus());
+        }
     }
 
     @Override
