@@ -17,6 +17,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
@@ -104,20 +106,46 @@ public class ShareService {
     }
 
     /**
-     * 다운로드 1회를 소비하고 내려받을 파일 정보를 돌려줍니다. 횟수 차감은 조건부 UPDATE 로 원자적으로 처리합니다.
+     * 공유 링크 다운로드: 링크·허가 확인 → 저장소 열기 → 다운로드 1회 차감 [L-2]. 저장소를 열지 못하면 횟수를 쓰지 않습니다 —
+     * 예전에는 차감을 먼저 커밋해, 저장소 오류에도 1회용 링크가 내려받지 못한 채 소진됐습니다.
+     * 차감은 조건부 UPDATE 라 동시에 받아도 정해진 횟수만 성공하고, 그사이 링크가 해제·소진되면 연 스트림을 닫고 410 입니다.
      */
-    @Transactional
-    public FileService.DownloadTarget consume(String token, String grant) {
-        ShareLink link = usable(token);
-        if (link.requiresPassword() && !grants.verify(token, grant)) {
-            throw new ApiException(ErrorCode.FORBIDDEN, "비밀번호 확인이 필요하거나 허가가 만료되었습니다. 다시 시도하세요.");
+    public Download download(String token, String grant) {
+        DownloadCheck check = tx.readOnly(() -> {
+            ShareLink link = usable(token);
+            if (link.requiresPassword() && !grants.verify(token, grant)) {
+                throw new ApiException(ErrorCode.FORBIDDEN, "비밀번호 확인이 필요하거나 허가가 만료되었습니다. 다시 시도하세요.");
+            }
+            FileEntity file = link.getFile();
+            return new DownloadCheck(link.getId(), new FileService.DownloadTarget(file.getName(),
+                    file.getActiveVersion().getStoredPath(), file.getActiveVersion().getSize()));
+        });
+        InputStream in = fileService.open(check.target());
+        try {
+            int consumed = tx.writeReadCommitted(() -> links.tryConsumeDownload(check.linkId()));
+            if (consumed == 0) {
+                throw new ApiException(ErrorCode.LINK_EXPIRED, "다운로드 가능 횟수를 모두 사용했습니다.");
+            }
+        } catch (RuntimeException e) {
+            closeQuietly(in);
+            throw e;
         }
-        if (links.tryConsumeDownload(link.getId()) == 0) {
-            throw new ApiException(ErrorCode.LINK_EXPIRED, "다운로드 가능 횟수를 모두 사용했습니다.");
+        return new Download(check.target(), in);
+    }
+
+    private static void closeQuietly(InputStream in) {
+        try {
+            in.close();
+        } catch (IOException ignored) {
+            // 응답을 보내지 않으므로 닫기 실패는 무시
         }
-        FileEntity file = link.getFile();
-        return new FileService.DownloadTarget(file.getName(), file.getActiveVersion().getStoredPath(),
-                file.getActiveVersion().getSize());
+    }
+
+    /** 내려받을 파일과 열어 둔 내용 — 호출하는 쪽이 응답으로 흘려보낸 뒤 닫습니다 */
+    public record Download(FileService.DownloadTarget target, InputStream stream) {
+    }
+
+    private record DownloadCheck(Long linkId, FileService.DownloadTarget target) {
     }
 
     /**
