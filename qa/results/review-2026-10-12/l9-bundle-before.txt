@@ -1,0 +1,4 @@
+# 변경 전 (0ded7c1), node v24.3.0, vite build
+/share/:token (비로그인)	JS 3개	494.5 KB	gzip 155.0 KB	index-oz7qQZBV.js misc-BfqJ2vDR.js SharePage-BENk0v0Y.js
+/login	JS 2개	490.3 KB	gzip 153.2 KB	index-oz7qQZBV.js misc-BfqJ2vDR.js
+/drive (로그인 뒤)	JS 2개	490.3 KB	gzip 153.2 KB	index-oz7qQZBV.js misc-BfqJ2vDR.js
