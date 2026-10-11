@@ -34,6 +34,8 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -60,6 +62,7 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
             Translate the user's document into %1$s.
             Rules:
             - Output only the translated document. Do not add a preface, notes, or explanations.
+            - Output the document text itself: no XML or HTML tags around it, and no document title or source label.
             - Keep the structure: line breaks, blank lines, Markdown syntax, list markers, tables, CSV delimiters and column order, \
             and JSON structure (translate only natural-language string values and keep the keys).
             - Keep code, URLs, email addresses, file names, numbers, and placeholders unchanged.
@@ -89,6 +92,10 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
             .build();
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
+
+    /** API 가 document 블록을 모델에게 보여 주는 표기. 번역이 이 표기째로 오는 일이 실측에서 있었습니다 [AI-06] */
+    private static final Pattern DOCUMENT_MARKUP = Pattern.compile(
+            "\\A\\s*<document\\b[^>]*>.*?<document_content>(.*)</document_content>\\s*</document>\\s*\\z", Pattern.DOTALL);
 
     private final AiProperties props;
     private final AnthropicClient client;
@@ -175,7 +182,21 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
             }
             return accumulator.message();
         });
-        return new Output<>(answerText(message), message.usage().inputTokens(), message.usage().outputTokens());
+        return new Output<>(unwrapDocumentMarkup(answerText(message), document),
+                message.usage().inputTokens(), message.usage().outputTokens());
+    }
+
+    /** 번역이 문서 표기째로 오면 내용만 꺼냅니다. 원문이 처음부터 그 표기인 문서는 그대로 둡니다 [AI-06] */
+    static String unwrapDocumentMarkup(String output, AiDocument source) {
+        if (source.text() != null && source.text().stripLeading().startsWith("<document")) {
+            return output;
+        }
+        Matcher m = DOCUMENT_MARKUP.matcher(output);
+        if (!m.matches()) {
+            return output;
+        }
+        log.info("Claude translation came wrapped in document markup; unwrapped");
+        return m.group(1);
     }
 
     private static OutputConfig summaryOutput() {
