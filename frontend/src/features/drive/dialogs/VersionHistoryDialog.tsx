@@ -72,6 +72,7 @@ export function VersionHistoryDialog({ file, permissions, onClose }: {
       }
     >
       {versions.isPending && <Spinner />}
+      {versions.isError && <p role="alert" className="text-sm text-red-600">버전 기록을 불러오지 못했습니다. {versions.error.message}</p>}
       <ol className="relative grid gap-3">
         {versions.data?.map((v, i) => (
           <li key={v.versionId} className={v.active ? 'rounded-xl border-2 border-brand-200 bg-brand-50/40 p-3' : 'rounded-xl border border-slate-200 p-3'}>

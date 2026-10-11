@@ -100,24 +100,39 @@ export function Menu({
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const [opener, setOpener] = useState<HTMLElement | null>(null)
 
   useEffect(() => {
     if (!open) return
     const onDown = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
     }
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
     document.addEventListener('mousedown', onDown)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onDown)
-      document.removeEventListener('keydown', onKey)
-    }
+    return () => document.removeEventListener('mousedown', onDown)
   }, [open])
 
+  // Esc·항목 선택으로 닫으면 초점을 연 단추로 돌려줍니다 — 메뉴가 사라지며 초점이 문서 처음으로 갔음 [L-8]
+  const closeAndReturn = () => {
+    setOpen(false)
+    opener?.focus()
+  }
+  const toggle = () => {
+    if (!open) setOpener(document.activeElement instanceof HTMLElement ? document.activeElement : null)
+    setOpen(!open)
+  }
+
   return (
-    <div ref={ref} className="relative">
-      {trigger({ open, toggle: () => setOpen((v) => !v) })}
+    <div
+      ref={ref}
+      className="relative"
+      onKeyDown={(e) => {
+        if (open && e.key === 'Escape') {
+          e.preventDefault()   // 메뉴를 담은 패널이 같은 Esc 로 함께 닫히지 않게
+          closeAndReturn()
+        }
+      }}
+    >
+      {trigger({ open, toggle })}
       {open && (
         <div
           role={role}
@@ -128,7 +143,7 @@ export function Menu({
             width,
           )}
         >
-          {children(() => setOpen(false))}
+          {children(closeAndReturn)}
         </div>
       )}
     </div>

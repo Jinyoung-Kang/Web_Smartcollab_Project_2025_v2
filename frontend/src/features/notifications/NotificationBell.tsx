@@ -96,7 +96,7 @@ export function NotificationBell() {
                       </p>
                     )}
                   </div>
-                  <div className="flex flex-col gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                  <div className="flex flex-col gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
                     {!n.read && (
                       <IconButton label="읽음 표시" onClick={() => void run(notificationApi.read(n.id))}>
                         <Check className="size-3.5" />

@@ -88,6 +88,7 @@ export function MoveCopyDialog({ open, mode, count, scopeTeamId, disabledFolderI
       )}
       <div className="h-72 overflow-y-auto rounded-lg border border-slate-200 p-2">
         {tree.isPending && <Spinner className="p-2" />}
+        {tree.isError && <p role="alert" className="p-2 text-sm text-red-600">폴더 목록을 불러오지 못했습니다. {tree.error.message}</p>}
         {tree.data?.roots.map((node) => (
           <TreeRow key={node.id} node={node} depth={0} selected={target} onSelect={setTarget} disabled={disabledFolderIds} />
         ))}

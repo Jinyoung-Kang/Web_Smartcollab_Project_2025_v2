@@ -166,13 +166,14 @@ describe('ChatTab — 화면 읽기 프로그램 알림', () => {
   it('[L-8] 대화 목록 전체를 알리지 않고, 다른 사람이 보낸 새 메시지 하나만 알린다', async () => {
     renderChat()
     await screen.findByRole('button', { name: '화면 스케치.png 미리보기' })
-    const live = screen.getByTestId('chat-announcer')
+    const live = screen.getByRole('status', { name: '새 메시지 알림' })
     expect(live).toBeEmptyDOMElement()   // 처음 불러온 기록은 알리지 않음
 
-    act(() => appendChatMessage(client, 3, {
+    await act(async () => appendChatMessage(client, 3, {
       id: 6, type: 'CHAT', content: '회의 자료 올렸어요', sender: { username: 'demo3', name: '박서연' }, createdAt,
     }))
 
+    expect(await screen.findByText('회의 자료 올렸어요')).toBeInTheDocument()   // 캐시 변경은 다음 틱에 화면에 반영됨
     expect(live).toHaveTextContent('박서연: 회의 자료 올렸어요')
     expect(screen.getByRole('button', { name: '화면 스케치.png 미리보기' }).closest('[aria-live]')).toBeNull()
   })

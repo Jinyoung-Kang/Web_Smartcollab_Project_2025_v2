@@ -130,9 +130,11 @@ export const shareApi = {
   create: (fileId: number, body: { password?: string; expiresInHours?: number; downloadLimit?: number }) =>
     http.post<ShareLink>(`/api/files/${fileId}/share-links`, body),
   revoke: (linkId: number) => http.del<void>(`/api/share-links/${linkId}`),
-  publicInfo: (token: string) => http.get<PublicShareInfo>(`/api/public/shares/${token}`),
-  unlock: (token: string, password?: string) => http.post<{ grant: string }>(`/api/public/shares/${token}/unlock`, { password }),
-  downloadUrl: (token: string, grant?: string) => `/api/public/shares/${token}/download${q({ grant })}`,
+  // 토큰은 주소창에서 오므로 경로 한 조각으로 인코딩합니다 — 그대로 넣으면 "../" 로 다른 API 를 부를 수 있었음 [L-8]
+  publicInfo: (token: string) => http.get<PublicShareInfo>(`/api/public/shares/${encodeURIComponent(token)}`),
+  unlock: (token: string, password?: string) =>
+    http.post<{ grant: string }>(`/api/public/shares/${encodeURIComponent(token)}/unlock`, { password }),
+  downloadUrl: (token: string, grant?: string) => `/api/public/shares/${encodeURIComponent(token)}/download${q({ grant })}`,
 }
 
 export type { AppNotification }

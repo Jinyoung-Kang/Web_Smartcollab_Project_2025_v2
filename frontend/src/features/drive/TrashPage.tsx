@@ -103,7 +103,8 @@ export default function TrashPage() {
                     <span className={left <= 3 ? 'text-red-600' : ''}>{Math.max(left, 0)}일 후 영구 삭제</span>
                   </p>
                 </div>
-                <Button size="sm" onClick={() => restore.mutate(item)}>
+                <Button size="sm" onClick={() => restore.mutate(item)}
+                  loading={restore.isPending && restore.variables?.type === item.type && restore.variables.id === item.id}>
                   <RotateCcw className="size-3.5" /> 복원
                 </Button>
                 <Button size="sm" variant="ghost" className="text-red-600 hover:bg-red-50" onClick={() => askPurge(item)}>

@@ -12,6 +12,7 @@ import { EmptyState, Spinner } from '@/components/ui/misc'
 import { useToast } from '@/components/ui/Toast'
 import { TeamPanel } from '@/features/team/TeamPanel'
 import { cn } from '@/lib/cn'
+import { useDrawer } from '@/lib/useDrawer'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { useMediaQuery } from '@/lib/useMediaQuery'
 import { DriveActions, DriveBreadcrumb, SelectionToolbar } from './DriveHeader'
@@ -76,6 +77,7 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
   const [dialog, setDialog] = useState<DialogState>({ kind: 'none' })
   const [menu, setMenu] = useState<{ item: Item; x: number; y: number } | null>(null)
   const [panelOpen, setPanelOpen] = useState(false)
+  const teamDrawer = useDrawer(panelOpen, () => setPanelOpen(false))
   const wide = useMediaQuery('(min-width: 1280px)')
   useDocumentTitle(data?.folder.name)
 
@@ -204,7 +206,8 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
         <div className={cn('fixed inset-0 z-40', panelOpen ? 'visible' : 'invisible')}>
           <div className={cn('absolute inset-0 bg-slate-900/40 transition-opacity', panelOpen ? 'opacity-100' : 'opacity-0')}
             onClick={() => setPanelOpen(false)} />
-          <aside aria-label="팀 패널" className={cn('absolute inset-y-0 right-0 flex w-96 max-w-[90vw] bg-white shadow-xl transition-transform',
+          <aside aria-label="팀 패널" {...teamDrawer.panelProps}
+            className={cn('absolute inset-y-0 right-0 flex w-96 max-w-[90vw] bg-white shadow-xl transition-transform outline-none',
             panelOpen ? 'translate-x-0' : 'translate-x-full')}>
             <TeamPanel key={teamId} teamId={teamId} visible={panelOpen} onClose={() => setPanelOpen(false)} />
           </aside>
