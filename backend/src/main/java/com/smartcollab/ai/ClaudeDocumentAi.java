@@ -97,6 +97,9 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
 
+    /** 날짜 앞에 붙은 연도("2024년 9월") — 원문에 없는 연도를 지어 붙이는 일이 실측 10번 중 4번이었습니다 [AI-08] */
+    private static final Pattern YEAR_BEFORE_MONTH = Pattern.compile("(?<!\\d)((?:19|20)\\d{2})년\\s*(?=\\d{1,2}월)");
+
     /** API 가 document 블록을 모델에게 보여 주는 표기. 번역이 이 표기째로 오는 일이 실측에서 있었습니다 [AI-06] */
     private static final Pattern DOCUMENT_MARKUP = Pattern.compile(
             "\\A\\s*<document\\b[^>]*>.*?<document_content>(.*)</document_content>\\s*</document>\\s*\\z", Pattern.DOTALL);
@@ -176,9 +179,11 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
             if (parsed.summary() == null || parsed.summary().isBlank()) {
                 throw new ApiException(ErrorCode.UPSTREAM_ERROR, "AI 가 빈 요약을 돌려주었습니다. 다시 시도하세요.");
             }
+            String source = document.text();
             List<String> points = parsed.keyPoints() == null ? List.of()
-                    : parsed.keyPoints().stream().filter(p -> p != null && !p.isBlank()).map(String::strip).toList();
-            return new Output<>(new Summary(parsed.summary().strip(), points),
+                    : parsed.keyPoints().stream().filter(p -> p != null && !p.isBlank())
+                    .map(p -> dropInventedYears(p.strip(), source)).toList();
+            return new Output<>(new Summary(dropInventedYears(parsed.summary().strip(), source), points),
                     message.usage().inputTokens(), message.usage().outputTokens());
         } catch (JacksonException e) {
             log.warn("Claude summary was not valid JSON ({} chars)", json.length());
@@ -204,6 +209,29 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
         });
         return new Output<>(unwrapDocumentMarkup(answerText(message), document),
                 message.usage().inputTokens(), message.usage().outputTokens());
+    }
+
+    /**
+     * 원문에 없는 연도가 날짜 앞에 붙어 있으면 뗍니다 [AI-08]. 프롬프트("날짜는 문서 그대로")·effort·생각 끄기로는 줄지 않았습니다.
+     * 원문 글자를 알 때(텍스트·Word)만 하고, PDF 는 원본을 그대로 보내 서버가 글자를 모르므로 건드리지 않습니다.
+     */
+    static String dropInventedYears(String text, String source) {
+        if (source == null) {
+            return text;
+        }
+        Matcher m = YEAR_BEFORE_MONTH.matcher(text);
+        StringBuilder out = new StringBuilder();
+        int dropped = 0;
+        while (m.find()) {
+            boolean inSource = source.contains(m.group(1));
+            m.appendReplacement(out, inSource ? Matcher.quoteReplacement(m.group()) : "");
+            if (!inSource) dropped++;
+        }
+        m.appendTail(out);
+        if (dropped > 0) {
+            log.info("Dropped {} year(s) not in the document from a Claude summary", dropped);
+        }
+        return out.toString();
     }
 
     /** 번역이 문서 표기째로 오면 내용만 꺼냅니다. 원문이 처음부터 그 표기인 문서는 그대로 둡니다 [AI-06] */
