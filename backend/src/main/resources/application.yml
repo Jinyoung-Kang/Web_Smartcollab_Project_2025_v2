@@ -129,6 +129,19 @@ app:
   deepl:
     api-key: ${DEEPL_API_KEY:}
     base-url: ${DEEPL_API_URL:https://api-free.deepl.com}
+  # 문서 요약·번역(Claude) — 키가 없으면 요약은 추출 요약, 번역은 DeepL(키가 있을 때)로 동작합니다 [AI-01, ADR-0011]
+  ai:
+    api-key: ${ANTHROPIC_API_KEY:}
+    model: ${AI_MODEL:claude-haiku-5-5}
+    # 작업마다 실측으로 정함 (qa/results/ai, ADR-0011): 번역을 low 로 하면 생각을 결과에 섞어 쓰고, 요약을 medium 으로 하면 없는 연도를 적었음
+    summary-effort: ${AI_SUMMARY_EFFORT:low}
+    translation-effort: ${AI_TRANSLATION_EFFORT:medium}
+    # 한 사용자가 24시간 동안 쓸 수 있는 토큰(입력+출력) [AI-03]
+    tokens-per-user-per-day: ${AI_TOKENS_PER_USER_PER_DAY:300000}
+    # PDF·Word 문서 크기 상한(텍스트 문서는 편집기 한도를 따름) [AI-02]
+    max-document-size: ${AI_MAX_DOCUMENT_SIZE:10MB}
+    # 요청 하나의 시간 상한(SDK 가 429·5xx 를 두 번까지 다시 시도)
+    timeout: ${AI_TIMEOUT:120s}
   demo:
     enabled: ${DEMO_ENABLED:false}
     password: ${DEMO_PASSWORD:}

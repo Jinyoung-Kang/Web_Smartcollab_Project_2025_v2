@@ -49,7 +49,12 @@ open http://localhost:8080
 | `LOGIN_RATE_PER_MINUTE` / `LOGIN_ACCOUNT_RATE` | | `10` / `20` | 로그인 시도 한도 (IP 당 분당 / 계정당 10분) |
 | `SHARE_PASSWORD_RATE` / `SHARE_PASSWORD_LINK_RATE` | | `10` / `50` | 공유 비밀번호 시도 한도 (링크+IP 당 / 링크당, 10분) |
 | `SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES` | | Tomcat 기본값(사설·루프백 대역) | X-Forwarded-For 를 믿을 프록시 주소(정규식). 프록시 없이 직접 노출할 때는 좁히세요 |
-| `DEEPL_API_KEY` | | – | 번역 기능 (없으면 번역 버튼 비활성) |
+| `ANTHROPIC_API_KEY` | | – | Claude 문서 요약·번역(텍스트·PDF·Word). 없으면 추출 요약·DeepL 번역(텍스트)으로 동작. 문서 내용이 Anthropic 으로 전송됩니다 (ADR-0011) |
+| `AI_MODEL` | | `claude-haiku-5-5` | 요약·번역에 쓰는 Claude 모델 |
+| `AI_SUMMARY_EFFORT` / `AI_TRANSLATION_EFFORT` | | `low` / `medium` | 작업별 생각의 양(low·medium·high·xhigh·max, 잘못된 값이면 기동 거절). 실측으로 정한 값 — 모델을 바꾸면 `qa/scripts/ai-live.mjs` 로 다시 확인하세요 |
+| `AI_TOKENS_PER_USER_PER_DAY` | | `300000` | 사용자별 24시간 AI 토큰(입력 + 출력). 호출 전에 예상분을 예약하고 실제 사용량으로 정산합니다 |
+| `AI_MAX_DOCUMENT_SIZE` / `AI_TIMEOUT` | | `10MB` / `120s` | 요약·번역할 PDF·Word 크기 상한(텍스트는 편집기 한도) / Claude 호출 시간 제한 |
+| `DEEPL_API_KEY` | | – | AI 키가 없을 때의 텍스트 번역 (둘 다 없으면 번역 버튼 비활성) |
 | `TRANSLATION_CHARS_PER_USER_PER_DAY` | | `100000` | 사용자별 24시간 번역 글자 수. DeepL 요금제의 월 한도에 맞춰 조정하세요 |
 | `DEMO_ENABLED` / `DEMO_PASSWORD` | | `false` | 체험 계정·데이터 생성. 비밀번호가 공개 설정 API 로 안내되므로 체험 전용 배포에서만 켜세요 |
 | `SWAGGER_ENABLED` | | `false` (`prod`) | 운영에서 API 문서 노출 여부 |

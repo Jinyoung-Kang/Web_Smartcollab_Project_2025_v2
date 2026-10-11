@@ -172,6 +172,38 @@ public class FileContentService {
         }
     }
 
+    /**
+     * 요약·번역할 문서 — 읽기 권한·형식·크기를 짧은 읽기 트랜잭션에서 확인합니다 [AI-02]. 권한을 가장 먼저 봐서, 볼 수 없는 파일은
+     * AI 설정과 상관없이 404 입니다. 내용은 {@link #loadDocument} 로 트랜잭션 밖에서 읽습니다.
+     *
+     * @param maxBytes PDF·Word 크기 상한. 텍스트 문서는 편집기 한도와 둘 중 작은 값을 씁니다
+     */
+    public DocumentRef resolveDocument(Long fileId, Long userId, long maxBytes) {
+        return tx.readOnly(() -> {
+            FileEntity file = fileService.getActive(fileId);
+            accessPolicy.requireFileRead(file, userId);
+            DocumentKind kind = DocumentKind.of(file.getName());
+            if (kind == null) {
+                throw ApiException.badRequest("요약·번역은 텍스트(txt, md, log, csv, json)·PDF·Word(docx) 문서만 지원합니다.");
+            }
+            FileVersion active = file.getActiveVersion();
+            long limit = kind == DocumentKind.TEXT ? Math.min(maxBytes, props.files().textEditMaxBytes()) : maxBytes;
+            if (active.getSize() > limit) {
+                throw new ApiException(ErrorCode.PAYLOAD_TOO_LARGE, "요약·번역할 수 있는 문서 크기(" + (limit / (1024 * 1024)) + "MB)를 넘었습니다.");
+            }
+            return new DocumentRef(file.getName(), kind, active.getId(), active.getStoredPath(), active.getSize());
+        });
+    }
+
+    /** {@link #resolveDocument} 로 확인한 버전의 내용. 읽는 사이에 새 버전이 저장돼도 확인한 버전을 읽습니다(버전마다 파일이 따로) */
+    public byte[] loadDocument(DocumentRef ref) {
+        try (InputStream in = storage.open(ref.storedPath())) {
+            return in.readNBytes((int) Math.min(Integer.MAX_VALUE - 8, ref.size()));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
     /** 요약·번역용 텍스트 */
     public String readUtf8Content(Long fileId, Long userId, long maxBytes) {
         TextContent text = readText(fileId, userId);
@@ -201,6 +233,10 @@ public class FileContentService {
     /** 텍스트 읽기의 트랜잭션 안 확인 결과 — 내용은 트랜잭션 밖에서 storedPath 로 읽습니다 */
     private record TextTarget(String name, Long folderId, Long teamId, String storedPath, Long versionId, boolean editable,
                               Instant updatedAt) {
+    }
+
+    /** 요약·번역할 문서 — 버전 ID 가 같으면 내용도 같습니다(결과 캐시의 열쇠) */
+    public record DocumentRef(String name, DocumentKind kind, Long versionId, String storedPath, long size) {
     }
 
     public record SaveResult(Long versionId, Instant updatedAt) {

@@ -20,13 +20,15 @@ flowchart LR
 
     DB[("MySQL 8<br/>Flyway 스키마")]
     BLOB[("Azure Blob Storage<br/>또는 로컬 디스크")]
-    DEEPL["DeepL API<br/>(선택)"]
+    CLAUDE["Anthropic Claude API<br/>(선택, 요약·번역)"]
+    DEEPL["DeepL API<br/>(선택, 키가 없을 때 번역)"]
 
     UI -- "HTTPS /api (쿠키)" --> SEC --> API --> SVC
     WS -- "WSS /ws (쿠키)" --> SEC --> STOMP --> SVC
     SVC --> DB
     SVC --> STO --> BLOB
     SVC -.-> EVT -.-> STOMP -.-> WS
+    SVC --> CLAUDE
     SVC --> DEEPL
 ```
 
@@ -52,7 +54,7 @@ com.smartcollab
 ├── signature   버전 서명(서명하기·버전별 서명 제공·내용이 바뀌면 무효화)
 ├── notification 알림
 ├── realtime    WebSocket 설정, STOMP 인가, 팀 구독 추적(접속 표시·권한 회수), 접속 현황 API, 커밋 후 이벤트 발행
-├── ai          추출 요약, 번역(사용자별 하루 분량 제한), DeepL 클라이언트
+├── ai          문서 요약·번역 — Claude(토큰 예산·결과 캐시, ADR-0011), 키가 없으면 추출 요약·DeepL, Word 본문 추출
 └── system      공개 설정, 데모 데이터
 ```
 

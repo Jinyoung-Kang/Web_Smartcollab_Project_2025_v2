@@ -37,6 +37,7 @@ services:
         condition: service_started
     environment:
       DB_URL: jdbc:mysql://toxiproxy:13306/smartcollab?characterEncoding=UTF-8&serverTimezone=UTC
+      ANTHROPIC_API_KEY: ""   # 점검은 과금되는 Claude 를 부르지 않고 DeepL 모의 서버로 (.env 의 키를 물려받지 않게)
       DEEPL_API_KEY: qa-mock-key
       DEEPL_API_URL: http://deepl-mock:9000
       SIGNUP_RATE_PER_HOUR: "100000"

@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryRouter, RouterProvider } from 'react-router'
@@ -148,9 +148,9 @@ describe('EditorPage — 핵심 문장·번역', () => {
     await screen.findByLabelText('문서 내용')
 
     await user.click(screen.getByRole('button', { name: /핵심 문장/ }))
-    const english = await screen.findByRole('button', { name: 'EN' })
-    await vi.waitFor(() => expect(english).toBeEnabled())
-    await user.click(english)
+    const translateButton = await screen.findByRole('button', { name: '번역' })   // 기본 언어는 영어
+    await vi.waitFor(() => expect(translateButton).toBeEnabled())
+    await user.click(translateButton)
     expect(await screen.findByText('First content')).toBeInTheDocument()
     await act(async () => finishSummary({ sentences: ['늦게 온 요약'], totalSentences: 1, method: 'extractive' }))
 
@@ -159,3 +159,45 @@ describe('EditorPage — 핵심 문장·번역', () => {
   })
 })
 
+
+describe('EditorPage — AI 요약·번역 [AI-01]', () => {
+  const ai = { translationEnabled: true, aiEnabled: true, aiModel: 'claude-haiku-5-5' }
+
+  it('AI 가 켜져 있으면 "AI 요약"이 요약 문단·핵심 항목과 만든 모델, 문서가 Anthropic 으로 전송된다는 안내를 보여 준다', async () => {
+    const user = userEvent.setup()
+    renderEditor(ai)
+    vi.spyOn(fileApi, 'summary').mockResolvedValue({
+      method: 'generative', model: 'claude-haiku-5-5', summary: '회의 결과를 정리한 문서입니다.', sentences: ['일정 확정', '권한 정리'],
+    })
+
+    await user.click(await screen.findByRole('button', { name: /AI 요약/ }))
+
+    const panel = await screen.findByRole('complementary', { name: '요약·번역' })
+    expect(await within(panel).findByText('회의 결과를 정리한 문서입니다.')).toBeInTheDocument()
+    expect(within(panel).getByText('권한 정리')).toBeInTheDocument()
+    expect(within(panel).getByText(/Claude Haiku 5\.5/)).toHaveTextContent(/Anthropic/)
+  })
+
+  it('번역할 언어를 골라 번역한다 (일본어)', async () => {
+    const user = userEvent.setup()
+    renderEditor(ai)
+    vi.spyOn(fileApi, 'translate').mockResolvedValue({ text: '翻訳された文書', targetLang: 'JA', provider: 'claude', model: 'claude-haiku-5-5' })
+
+    await user.selectOptions(await screen.findByRole('combobox', { name: '번역 언어' }), 'JA')
+    const translateButton = screen.getByRole('button', { name: '번역' })
+    await vi.waitFor(() => expect(translateButton).toBeEnabled())
+    await user.click(translateButton)
+
+    expect(await screen.findByText('翻訳された文書')).toBeInTheDocument()
+    expect(fileApi.translate).toHaveBeenCalledWith(1, 'JA')
+    expect(screen.getByText('번역 결과 (일본어)')).toBeInTheDocument()
+  })
+
+  it('AI 키가 없으면 단어 빈도로 고르는 "핵심 문장"이고, DeepL 키도 없으면 번역은 꺼진다', async () => {
+    renderEditor({ translationEnabled: false, aiEnabled: false })
+
+    expect(await screen.findByRole('button', { name: /핵심 문장/ })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: /AI 요약/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '번역' })).toBeDisabled()
+  })
+})

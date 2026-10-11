@@ -26,12 +26,13 @@
 | `NOT_FOUND` | 404 | 대상 없음 또는 접근 불가 |
 | `CONFLICT` / `EDIT_CONFLICT` | 409 | 상태 충돌 / 다른 사람이 먼저 저장함 |
 | `LINK_EXPIRED` | 410 | 만료·소진·휴지통 파일의 공유 링크 |
-| `PAYLOAD_TOO_LARGE` | 413 | 업로드·편집·요청 본문 한도 초과 |
+| `PAYLOAD_TOO_LARGE` | 413 | 업로드·편집·요청 본문 한도 초과, 요약·번역할 문서가 입력 토큰 상한을 넘거나 번역 결과가 출력 한도에서 잘림 |
 | `QUOTA_EXCEEDED` | 413 | 저장 공간 한도 초과 (개인 1GB·팀 5GB 기본, 옛 버전·휴지통 포함) |
+| `AI_REFUSED` | 422 | AI(Claude)가 안전 기준에 따라 문서의 요약·번역을 거절함 |
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | 업로드 경로가 아닌 곳으로 보낸 multipart 요청 (본문을 읽기 전에 거절) |
-| `RATE_LIMITED` | 429 | 요청 제한 초과 (로그인·가입·공유 비밀번호 시도, 사용자별 하루 번역 분량) |
-| `FEATURE_DISABLED` | 503 | 서버에 설정되지 않은 기능 (번역 키 없음, 로컬 저장소에서 Office 미리보기 등) |
-| `SERVICE_UNAVAILABLE` | 503 | DB 연결 실패·트랜잭션 시간 초과 등 일시적 장애. `Retry-After` 초 뒤 다시 시도 |
+| `RATE_LIMITED` | 429 | 요청 제한 초과 (로그인·가입·공유 비밀번호 시도, 사용자별 하루 AI 토큰·DeepL 번역 분량) |
+| `FEATURE_DISABLED` | 503 | 서버에 설정되지 않은 기능 (AI·번역 키 없음, 로컬 저장소에서 Office 미리보기 등) |
+| `SERVICE_UNAVAILABLE` | 503 | DB 연결 실패·트랜잭션 시간 초과 등 일시적 장애. `Retry-After` 초 뒤 다시 시도. AI 서비스의 요청 한도·과부하도 503 |
 
 ## 엔드포인트
 
@@ -95,8 +96,33 @@
 
 | Method | Path | 설명 |
 |---|---|---|
-| POST | `/api/files/{id}/summary` | 핵심 문장 추출 요약 (단어 빈도 기반, 생성형 아님) |
-| POST | `/api/files/{id}/translation?target=EN\|KO` | DeepL 번역 (키 없으면 503, 하루 분량 초과 429) |
+| POST | `/api/files/{id}/summary` | 요약. AI 키가 있으면 Claude 생성형 요약, 없으면 단어 빈도 추출 요약 |
+| POST | `/api/files/{id}/translation?target=EN\|KO\|JA\|ZH` | 번역. AI 키가 있으면 Claude, 없으면 DeepL(텍스트 문서만) |
+
+대상 문서는 저장된 현재 버전의 텍스트(txt·md·log·csv·json)·PDF·Word(docx, 옛 .doc 은 아님)입니다. 그 밖의 형식은 400, 볼 수 없는 파일은 AI 를 부르기 전에 404 입니다.
+문서 내용은 요약·번역을 위해 Anthropic(Claude API)으로 전송됩니다([ADR-0011](adr/0011-claude-document-tools.md)).
+
+요약 응답:
+
+| 필드 | 생성형(`method: generative`) | 추출형(`method: extractive-term-frequency`) |
+|---|---|---|
+| `summary` | 2~4문장 요약 | (없음) |
+| `sentences` | 핵심 항목 | 원문에서 고른 문장 |
+| `totalSentences` | (없음) | 원문 문장 수 |
+| `model` | 쓴 모델 ID (예: `claude-haiku-5-5`) | (없음) |
+
+번역 응답: `text`, `targetLang`(`EN`·`KO`·`JA`·`ZH`), `provider`(`claude`·`deepl`), `model`(Claude 일 때), `detectedSourceLang`(DeepL 일 때).
+
+| 상황 | 응답 |
+|---|---|
+| AI 키 없음 — PDF 요약, PDF·Word 번역 / AI·DeepL 키 모두 없음 — 번역 | 503 `FEATURE_DISABLED` |
+| 입력이 요약 100,000 · 번역 32,000 토큰을 넘음, 번역 결과가 출력 한도에서 잘림 | 413 `PAYLOAD_TOO_LARGE` (AI 를 부르지 않음 / 잘린 결과를 돌려주지 않음) |
+| 사용자별 24시간 AI 토큰 한도(입력 + 출력, 기본 300,000) 초과 | 429 `RATE_LIMITED` |
+| AI 가 문서를 읽지 못함(손상·암호가 걸린 PDF 등) | 400 `INVALID_REQUEST` |
+| AI 가 처리를 거절 | 422 `AI_REFUSED` |
+| AI 서비스 요청 한도·과부하·장애 / 연결 실패·인증 실패 | 503 / 502 |
+
+같은 버전의 같은 요청(요약, 번역 언어별)은 서버 메모리에 둔 결과를 돌려주며 토큰을 쓰지 않습니다. 새 버전을 저장하면 다시 만듭니다.
 
 ### 팀·채팅·알림
 
@@ -130,7 +156,7 @@
 
 | Method | Path | 설명 |
 |---|---|---|
-| GET | `/api/public/config` | 기능 사용 가능 여부·업로드 한도·데모 계정(데모 모드일 때) |
+| GET | `/api/public/config` | 기능 사용 가능 여부(`aiEnabled`·`aiModel`·`translationEnabled`·`officePreviewEnabled`)·업로드 한도·데모 계정(데모 모드일 때) |
 | GET | `/actuator/health` | 헬스 체크 (liveness/readiness 포함) |
 
 ## WebSocket (STOMP)

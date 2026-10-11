@@ -45,8 +45,8 @@ class TranslationServiceTest {
     void rejectsOverDailyBudget() {
         when(content.readUtf8Content(eq(1L), eq(7L), anyLong())).thenReturn("가".repeat(60));
 
-        assertThat(service.translate(1L, 7L, "EN").text()).isEqualTo("번역");
-        assertThatThrownBy(() -> service.translate(1L, 7L, "EN"))
+        assertThat(service.translate(1L, 7L, TargetLanguage.EN).text()).isEqualTo("번역");
+        assertThatThrownBy(() -> service.translate(1L, 7L, TargetLanguage.EN))
                 .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.RATE_LIMITED));
         verify(deepl, times(1)).translate(anyString(), anyString());
     }
@@ -56,8 +56,8 @@ class TranslationServiceTest {
     void budgetIsPerUser() {
         when(content.readUtf8Content(anyLong(), anyLong(), anyLong())).thenReturn("가".repeat(100));
 
-        service.translate(1L, 7L, "EN");
-        service.translate(1L, 8L, "EN");
+        service.translate(1L, 7L, TargetLanguage.EN);
+        service.translate(1L, 8L, TargetLanguage.EN);
 
         verify(deepl, times(2)).translate(anyString(), anyString());
     }
@@ -67,17 +67,17 @@ class TranslationServiceTest {
     void doesNotSpendBudgetOnRejectedRequests() {
         when(content.readUtf8Content(anyLong(), anyLong(), anyLong())).thenReturn("가".repeat(100));
         when(deepl.enabled()).thenReturn(false);
-        assertThatThrownBy(() -> service.translate(1L, 7L, "EN"))
+        assertThatThrownBy(() -> service.translate(1L, 7L, TargetLanguage.EN))
                 .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.FEATURE_DISABLED));
 
         when(deepl.enabled()).thenReturn(true);
         when(content.readUtf8Content(anyLong(), anyLong(), anyLong())).thenReturn("가".repeat(DeepLTranslationClient.MAX_CHARS + 1));
-        assertThatThrownBy(() -> service.translate(1L, 7L, "EN"))
+        assertThatThrownBy(() -> service.translate(1L, 7L, TargetLanguage.EN))
                 .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.PAYLOAD_TOO_LARGE));
         verify(deepl, never()).translate(anyString(), anyString());
 
         when(content.readUtf8Content(anyLong(), anyLong(), anyLong())).thenReturn("가".repeat(100));
-        assertThat(service.translate(1L, 7L, "EN").text()).isEqualTo("번역");   // 하루 분량 전부가 남아 있음
+        assertThat(service.translate(1L, 7L, TargetLanguage.EN).text()).isEqualTo("번역");   // 하루 분량 전부가 남아 있음
     }
 
     @Test
@@ -88,9 +88,9 @@ class TranslationServiceTest {
                 .thenThrow(new ApiException(ErrorCode.UPSTREAM_ERROR, "번역 서비스 호출에 실패했습니다."))
                 .thenReturn(new DeepLTranslationClient.Translation("번역", "KO"));
 
-        assertThatThrownBy(() -> service.translate(1L, 7L, "EN"))
+        assertThatThrownBy(() -> service.translate(1L, 7L, TargetLanguage.EN))
                 .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.UPSTREAM_ERROR));
-        assertThat(service.translate(1L, 7L, "EN").text()).isEqualTo("번역");   // 이전: 실패한 호출이 하루 분량을 다 써서 429
+        assertThat(service.translate(1L, 7L, TargetLanguage.EN).text()).isEqualTo("번역");   // 이전: 실패한 호출이 하루 분량을 다 써서 429
     }
 
     @Test
@@ -99,14 +99,17 @@ class TranslationServiceTest {
         when(deepl.enabled()).thenReturn(false);
         when(content.readUtf8Content(anyLong(), anyLong(), anyLong())).thenThrow(ApiException.notFound("파일"));
 
-        assertThatThrownBy(() -> service.translate(1L, 7L, "EN"))
+        assertThatThrownBy(() -> service.translate(1L, 7L, TargetLanguage.EN))
                 .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.NOT_FOUND));
     }
 
     @Test
-    @DisplayName("대상 언어는 EN·KO 만")
-    void rejectsUnknownTarget() {
-        assertThatThrownBy(() -> service.translate(1L, 7L, "JA"))
-                .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.INVALID_REQUEST));
+    @DisplayName("[AI-01] DeepL 에는 DeepL 의 언어 코드로 보낸다 (EN → EN-US, ZH → ZH-HANS)")
+    void usesDeeplLanguageCodes() {
+        when(content.readUtf8Content(anyLong(), anyLong(), anyLong())).thenReturn("안녕");
+        service.translate(1L, 7L, TargetLanguage.EN);
+        service.translate(1L, 8L, TargetLanguage.ZH);
+        verify(deepl).translate(anyString(), eq("EN-US"));
+        verify(deepl).translate(anyString(), eq("ZH-HANS"));
     }
 }

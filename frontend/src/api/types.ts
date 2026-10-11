@@ -216,22 +216,37 @@ export interface PublicShareInfo {
 }
 
 export interface PublicConfig {
+  /** Claude 또는 DeepL 로 번역할 수 있는지 */
   translationEnabled: boolean
   officePreviewEnabled: boolean
   maxUploadBytes: number
   demo: { enabled: boolean; accounts: { username: string; name: string; role: string }[]; password?: string }
+  /** Claude 로 요약·번역(PDF·Word 포함)할 수 있는지 [AI-01] */
+  aiEnabled: boolean
+  aiModel?: string
 }
 
+/** 번역할 언어 [AI-01] */
+export type TargetLanguage = 'EN' | 'KO' | 'JA' | 'ZH'
+
 export interface Summary {
-  sentences: string[]
-  totalSentences: number
+  /** generative: Claude 가 쓴 요약, extractive-term-frequency: 단어 빈도로 고른 원문 문장 */
   method: string
+  /** 생성형이면 핵심 항목, 추출형이면 고른 원문 문장 */
+  sentences: string[]
+  /** 추출형일 때 원문 문장 수 */
+  totalSentences?: number
+  /** 생성형 요약 문단 */
+  summary?: string
+  model?: string
 }
 
 export interface Translation {
   text: string
   targetLang: string
   detectedSourceLang?: string
+  provider?: 'claude' | 'deepl'
+  model?: string
 }
 
 export type ItemRef = { type: 'file' | 'folder'; id: number }

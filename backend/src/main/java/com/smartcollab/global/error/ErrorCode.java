@@ -21,6 +21,8 @@ public enum ErrorCode {
     RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "요청이 너무 많습니다. 잠시 후 다시 시도하세요."),
     FEATURE_DISABLED(HttpStatus.SERVICE_UNAVAILABLE, "이 기능은 현재 서버에서 설정되어 있지 않습니다."),
     UPSTREAM_ERROR(HttpStatus.BAD_GATEWAY, "외부 서비스 호출에 실패했습니다."),
+    /** AI 의 안전 기준에 걸려 요약·번역을 거절함 — 다시 시도해도 같은 결과라 5xx 가 아닌 422 [AI-04] */
+    AI_REFUSED(HttpStatus.UNPROCESSABLE_CONTENT, "AI 가 이 문서의 처리를 거절했습니다."),
     SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "일시적으로 요청을 처리할 수 없습니다. 잠시 후 다시 시도하세요."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류가 발생했습니다.");
 

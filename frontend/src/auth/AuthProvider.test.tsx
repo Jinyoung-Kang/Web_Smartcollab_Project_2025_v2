@@ -38,7 +38,7 @@ vi.mock('@/features/drive/DrivePage', () => ({
 
 const me: Me = { id: 1, username: 'demo1', name: '김하늘', rootFolderId: 10, createdAt: '2026-09-01T00:00:00Z' }
 const config: PublicConfig = {
-  translationEnabled: false, officePreviewEnabled: false, maxUploadBytes: 0, demo: { enabled: false, accounts: [] },
+  translationEnabled: false, officePreviewEnabled: false, maxUploadBytes: 0, demo: { enabled: false, accounts: [] }, aiEnabled: false,
 }
 
 /** main.tsx 와 같은 구성: 데이터 라우터의 경로 요소 안에 공급자와 App 을 둡니다. */
