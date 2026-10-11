@@ -82,7 +82,8 @@ class ClaudeDocumentAiTest {
         assertThat(doc.path("type").asString()).isEqualTo("document");
         assertThat(doc.path("source").path("type").asString()).isEqualTo("text");
         assertThat(doc.path("source").path("data").asString()).isEqualTo("안녕 세상\n둘째 줄");
-        assertThat(doc.path("title").asString()).isEqualTo("회의록.md");
+        // 번역에는 파일 이름을 보내지 않음 — 번역 첫 줄에 옮긴 파일 이름("週次会議メモ.txt")을 붙이는 일이 10번 중 1번 [AI-10]
+        assertThat(doc.has("title")).isFalse();
     }
 
     @Test
