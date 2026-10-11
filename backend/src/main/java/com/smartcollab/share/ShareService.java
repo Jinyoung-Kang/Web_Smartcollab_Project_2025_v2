@@ -3,6 +3,7 @@ package com.smartcollab.share;
 import com.smartcollab.access.AccessPolicy;
 import com.smartcollab.file.FileEntity;
 import com.smartcollab.file.FileService;
+import com.smartcollab.file.FileVersion;
 import com.smartcollab.file.FileService;
 import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.global.error.ApiException;
@@ -117,8 +118,9 @@ public class ShareService {
                 throw new ApiException(ErrorCode.FORBIDDEN, "비밀번호 확인이 필요하거나 허가가 만료되었습니다. 다시 시도하세요.");
             }
             FileEntity file = link.getFile();
-            return new DownloadCheck(link.getId(), new FileService.DownloadTarget(file.getName(),
-                    file.getActiveVersion().getStoredPath(), file.getActiveVersion().getSize()));
+            FileVersion active = file.getActiveVersion();
+            return new DownloadCheck(link.getId(),
+                    new FileService.DownloadTarget(file.getName(), active.getId(), active.getStoredPath(), active.getSize()));
         });
         InputStream in = fileService.open(check.target());
         try {

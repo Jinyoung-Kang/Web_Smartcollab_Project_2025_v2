@@ -1,8 +1,7 @@
 package com.smartcollab.ai;
 
-import com.smartcollab.file.DocumentKind;
-import com.smartcollab.file.FileContentService;
-import com.smartcollab.file.FileContentService.DocumentRef;
+import com.smartcollab.file.FileService;
+import com.smartcollab.file.FileService.DownloadTarget;
 import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.error.ErrorCode;
@@ -11,6 +10,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.text.NumberFormat;
 import java.time.Duration;
@@ -46,7 +48,7 @@ public class DocumentToolsService {
     static final String EXTRACTIVE = "extractive-term-frequency";
     private static final Duration DAY = Duration.ofDays(1);
 
-    private final FileContentService contentService;
+    private final FileService files;
     private final DocumentAi ai;
     private final ExtractiveSummarizer summarizer;
     private final TranslationService deepl;
@@ -58,13 +60,13 @@ public class DocumentToolsService {
     private final Map<String, TranslationResult> translations = lru(50);
 
     public SummaryResult summarize(Long fileId, Long userId) {
-        DocumentRef ref = contentService.resolveDocument(fileId, userId, props.maxDocumentSize().toBytes());
+        DocumentRef ref = resolve(fileId, userId);
         if (!ai.enabled()) {
             if (ref.kind() == DocumentKind.PDF) {
                 throw new ApiException(ErrorCode.FEATURE_DISABLED, "PDF 요약은 AI API 키(ANTHROPIC_API_KEY)가 설정되어 있어야 합니다.");
             }
             try (DocumentToolSlots.Slot ignored = slots.acquire(userId)) {
-                ExtractiveSummarizer.Summary s = summarizer.summarize(text(ref, contentService.loadDocument(ref)));
+                ExtractiveSummarizer.Summary s = summarizer.summarize(text(ref, load(ref)));
                 return new SummaryResult(EXTRACTIVE, null, null, s.sentences(), s.totalSentences());
             }
         }
@@ -88,7 +90,7 @@ public class DocumentToolsService {
 
     public TranslationResult translate(Long fileId, Long userId, String target) {
         TargetLanguage lang = TargetLanguage.parse(target);
-        DocumentRef ref = contentService.resolveDocument(fileId, userId, props.maxDocumentSize().toBytes());
+        DocumentRef ref = resolve(fileId, userId);
         if (!ai.enabled()) {
             if (ref.kind() != DocumentKind.TEXT) {
                 throw new ApiException(ErrorCode.FEATURE_DISABLED, "PDF·Word 번역은 AI API 키(ANTHROPIC_API_KEY)가 설정되어 있어야 합니다.");
@@ -103,7 +105,7 @@ public class DocumentToolsService {
                 return cached;
             }
             try (DocumentToolSlots.Slot ignored = slots.acquire(userId)) {
-                TranslationService.TranslationResult t = deepl.translate(text(ref, contentService.loadDocument(ref)), userId, lang);
+                TranslationService.TranslationResult t = deepl.translate(text(ref, load(ref)), userId, lang);
                 TranslationResult result = new TranslationResult(t.text(), lang.name(), t.detectedSourceLanguage(), "deepl", null);
                 translations.put(key, result);
                 return result;
@@ -147,8 +149,45 @@ public class DocumentToolsService {
                 .format(props.tokensPerUserPerDay()) + " 토큰)을 넘었습니다. 24시간 안에 쓴 양이 줄어들면 다시 사용할 수 있습니다.");
     }
 
+    /**
+     * 요약·번역할 문서 — 다운로드와 같은 진입점으로 읽기 권한을 가장 먼저 봐서, 볼 수 없는 파일은 AI 설정과 상관없이 404 입니다 [AI-02].
+     * 그다음 형식과 크기를 봅니다. 텍스트 문서는 편집기 한도와 AI 문서 상한 중 작은 값을 씁니다.
+     */
+    private DocumentRef resolve(Long fileId, Long userId) {
+        DownloadTarget target = files.downloadTarget(fileId, userId);
+        DocumentKind kind = DocumentKind.of(target.filename());
+        if (kind == null) {
+            throw ApiException.badRequest("요약·번역은 텍스트(txt, md, log, csv, json)·PDF·Word(docx) 문서만 지원합니다.");
+        }
+        long maxBytes = props.maxDocumentSize().toBytes();
+        long limit = kind == DocumentKind.TEXT ? Math.min(maxBytes, appProps.files().textEditMaxBytes()) : maxBytes;
+        if (target.size() > limit) {
+            throw new ApiException(ErrorCode.PAYLOAD_TOO_LARGE, "요약·번역할 수 있는 문서 크기(" + (limit / (1024 * 1024)) + "MB)를 넘었습니다.");
+        }
+        return new DocumentRef(target, kind);
+    }
+
+    /** 확인한 버전의 내용. 읽는 사이에 새 버전이 저장돼도 확인한 버전을 읽습니다 */
+    private byte[] load(DocumentRef ref) {
+        try (InputStream in = files.open(ref.target())) {
+            return in.readNBytes((int) Math.min(Integer.MAX_VALUE - 8, ref.target().size()));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private record DocumentRef(DownloadTarget target, DocumentKind kind) {
+        String name() {
+            return target.filename();
+        }
+
+        Long versionId() {
+            return target.versionId();
+        }
+    }
+
     private AiDocument aiDocument(DocumentRef ref) {
-        byte[] bytes = contentService.loadDocument(ref);
+        byte[] bytes = load(ref);
         if (ref.kind() == DocumentKind.PDF) {
             return AiDocument.pdf(ref.name(), bytes);
         }

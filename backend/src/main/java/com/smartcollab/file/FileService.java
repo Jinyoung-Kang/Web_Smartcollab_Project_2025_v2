@@ -111,7 +111,7 @@ public class FileService {
         FileEntity file = getActive(fileId);
         accessPolicy.requireFileRead(file, userId);
         FileVersion active = file.getActiveVersion();
-        return new DownloadTarget(file.getName(), active.getStoredPath(), active.getSize());
+        return new DownloadTarget(file.getName(), active.getId(), active.getStoredPath(), active.getSize());
     }
 
     public InputStream open(DownloadTarget target) {
@@ -214,6 +214,7 @@ public class FileService {
         return s.replace("!", "!!").replace("%", "!%").replace("_", "!_");
     }
 
-    public record DownloadTarget(String filename, String storageKey, long size) {
+    /** @param versionId 확인한 버전 — 읽는 사이 새 버전이 저장돼도 이 버전을 엽니다(버전마다 파일이 따로) */
+    public record DownloadTarget(String filename, Long versionId, String storageKey, long size) {
     }
 }
