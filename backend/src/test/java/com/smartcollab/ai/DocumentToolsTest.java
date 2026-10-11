@@ -44,6 +44,9 @@ class DocumentToolsTest extends IntegrationTest {
     @MockitoBean
     DocumentAi documentAi;
 
+    @MockitoBean
+    DeepLTranslationClient deepl;
+
     @org.springframework.beans.factory.annotation.Autowired
     com.smartcollab.global.security.SlidingWindowRateLimiter rateLimiter;
 
@@ -285,5 +288,24 @@ class DocumentToolsTest extends IntegrationTest {
                 .andExpect(status().isTooManyRequests());
         verify(documentAi, never()).countSummaryTokens(any());
         verify(documentAi, never()).countTranslationTokens(any(), any());
+    }
+
+    @Test
+    @DisplayName("[L-4] AI 키 없이 DeepL 로 번역할 때도 같은 버전의 같은 언어는 다시 부르지 않는다 — 예전에는 매번 DeepL 월 사용량과 하루 글자 한도를 씀")
+    void deeplTranslationIsCachedPerVersion() throws Exception {
+        when(documentAi.enabled()).thenReturn(false);
+        when(deepl.enabled()).thenReturn(true);
+        when(deepl.translate(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(new DeepLTranslationClient.Translation("Hello", "KO"));
+        Api.Session s = api().signUp("l4deepl");
+        long file = s.uploadText(s.rootFolderId, "a.txt", "안녕하세요");
+
+        for (int i = 0; i < 2; i++) {
+            s.send(MockMvcRequestBuilders.post("/api/files/{id}/translation?target=EN", file))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.text").value("Hello"))
+                    .andExpect(jsonPath("$.provider").value("deepl"));
+        }
+        verify(deepl, times(1)).translate(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq("EN-US"));
     }
 }
