@@ -35,6 +35,11 @@ vi.mock('@/features/drive/DrivePage', () => ({
   DrivePage: () => <p>드라이브 화면</p>,
   TeamRootRedirect: () => null,
 }))
+// App 은 앱 틀을 지연 로딩하면서 미리 받기도 합니다. 비동기 가짜 모듈을 두 곳에서 동시에 처음 부르면 실제 모듈이
+// 돌아오는 경우가 있어, 가짜를 먼저 한 번 만들어 둡니다.
+beforeAll(async () => {
+  await import('@/layout/AppShell')
+})
 
 const me: Me = { id: 1, username: 'demo1', name: '김하늘', rootFolderId: 10, createdAt: '2026-09-01T00:00:00Z' }
 const config: PublicConfig = {
