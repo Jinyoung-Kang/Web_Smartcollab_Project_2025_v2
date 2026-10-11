@@ -41,6 +41,8 @@ dependencies {
         exclude(group = "com.azure", module = "azure-core-http-netty")
     }
     implementation("com.azure:azure-core-http-jdk-httpclient")
+    // 문서 요약·번역(Claude). 공식 SDK 가 재시도(429·5xx)·타입 있는 오류·스트리밍·토큰 세기를 맡습니다 — ADR-0011
+    implementation("com.anthropic:anthropic-java:2.71.0")
     runtimeOnly("com.mysql:mysql-connector-j")
 
     // Boot 4.1.1 이 관리하는 Tomcat 11.0.24 에는 CVE-2026-65905·65182·68525 가 있습니다(11.0.25 에서 수정).

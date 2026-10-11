@@ -1,0 +1,29 @@
+# 문서 요약·번역(Claude Haiku 5.5) — 구현 전 시험 결과 (뼈대만 둔 상태: 인터페이스·설정, 기존 컨트롤러)
+# ./gradlew test --tests 'com.smartcollab.ai.*'
+
+## ClaudeDocumentAiTest
+FAIL [AI-01] 번역은 Haiku 5.5 를 effort low·스트리밍으로 부르고, 문서는 document 블록, 지시는 시스템 프롬프트에만 둔다 | java.lang.UnsupportedOperationException: not implemented
+FAIL [AI-04] Anthropic 의 요청 한도(429)는 503 — 잠시 뒤 다시 시도할 수 있음, 그 밖의 API 오류는 502 | java.lang.AssertionError:  Expecting actual throwable to be an instance of:   com.smartcollab.global.error.ApiException but was:   java.lang.Unsupport
+FAIL [AI-04] 안전 기준에 따른 거절은 422 AI_REFUSED | java.lang.AssertionError:  Expecting actual throwable to be an instance of:   com.smartcollab.global.error.ApiException but was:   java.lang.Unsupport
+FAIL [AI-04] 결과가 출력 한도에서 잘리면 잘린 번역을 돌려주지 않고 413 | java.lang.AssertionError:  Expecting actual throwable to be an instance of:   com.smartcollab.global.error.ApiException but was:   java.lang.Unsupport
+FAIL [AI-03] 입력 토큰은 무료 토큰 세기 API 로 같은 시스템 프롬프트·문서를 넣어 센다 | java.lang.UnsupportedOperationException: not implemented
+FAIL [AI-01] 요약은 구조화 출력(JSON 스키마)으로 받아 요약 문단과 핵심 항목으로 나누고, PDF 는 원본을 base64 document 로 보낸다 | java.lang.UnsupportedOperationException: not implemented
+
+## DocumentToolsTest
+PASS [AI-01] 볼 수 없는 파일은 404 이고 AI 를 부르지 않는다(토큰 세기도 안 함)
+FAIL [AI-03] 입력이 상한(요약 100,000·번역 32,000 토큰)을 넘으면 AI 를 부르지 않고 413 | java.lang.AssertionError: Response status expected:<413> but was:<200>
+FAIL [AI-01] 번역 대상은 EN·KO·JA·ZH, Claude 로 번역하고 공급자·모델을 알린다. 그 밖의 언어는 400 | java.lang.AssertionError: Status expected:<200> but was:<400>
+FAIL [AI-01] 키가 없으면 텍스트·Word 요약은 추출 요약으로, PDF 요약과 번역(DeepL 키도 없음)은 503 | java.lang.AssertionError: Status expected:<200> but was:<400>
+FAIL [AI-03] 하루 토큰 한도는 호출 전 예약 → 실제 사용량으로 정산하고, 넘으면 429. 호출이 실패하면 예약분을 돌려준다 | java.lang.AssertionError: Status expected:<502> but was:<200>
+FAIL [AI-05] 같은 버전의 같은 요청은 다시 부르지 않고(과금 없음), 새 버전을 저장하면 다시 부른다 | java.lang.AssertionError: Status expected:<200> but was:<503>
+FAIL [AI-01] 공개 설정이 AI 사용 여부와 모델을 알린다(번역은 Claude·DeepL 중 하나라도 있으면 켜짐) | java.lang.AssertionError: No value at JSON path "$.aiEnabled"
+FAIL [AI-01] 키가 있으면 Claude 생성형 요약 — 요약 문단·핵심 항목·모델을 돌려주고, 문서 내용을 그대로 넘긴다 | java.lang.AssertionError: JSON path "$.method" expected:<generative> but was:<extractive-term-frequency>
+FAIL [AI-02] PDF 는 원본 그대로, Word(docx)는 뽑은 본문 텍스트로 넘기고, 그 밖의 형식(이미지 등)은 400 | java.lang.AssertionError: Status expected:<200> but was:<400>
+
+## DocxTextTest
+FAIL [AI-02] Word 본문이 없는 파일(손상·다른 형식)은 400 | java.lang.AssertionError:  Expecting actual throwable to be an instance of:   com.smartcollab.global.error.ApiException but was:   java.lang.Unsupport
+FAIL [AI-02] 압축을 풀면 한도보다 큰 본문은 끝까지 풀지 않고 413 (압축 폭탄) | java.lang.AssertionError:  Expecting actual throwable to be an instance of:   com.smartcollab.global.error.ApiException but was:   java.lang.Unsupport
+FAIL [AI-02] 문단·탭·줄바꿈·표의 칸을 문서 순서대로 텍스트로 뽑는다 | java.lang.UnsupportedOperationException: not implemented
+FAIL [AI-02] DTD·외부 엔티티가 든 문서는 해석하지 않고 400 (서버 파일을 읽어 AI 로 보내는 XXE 차단) | java.lang.AssertionError:  Expecting actual throwable to be an instance of:   com.smartcollab.global.error.ApiException but was:   java.lang.Unsupport
+
+# PASS 1건(볼 수 없는 파일 404)은 기존에도 지켜지던 동작을 새 경로에서도 지키는지 보는 회귀 방지용입니다.
