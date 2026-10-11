@@ -9,9 +9,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.regex.Pattern;
-import java.util.stream.IntStream;
 
 /**
  * 단어 빈도 기반 추출 요약 (외부 API·생성형 AI 사용 안 함).
@@ -45,25 +45,34 @@ public class ExtractiveSummarizer {
         if (sentences.isEmpty()) {
             return new Summary(List.of(), 0);
         }
-        List<List<String>> tokens = sentences.stream().map(ExtractiveSummarizer::tokenize).toList();
+        // 문장마다 토큰 목록을 들고 있지 않고, 빈도를 셀 때와 점수를 낼 때 두 번 토큰화합니다. 2MB 문서(문장 30만 개)에서
+        // 토큰 목록과 전체 정렬이 힙을 수백 MB 차지해 64MB 힙에서 OOM 이었습니다 [H-1]
         Map<String, Integer> freq = new HashMap<>();
-        tokens.forEach(ts -> ts.forEach(t -> freq.merge(t, 1, Integer::sum)));
+        for (String sentence : sentences) {
+            tokenize(sentence).forEach(t -> freq.merge(t, 1, Integer::sum));
+        }
         int max = freq.values().stream().max(Integer::compareTo).orElse(1);
 
-        double[] scores = new double[sentences.size()];
-        for (int i = 0; i < sentences.size(); i++) {
-            List<String> ts = tokens.get(i);
-            if (ts.isEmpty()) continue;
-            double sum = new HashSet<>(ts).stream().mapToDouble(t -> (double) freq.get(t) / max).sum();
-            scores[i] = sum / (1 + Math.log(ts.size()));
-        }
+        // 점수 상위 k 개(같으면 앞 문장)만 들고 갑니다. 가장 약한 것이 머리에 오는 크기 k 의 힙 — 뒤 문장은 같은 점수로는 이기지 못함
         int k = Math.clamp(Math.round(sentences.size() * 0.3), 1, 5);
-        List<Integer> top = IntStream.range(0, sentences.size()).boxed()
-                .sorted(Comparator.comparingDouble((Integer i) -> scores[i]).reversed().thenComparing(i -> i))
-                .limit(k)
-                .sorted()
-                .toList();
+        PriorityQueue<double[]> best = new PriorityQueue<>(
+                Comparator.<double[]>comparingDouble(e -> e[0]).thenComparingDouble(e -> -e[1]));
+        for (int i = 0; i < sentences.size(); i++) {
+            double score = score(tokenize(sentences.get(i)), freq, max);
+            if (best.size() < k || score > best.peek()[0]) {
+                best.add(new double[]{score, i});
+                if (best.size() > k) best.poll();
+            }
+        }
+        List<Integer> top = best.stream().map(e -> (int) e[1]).sorted().toList();
         return new Summary(top.stream().map(sentences::get).toList(), sentences.size());
+    }
+
+    /** 문장에 든 서로 다른 단어 가중치의 합 / (1 + ln(문장 길이)) */
+    private static double score(List<String> tokens, Map<String, Integer> freq, int max) {
+        if (tokens.isEmpty()) return 0;
+        double sum = new HashSet<>(tokens).stream().mapToDouble(t -> (double) freq.get(t) / max).sum();
+        return sum / (1 + Math.log(tokens.size()));
     }
 
     static List<String> splitSentences(String text) {
