@@ -116,6 +116,28 @@ class DocumentToolsTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("[L-5] 동작 고정: 휴지통의 파일은 404, 지원하지 않는 형식은 안내 문구와 함께 400, 텍스트는 편집기 한도(2MB)를 넘으면 413")
+    void documentChecksBeforeAnyAiWork() throws Exception {
+        Api.Session s = api().signUp("l5lock");
+        long trashed = s.uploadText(s.rootFolderId, "지운.txt", "내용");
+        s.postJson("/api/items/delete", Map.of("items", List.of(Map.of("type", "file", "id", trashed)))).andExpect(status().isOk());
+        long png = Api.id(s.upload(s.rootFolderId, "그림.png", new byte[]{1, 2, 3}));
+        long big = Api.id(s.upload(s.rootFolderId, "긴 글.txt", "가".repeat(700_000).getBytes(StandardCharsets.UTF_8)));   // 2.1MB
+
+        s.send(MockMvcRequestBuilders.post("/api/files/{id}/summary", trashed)).andExpect(status().isNotFound());
+        s.send(MockMvcRequestBuilders.post("/api/files/{id}/translation?target=EN", trashed)).andExpect(status().isNotFound());
+        s.send(MockMvcRequestBuilders.post("/api/files/{id}/translation?target=EN", png))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("요약·번역은 텍스트(txt, md, log, csv, json)·PDF·Word(docx) 문서만 지원합니다."));
+        s.send(MockMvcRequestBuilders.post("/api/files/{id}/summary", big))
+                .andExpect(status().is(413))
+                .andExpect(jsonPath("$.detail").value("요약·번역할 수 있는 문서 크기(2MB)를 넘었습니다."));
+
+        verify(documentAi, never()).countSummaryTokens(any());
+        verify(documentAi, never()).countTranslationTokens(any(), any());
+    }
+
+    @Test
     @DisplayName("[AI-02] PDF 는 원본 그대로, Word(docx)는 뽑은 본문 텍스트로 넘기고, 그 밖의 형식(이미지 등)은 400")
     void pdfAndDocx() throws Exception {
         Api.Session s = api().signUp("ai02");
