@@ -187,4 +187,16 @@ class ClaudeDocumentAiTest {
         server.reply(Reply.json(FakeAnthropicServer.message("end_turn", "{\"summary\":\"2024년 9월 보고서\",\"keyPoints\":[]}", 100, 50, null)));
         assertThat(ai.summarize(AiDocument.pdf("보고서.pdf", new byte[]{1, 2, 3})).value().summary()).isEqualTo("2024년 9월 보고서");
     }
+
+    @Test
+    @DisplayName("[AI-09] 번역 전체가 마크다운 코드 울타리(```)에 싸여 오면 벗긴다 — 실측에서 CSV 번역에 두 줄이 더해짐, 원문이 코드 블록이면 그대로")
+    void unwrapsCodeFence() {
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 100, 50, "```csv\n項目,担当\n", "A,B\n```")));
+        assertThat(ai.translate(AiDocument.text("할일.csv", "항목,담당\nA,B\n"), TargetLanguage.JA).value()).isEqualTo("項目,担当\nA,B");
+        assertThat(lastRequest().path("system").toString()).contains("code fences");
+
+        String fenced = "```\necho hi\n```";
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 100, 50, fenced)));
+        assertThat(ai.translate(AiDocument.text("명령.md", fenced), TargetLanguage.EN).value()).isEqualTo(fenced);
+    }
 }
