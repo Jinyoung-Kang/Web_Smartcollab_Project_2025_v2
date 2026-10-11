@@ -98,7 +98,8 @@ test('두 사용자가 실시간으로 채팅하고, 폴더 변경이 새로고�
   const text = `안녕하세요 ${Date.now()}`
   await other.getByLabel('메시지').fill(text)
   await other.getByLabel('메시지').press('Enter')
-  await expect(page.getByText(text)).toBeVisible({ timeout: 5000 })
+  // 정확히 일치 — 화면 읽기 프로그램용 알림('보낸 사람: 내용')과 구분 [L-8]
+  await expect(page.getByText(text, { exact: true })).toBeVisible({ timeout: 5000 })
 
   const folder = `실시간-${Date.now()}`
   await other.getByRole('button', { name: '새 폴더' }).click()
