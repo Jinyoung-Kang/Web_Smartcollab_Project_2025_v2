@@ -50,6 +50,7 @@ class PasswordCheckConnectionTest extends IntegrationTest {
         api().login(user.username, Api.PASSWORD);   // 200 이 아니면 실패
 
         assertThat(encoder.checks()).isPositive();
+        assertThat(encoder.holdingAtCheck()).isZero();
         assertThat(encoder.maxActiveAtCheck()).isZero();
     }
 
@@ -65,6 +66,7 @@ class PasswordCheckConnectionTest extends IntegrationTest {
                 .andExpect(status().isOk());
 
         assertThat(encoder.checks()).isPositive();
+        assertThat(encoder.holdingAtCheck()).isZero();
         assertThat(encoder.maxActiveAtCheck()).isZero();
     }
 
@@ -75,7 +77,35 @@ class PasswordCheckConnectionTest extends IntegrationTest {
         api().signUp("m2signup");
 
         assertThat(encoder.checks()).isPositive();
+        assertThat(encoder.holdingAtCheck()).isZero();
         assertThat(encoder.maxActiveAtCheck()).isZero();
+    }
+
+    @Test
+    @DisplayName("[M-2] 측정: 20명이 동시에 로그인하는 동안 bcrypt 가 커넥션을 쥔 횟수와, 그사이 보낸 폴더 조회의 지연 (풀 10개)")
+    void concurrentLogins() throws Exception {
+        int users = 20;
+        Api.Session reader = api().signUp("m2reader");
+        java.util.List<String> names = new java.util.ArrayList<>();
+        for (int i = 0; i < users; i++) names.add(api().signUp("m2c" + i).username);
+        encoder.reset();
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(users);
+        long folderMs;
+        long started = System.nanoTime();
+        try {
+            java.util.List<java.util.concurrent.Future<?>> logins = new java.util.ArrayList<>();
+            for (String name : names) logins.add(pool.submit(() -> api().login(name, Api.PASSWORD)));
+            long t = System.nanoTime();
+            reader.get("/api/folders/{id}", reader.rootFolderId).andExpect(status().isOk());
+            folderMs = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t);
+            for (java.util.concurrent.Future<?> f : logins) f.get(60, java.util.concurrent.TimeUnit.SECONDS);
+        } finally {
+            pool.shutdown();
+        }
+        long ms = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
+        System.out.printf("[M-2] concurrentLogins=%d bcryptChecks=%d heldConnectionDuringBcrypt=%d folderListMsDuringLogins=%d totalMs=%d%n",
+                users, encoder.checks(), encoder.holdingAtCheck(), folderMs, ms);
+        assertThat(encoder.holdingAtCheck()).isZero();
     }
 
     /** 실제 BCrypt 에 들어가는 순간의 활성 커넥션 수를 기록 */
@@ -84,6 +114,8 @@ class PasswordCheckConnectionTest extends IntegrationTest {
         private final DataSource dataSource;
         private final AtomicInteger maxActive = new AtomicInteger();
         private final AtomicInteger checks = new AtomicInteger();
+        /** bcrypt 에 들어간 스레드가 트랜잭션(=DB 커넥션)을 쥐고 있던 횟수 — 이 요청 자신이 쥐는지 */
+        private final AtomicInteger holding = new AtomicInteger();
 
         ConnectionProbeEncoder(DataSource dataSource) {
             this.dataSource = dataSource;
@@ -92,6 +124,11 @@ class PasswordCheckConnectionTest extends IntegrationTest {
         void reset() {
             maxActive.set(0);
             checks.set(0);
+            holding.set(0);
+        }
+
+        int holdingAtCheck() {
+            return holding.get();
         }
 
         int maxActiveAtCheck() {
@@ -107,6 +144,9 @@ class PasswordCheckConnectionTest extends IntegrationTest {
                 int active = dataSource.unwrap(HikariDataSource.class).getHikariPoolMXBean().getActiveConnections();
                 maxActive.accumulateAndGet(active, Math::max);
                 checks.incrementAndGet();
+                if (org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()) {
+                    holding.incrementAndGet();
+                }
             } catch (Exception e) {
                 throw new IllegalStateException(e);
             }

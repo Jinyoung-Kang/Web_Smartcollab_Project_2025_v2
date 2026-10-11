@@ -9,6 +9,7 @@ import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.error.ErrorCode;
 import com.smartcollab.global.security.SecurityEventLog;
 import com.smartcollab.global.security.SlidingWindowRateLimiter;
+import com.smartcollab.global.tx.TransactionRunner;
 import com.smartcollab.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -36,6 +37,7 @@ public class ShareService {
     private final DownloadGrantSigner grants;
     private final SlidingWindowRateLimiter rateLimiter;
     private final AppProperties props;
+    private final TransactionRunner tx;
 
     @Transactional
     public ShareDtos.LinkResponse create(Long fileId, ShareDtos.CreateRequest req, Long userId) {
@@ -78,9 +80,12 @@ public class ShareService {
      * 비밀번호 확인 → 5분짜리 다운로드 허가 발급.
      * 시도 횟수는 링크+IP 단위와 링크 단위(여러 IP 에서 오는 대입 공격 대비)로 10분마다 제한합니다.
      */
-    @Transactional(readOnly = true)
     public String unlock(String token, String password, String clientIp) {
-        ShareLink link = usable(token);
+        // 링크 확인만 짧은 읽기 트랜잭션에서 하고, bcrypt 비교 동안 DB 커넥션을 쥐지 않습니다 [M-2]
+        PasswordCheck link = tx.readOnly(() -> {
+            ShareLink found = usable(token);
+            return new PasswordCheck(found.getId(), found.requiresPassword(), found.getPasswordHash());
+        });
         if (!link.requiresPassword()) {
             return grants.issue(token);
         }
@@ -91,8 +96,8 @@ public class ShareService {
             SecurityEventLog.rateLimited("share-password", clientIp);
             throw new ApiException(ErrorCode.RATE_LIMITED, "비밀번호 입력 시도가 너무 많습니다. 10분 뒤 다시 시도하세요.");
         }
-        if (!StringUtils.hasText(password) || !passwordEncoder.matches(password, link.getPasswordHash())) {
-            SecurityEventLog.sharePasswordFailed(link.getId(), clientIp);
+        if (!StringUtils.hasText(password) || !passwordEncoder.matches(password, link.passwordHash())) {
+            SecurityEventLog.sharePasswordFailed(link.id(), clientIp);
             throw new ApiException(ErrorCode.FORBIDDEN, "비밀번호가 일치하지 않습니다.");
         }
         return grants.issue(token);
@@ -119,6 +124,10 @@ public class ShareService {
      * 존재하고, 만료·소진되지 않았고, 파일이 휴지통에 있지 않고, 만든 사람이 지금도 그 파일을 공유할 수 있는 링크만 사용할 수 있습니다.
      * 만든 사람이 팀에서 나가면 링크는 지우지 않고 동작만 멈춥니다 — 다시 권한이 생기면 다시 동작합니다 [S-09].
      */
+    /** 비밀번호를 확인할 링크 — 트랜잭션 밖으로 가져가는 값만 */
+    private record PasswordCheck(Long id, boolean requiresPassword, String passwordHash) {
+    }
+
     private ShareLink usable(String token) {
         ShareLink link = links.findByToken(token).orElseThrow(() -> ApiException.notFound("공유 링크"));
         if (link.isExpired(Instant.now()) || link.isExhausted() || link.getFile().isInTrash()
