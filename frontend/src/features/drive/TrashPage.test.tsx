@@ -66,3 +66,17 @@ describe('TrashPage — 폴더 휴지통 [UX-06]', () => {
     expect(purgeFolder).toHaveBeenCalledWith(7)
   })
 })
+
+describe('TrashPage — 중복 요청', () => {
+  it('[L-8] 복원 중에는 같은 항목의 복원 단추를 다시 누를 수 없다', async () => {
+    const user = userEvent.setup()
+    renderTrash()
+    const restore = vi.spyOn(trashApi, 'restore').mockReturnValue(new Promise(() => {}))
+    const button = (await screen.findAllByRole('button', { name: '복원' }))[1]!
+
+    await user.click(button)
+    await user.click(button)
+
+    expect(restore).toHaveBeenCalledTimes(1)
+  })
+})

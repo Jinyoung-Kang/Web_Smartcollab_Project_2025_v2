@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryRouter, RouterProvider } from 'react-router'
@@ -9,6 +9,7 @@ import { ConfirmProvider } from '@/components/ui/Confirm'
 import { ToastProvider } from '@/components/ui/Toast'
 import { queryKeys } from '@/api/queryKeys'
 import { formatBytes } from '@/lib/format'
+import { appendChatMessage } from '@/realtime/TeamActivity'
 import { ChatTab } from './ChatTab'
 
 vi.mock('@/auth/AuthProvider', () => ({
@@ -20,7 +21,10 @@ vi.mock('@/api/upload', () => upload)
 const realtime = vi.hoisted(() => ({ publish: vi.fn(() => false) }))
 vi.mock('@/realtime/RealtimeProvider', () => ({ useRealtime: () => realtime }))
 const activity = vi.hoisted(() => ({ setActiveChat: vi.fn() }))
-vi.mock('@/realtime/TeamActivity', () => ({ useTeamActivity: () => activity, appendChatMessage: vi.fn() }))
+vi.mock('@/realtime/TeamActivity', async (importOriginal) => ({
+  appendChatMessage: (await importOriginal<typeof import('@/realtime/TeamActivity')>()).appendChatMessage,
+  useTeamActivity: () => activity,
+}))
 
 const team: TeamDetail = {
   id: 3, name: '데모 팀', ownerUsername: 'demo1', rootFolderId: 10,
@@ -158,3 +162,18 @@ describe('ChatTab — 메시지 보내기 [M-4]', () => {
   })
 })
 
+describe('ChatTab — 화면 읽기 프로그램 알림', () => {
+  it('[L-8] 대화 목록 전체를 알리지 않고, 다른 사람이 보낸 새 메시지 하나만 알린다', async () => {
+    renderChat()
+    await screen.findByRole('button', { name: '화면 스케치.png 미리보기' })
+    const live = screen.getByTestId('chat-announcer')
+    expect(live).toBeEmptyDOMElement()   // 처음 불러온 기록은 알리지 않음
+
+    act(() => appendChatMessage(client, 3, {
+      id: 6, type: 'CHAT', content: '회의 자료 올렸어요', sender: { username: 'demo3', name: '박서연' }, createdAt,
+    }))
+
+    expect(live).toHaveTextContent('박서연: 회의 자료 올렸어요')
+    expect(screen.getByRole('button', { name: '화면 스케치.png 미리보기' }).closest('[aria-live]')).toBeNull()
+  })
+})

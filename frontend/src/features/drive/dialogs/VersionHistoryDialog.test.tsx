@@ -39,4 +39,20 @@ describe('VersionHistoryDialog', () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['versions', 1] })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['file-content', 1] })
   })
+
+  it('[L-8] 버전 기록을 불러오지 못하면 알린다 — 이전에는 빈 목록', async () => {
+    vi.spyOn(fileApi, 'versions').mockRejectedValue(new Error('서버 오류'))
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <ToastProvider>
+          <ConfirmProvider>
+            <VersionHistoryDialog file={file} permissions={permissions} onClose={vi.fn()} />
+          </ConfirmProvider>
+        </ToastProvider>
+      </QueryClientProvider>,
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('버전 기록을 불러오지 못했습니다')
+  })
 })

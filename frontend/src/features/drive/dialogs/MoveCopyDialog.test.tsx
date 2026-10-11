@@ -25,4 +25,16 @@ describe('MoveCopyDialog', () => {
     expect(await screen.findByRole('button', { name: '팀 자료' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '여기로 이동' })).toBeDisabled()
   })
+
+  it('[L-8] 폴더 목록을 불러오지 못하면 알린다 — 이전에는 고를 폴더 없이 빈 창', async () => {
+    vi.spyOn(folderApi, 'tree').mockRejectedValue(new Error('서버 오류'))
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MoveCopyDialog open mode="copy" count={1} disabledFolderIds={[]} onClose={vi.fn()} onConfirm={vi.fn()} />
+      </QueryClientProvider>,
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('폴더 목록을 불러오지 못했습니다')
+  })
 })
