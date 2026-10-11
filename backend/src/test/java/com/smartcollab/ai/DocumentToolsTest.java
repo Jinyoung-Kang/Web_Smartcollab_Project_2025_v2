@@ -20,6 +20,7 @@ import static com.smartcollab.ai.DocxFixtures.docx;
 import static com.smartcollab.ai.DocxFixtures.paragraph;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
@@ -52,7 +53,7 @@ class DocumentToolsTest extends IntegrationTest {
         when(documentAi.countTranslationTokens(any(), any())).thenReturn(100L);
         when(documentAi.summarize(any())).thenReturn(new DocumentAi.Output<>(
                 new DocumentAi.Summary("회의 결과를 정리한 문서입니다.", List.of("일정 확정", "권한 정리")), 100, 50));
-        when(documentAi.translate(any(), any())).thenReturn(new DocumentAi.Output<>("Translated", 100, 30));
+        when(documentAi.translate(any(), any(), anyLong())).thenReturn(new DocumentAi.Output<>("Translated", 100, 30));
     }
 
     @Test
@@ -87,7 +88,7 @@ class DocumentToolsTest extends IntegrationTest {
                 .andExpect(jsonPath("$.targetLang").value("JA"))
                 .andExpect(jsonPath("$.provider").value("claude"))
                 .andExpect(jsonPath("$.model").value("claude-haiku-5-5"));
-        verify(documentAi).translate(any(), org.mockito.ArgumentMatchers.eq(TargetLanguage.JA));
+        verify(documentAi).translate(any(), org.mockito.ArgumentMatchers.eq(TargetLanguage.JA), anyLong());
 
         s.send(MockMvcRequestBuilders.post("/api/files/{id}/translation?target=FR", file))
                 .andExpect(status().isBadRequest())
@@ -128,7 +129,7 @@ class DocumentToolsTest extends IntegrationTest {
         assertThat(summarized.getValue().isPdf()).isTrue();
         assertThat(summarized.getValue().pdf()).isEqualTo(pdf);
         ArgumentCaptor<AiDocument> translated = ArgumentCaptor.forClass(AiDocument.class);
-        verify(documentAi).translate(translated.capture(), any());
+        verify(documentAi).translate(translated.capture(), any(), anyLong());
         assertThat(translated.getValue().text()).isEqualTo("워드 본문\n둘째 문단");
     }
 
@@ -171,7 +172,7 @@ class DocumentToolsTest extends IntegrationTest {
         s.send(MockMvcRequestBuilders.post("/api/files/{id}/translation?target=EN", file))
                 .andExpect(status().is(413));
         verify(documentAi, never()).summarize(any());
-        verify(documentAi, never()).translate(any(), any());
+        verify(documentAi, never()).translate(any(), any(), anyLong());
     }
 
     @Test
@@ -180,11 +181,11 @@ class DocumentToolsTest extends IntegrationTest {
         Api.Session s = api().signUp("ai03b");
         long[] files = new long[4];
         for (int i = 0; i < files.length; i++) files[i] = s.uploadText(s.rootFolderId, "f" + i + ".txt", "문서 " + i);
-        // 한도 12,000. 예약 = 입력 3,000 + 출력 예약분, 실제 사용 = 3,000 + 200
-        when(documentAi.countSummaryTokens(any())).thenReturn(3_000L);
+        // 한도 12,000. 예약 = 입력 1,500 + 출력 상한 8,000(최악값, H-2), 실제 사용 = 1,500 + 200
+        when(documentAi.countSummaryTokens(any())).thenReturn(1_500L);
         when(documentAi.summarize(any()))
                 .thenThrow(new ApiException(ErrorCode.UPSTREAM_ERROR, "실패"))
-                .thenReturn(new DocumentAi.Output<>(new DocumentAi.Summary("요약", List.of("항목")), 3_000, 200));
+                .thenReturn(new DocumentAi.Output<>(new DocumentAi.Summary("요약", List.of("항목")), 1_500, 200));
 
         s.send(MockMvcRequestBuilders.post("/api/files/{id}/summary", files[0])).andExpect(status().isBadGateway());
         s.send(MockMvcRequestBuilders.post("/api/files/{id}/summary", files[1])).andExpect(status().isOk());
@@ -210,7 +211,7 @@ class DocumentToolsTest extends IntegrationTest {
         s.send(MockMvcRequestBuilders.post("/api/files/{id}/translation?target=EN", file)).andExpect(status().isOk());
         s.send(MockMvcRequestBuilders.post("/api/files/{id}/translation?target=EN", file)).andExpect(status().isOk());
         verify(documentAi, times(1)).summarize(any());
-        verify(documentAi, times(1)).translate(any(), any());
+        verify(documentAi, times(1)).translate(any(), any(), anyLong());
 
         long base = ((Number) Api.read(s.get("/api/files/{id}/content", file), "$.versionId")).longValue();
         s.putJson("/api/files/{id}/content", Map.of("content", "고친 내용", "baseVersionId", base), file).andExpect(status().isOk());

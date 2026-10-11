@@ -10,6 +10,20 @@ import java.util.List;
  */
 public interface DocumentAi {
 
+    /** 요약 출력 상한(생각 + 요약 JSON). 하루 한도에는 입력 + 이 값을 예약합니다 [H-2] */
+    long SUMMARY_MAX_OUTPUT_TOKENS = 8_000;
+
+    /** 번역 출력 상한의 최댓값 */
+    long TRANSLATION_MAX_OUTPUT_TOKENS = 64_000;
+
+    /**
+     * 번역 출력 상한 — 입력의 3배 + 4,096(생각·notes 포함), 최대 64,000. 요청의 max_tokens 와 하루 한도 예약에 같은 값을 써서,
+     * 동시에 보낸 요청도 한도를 넘어 과금되지 않게 합니다 [H-2]. 실측에서 번역 출력은 입력의 1.5배 안팎이었습니다(qa/results/ai).
+     */
+    static long translationMaxOutputTokens(long inputTokens) {
+        return Math.min(TRANSLATION_MAX_OUTPUT_TOKENS, inputTokens * 3 + 4_096);
+    }
+
     /** API 키가 설정되어 쓸 수 있는지 */
     boolean enabled();
 
@@ -24,7 +38,8 @@ public interface DocumentAi {
 
     Output<Summary> summarize(AiDocument document);
 
-    Output<String> translate(AiDocument document, TargetLanguage target);
+    /** @param maxOutputTokens 출력 상한({@link #translationMaxOutputTokens}) */
+    Output<String> translate(AiDocument document, TargetLanguage target, long maxOutputTokens);
 
     /** 결과와 실제로 쓴 토큰 — 하루 한도를 실제 사용량으로 정산합니다 [AI-03] */
     record Output<T>(T value, long inputTokens, long outputTokens) {

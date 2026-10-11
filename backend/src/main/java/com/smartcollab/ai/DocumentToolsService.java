@@ -26,8 +26,9 @@ import java.util.function.Supplier;
  * <ol>
  *   <li>권한·형식·크기를 가장 먼저 봅니다 — 볼 수 없는 파일은 AI 설정과 상관없이 404 이고 AI 를 부르지 않습니다.</li>
  *   <li>같은 버전의 같은 요청은 저장해 둔 결과를 돌려줍니다(다시 과금하지 않음) [AI-05].</li>
- *   <li>호출 전에 입력 토큰을 세어 상한을 넘으면 413, 사용자별 하루 토큰 한도에 "입력 + 출력 예상분"을 예약해 넘으면 429 [AI-03].
- *       호출이 실패하면 예약분을 돌려주고, 성공하면 실제 사용량으로 정산합니다.</li>
+ *   <li>호출 전에 입력 토큰을 세어 상한을 넘으면 413, 사용자별 하루 토큰 한도에 "입력 + 출력 상한"(요청의 max_tokens 와 같은 최악값)을
+ *       예약해 넘으면 429 [AI-03, H-2]. 동시에 보낸 요청도 한도를 넘지 못합니다. 과금 전 실패(API 오류·연결 실패)는 예약을 돌려주고,
+ *       성공과 응답을 받은 뒤의 실패(잘림·거절·형식 오류·스트림 끊김)는 실제 사용량(모르면 예약분 전부)으로 정산합니다.</li>
  * </ol>
  * 호출마다 한 줄(작업·파일·버전·모델·토큰·걸린 시간)을 남깁니다. 문서 내용과 결과는 남기지 않습니다.
  */
@@ -40,8 +41,6 @@ public class DocumentToolsService {
     static final long SUMMARY_INPUT_CAP = 100_000;
     /** 번역 입력 상한. 번역은 입력과 비슷하거나 더 긴 출력을 내므로 출력 한도(64,000)의 절반 */
     static final long TRANSLATION_INPUT_CAP = 32_000;
-    /** 요약 출력 예약분(생각 + 요약 JSON). 실제 사용량으로 정산합니다 */
-    static final long SUMMARY_OUTPUT_RESERVE = 4_096;
     static final String GENERATIVE = "generative";
     static final String EXTRACTIVE = "extractive-term-frequency";
     private static final Duration DAY = Duration.ofDays(1);
@@ -73,7 +72,7 @@ public class DocumentToolsService {
         AiDocument doc = aiDocument(ref);
         long input = ai.countSummaryTokens(doc);
         requireWithinCap(input, SUMMARY_INPUT_CAP, "요약");
-        DocumentAi.Output<DocumentAi.Summary> out = withBudget("summary", fileId, userId, ref, input, SUMMARY_OUTPUT_RESERVE,
+        DocumentAi.Output<DocumentAi.Summary> out = withBudget("summary", fileId, userId, ref, input, DocumentAi.SUMMARY_MAX_OUTPUT_TOKENS,
                 () -> ai.summarize(doc));
         SummaryResult result = new SummaryResult(GENERATIVE, ai.model(), out.value().summary(), out.value().keyPoints(), null);
         summaries.put(key, result);
@@ -98,9 +97,9 @@ public class DocumentToolsService {
         AiDocument doc = aiDocument(ref);
         long input = ai.countTranslationTokens(doc, lang);
         requireWithinCap(input, TRANSLATION_INPUT_CAP, "번역");
-        long reserve = Math.min(ClaudeDocumentAi.TRANSLATION_MAX_TOKENS, input * 2 + 1_024);
-        DocumentAi.Output<String> out = withBudget("translate-" + lang, fileId, userId, ref, input, reserve,
-                () -> ai.translate(doc, lang));
+        long maxOutput = DocumentAi.translationMaxOutputTokens(input);
+        DocumentAi.Output<String> out = withBudget("translate-" + lang, fileId, userId, ref, input, maxOutput,
+                () -> ai.translate(doc, lang, maxOutput));
         TranslationResult result = new TranslationResult(out.value(), lang.name(), null, "claude", ai.model());
         translations.put(key, result);
         return result;
@@ -136,7 +135,7 @@ public class DocumentToolsService {
         }
     }
 
-    /** 하루 토큰 한도에 예약 → 호출 → 정산(실패하면 예약 취소) */
+    /** 하루 토큰 한도에 예약 → 호출 → 정산(과금 전 실패면 예약 취소, 과금 뒤 실패면 쓴 만큼) */
     private <T> DocumentAi.Output<T> withBudget(String task, Long fileId, Long userId, DocumentRef ref, long input,
                                                 long outputReserve, Supplier<DocumentAi.Output<T>> call) {
         String budgetKey = "ai-tokens:" + userId;
@@ -150,6 +149,13 @@ public class DocumentToolsService {
         DocumentAi.Output<T> out;
         try {
             out = call.get();
+        } catch (DocumentAi.BilledFailure e) {
+            // 응답을 받은 뒤의 실패는 이미 과금됨 — 아는 사용량을, 모르면 예약분 전부를 남깁니다 [H-2]
+            long used = e.totalTokens() == null ? reserve : e.totalTokens();
+            rateLimiter.release(budgetKey, reserve);
+            rateLimiter.charge(budgetKey, used, DAY);
+            log.info("AI {} failed after billing file={} version={} code={} tokens={}", task, fileId, ref.versionId(), e.code(), used);
+            throw e;
         } catch (RuntimeException e) {
             rateLimiter.release(budgetKey, reserve);
             throw e;
