@@ -41,7 +41,7 @@ write('meeting.md', """# 3분기 제품 회의록
 | 이도윤 | 공유 링크 만료 알림 | 다음 회의 전 |
 | 박서연 | 미리보기 화면 시안 | 이번 주 |
 """)
-write('server.log', ''.join(f'2026-10-12T03:{i:02d}:00Z INFO  request id={1000 + i} path=/api/folders status=200 ms={12 + i % 7}\n' for i in range(30))
+write('server-log.txt', ''.join(f'2026-10-12T03:{i:02d}:00Z INFO  request id={1000 + i} path=/api/folders status=200 ms={12 + i % 7}\n' for i in range(30))
       + '2026-10-12T03:30:00Z WARN  upload rejected: storage quota exceeded user=demo2\n')
 write('requirements.csv', '항목,담당,상태,메모\n공유 링크 비밀번호,김하늘,완료,4자 이상\n버전 서명,이도윤,진행 중,현재 버전만\n채팅 파일 미리보기,박서연,대기,"이미지, PDF 우선"\n')
 write('settings.json', json.dumps({'app': 'SmartCollab', 'features': {'share': True, 'versions': True, 'chat': True},

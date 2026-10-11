@@ -260,7 +260,7 @@ public class DemoDataSeeder {
         Map<String, String> files = new LinkedHashMap<>();
         files.put("memo.txt", "메모.txt");
         files.put("meeting.md", "회의록.md");
-        files.put("server.log", "서버.log");
+        files.put("server-log.txt", "서버.log");   // 저장소의 .gitignore 가 *.log 를 빼므로 다른 이름으로 둠
         files.put("requirements.csv", "요구사항.csv");
         files.put("settings.json", "설정.json");
         files.put("report.pdf", "보고서.pdf");
