@@ -1,0 +1,455 @@
+{
+  "results": [
+    {
+      "area": "개인",
+      "file": "(6개)",
+      "item": "폴더 만들기·여러 파일 올리기",
+      "ok": true,
+      "detail": "보고서.pdf, 입사 안내.docx, 요구사항.csv, 회의록.md, 설정.json, 사진.png"
+    },
+    {
+      "area": "개인",
+      "file": "보고서.pdf",
+      "item": "미리보기",
+      "ok": true,
+      "detail": "내장 뷰어(iframe), application/pdf"
+    },
+    {
+      "area": "개인",
+      "file": "보고서.pdf",
+      "item": "내려받기",
+      "ok": true,
+      "detail": "이름·SHA-256 일치 (77,166 B)"
+    },
+    {
+      "area": "개인",
+      "file": "보고서.pdf",
+      "item": "AI 요약",
+      "ok": true,
+      "detail": "이 문서는 9월 말 기준 저장 공간 사용량을 정리한 보고서입니다. 전체 사용량은 412GB로 8월보다 9% 늘었으며, 증가분の"
+    },
+    {
+      "area": "개인",
+      "file": "보고서.pdf",
+      "item": "번역(영어)",
+      "ok": true,
+      "detail": "Storage Usage Report / As of the end of September, total storage usage"
+    },
+    {
+      "area": "개인",
+      "file": "입사 안내.docx",
+      "item": "미리보기",
+      "ok": true,
+      "detail": "로컬 저장소라 Office 뷰어 대신 안내(설계대로) · 요약·번역 도구 표시"
+    },
+    {
+      "area": "개인",
+      "file": "입사 안내.docx",
+      "item": "내려받기",
+      "ok": true,
+      "detail": "이름·SHA-256 일치 (1,676 B)"
+    },
+    {
+      "area": "개인",
+      "file": "입사 안내.docx",
+      "item": "AI 요약",
+      "ok": true,
+      "detail": "신규 입사자를 위한 안내 문서입니다. 첫 주 일정으로 계정 발급, 보안 교육, 팀 소개가 진행되며, 업무 규칙과 자주 묻는 질"
+    },
+    {
+      "area": "개인",
+      "file": "입사 안내.docx",
+      "item": "번역(중국어(간체))",
+      "ok": true,
+      "detail": "新员工须知 / 第一周将进行账户开通、安全培训和团队介绍。 / 公共云盘中的“入职”文件夹里有工作规则和常见问题。 / 如在团队聊天室留言提"
+    },
+    {
+      "area": "개인",
+      "file": "요구사항.csv",
+      "item": "미리보기",
+      "ok": true,
+      "detail": "본문 표시(\"공유 링크 만료 단축\")"
+    },
+    {
+      "area": "개인",
+      "file": "요구사항.csv",
+      "item": "내려받기",
+      "ok": true,
+      "detail": "이름·SHA-256 일치 (244 B)"
+    },
+    {
+      "area": "개인",
+      "file": "요구사항.csv",
+      "item": "AI 요약",
+      "ok": true,
+      "detail": "요구사항 목록을 담은 CSV 파일로, 항목, 담당, 상태, 메모 네 개의 열로 구성되어 있습니다. 총 세 개의 항목이 있으며,"
+    },
+    {
+      "area": "개인",
+      "file": "요구사항.csv",
+      "item": "번역(일본어)",
+      "ok": true,
+      "detail": "項目,担当,状態,メモ / 共有リンクの有効期限短縮,김하늘,進行中,\"セキュリティ点検の指摘、3日に\" / バージョン一覧インデックス,이"
+    },
+    {
+      "area": "개인",
+      "file": "회의록.md",
+      "item": "미리보기",
+      "ok": true,
+      "detail": "본문 표시(\"3분기 제품 회의록\")"
+    },
+    {
+      "area": "개인",
+      "file": "회의록.md",
+      "item": "내려받기",
+      "ok": true,
+      "detail": "이름·SHA-256 일치 (1,292 B)"
+    },
+    {
+      "area": "개인",
+      "file": "회의록.md",
+      "item": "AI 요약",
+      "ok": true,
+      "detail": "9월 24일에 열린 3분기 제품 회의의 회의록이다. 파일 공유 링크 만료 기간 단축, 채팅 메시지 보관 정책, 10월 출시 범"
+    },
+    {
+      "area": "개인",
+      "file": "회의록.md",
+      "item": "번역(영어)",
+      "ok": true,
+      "detail": "# Q3 Product Meeting Minutes / Date: September 24, 14:00 · Attendees: "
+    },
+    {
+      "area": "개인",
+      "file": "설정.json",
+      "item": "미리보기",
+      "ok": true,
+      "detail": "본문 표시(\"알림 설정\")"
+    },
+    {
+      "area": "개인",
+      "file": "설정.json",
+      "item": "내려받기",
+      "ok": true,
+      "detail": "이름·SHA-256 일치 (114 B)"
+    },
+    {
+      "area": "개인",
+      "file": "설정.json",
+      "item": "AI 요약",
+      "ok": true,
+      "detail": "이 문서는 '설정.json' 파일로, 알림 설정 정보를 담은 짧은 JSON 문서입니다. 새 버전이 저장되면 팀에 알리는 알림이"
+    },
+    {
+      "area": "개인",
+      "file": "설정.json",
+      "item": "번역(일본어)",
+      "ok": false,
+      "detail": "locator.waitFor: Timeout 90000ms exceeded. (fail-1.png)"
+    },
+    {
+      "area": "개인",
+      "file": "사진.png",
+      "item": "미리보기",
+      "ok": true,
+      "detail": "이미지 400×240"
+    },
+    {
+      "area": "개인",
+      "file": "사진.png",
+      "item": "내려받기",
+      "ok": true,
+      "detail": "이름·SHA-256 일치 (855 B)"
+    },
+    {
+      "area": "개인",
+      "file": "사진.png",
+      "item": "요약·번역 도구 없음",
+      "ok": true,
+      "detail": "이미지에는 단추가 없음(설계대로)"
+    },
+    {
+      "area": "개인",
+      "file": "회의록.md",
+      "item": "편집·저장(새 버전)",
+      "ok": true,
+      "detail": "저장 알림·버전 기록 2개"
+    },
+    {
+      "area": "개인",
+      "file": "회의록.md",
+      "item": "편집기에서 AI 요약(새 버전)",
+      "ok": true,
+      "detail": "9월 24일 열린 3분기 제품 회의록으로, 김하늘(PM), 이도윤(백엔드), 박서연(프론트), 최민준(QA)이 참석했다. 링크"
+    },
+    {
+      "area": "개인",
+      "file": "회의록.md",
+      "item": "편집 뒤 내려받기에 반영",
+      "ok": true,
+      "detail": "편집한 줄 포함"
+    },
+    {
+      "area": "개인",
+      "file": "보고서.pdf",
+      "item": "공유 링크 만들기(비밀번호·1회)",
+      "ok": true,
+      "detail": "링크 생성·복사"
+    },
+    {
+      "area": "개인",
+      "file": "보고서.pdf",
+      "item": "로그인 없이 링크로 내려받기",
+      "ok": true,
+      "detail": "틀린 비밀번호 거절(\"비밀번호가 일치하지 않습니다.\") · 내려받기 SHA 일치 · 1회 뒤 \"링크를 사용할 수 없습니다 만료되었거나 다운로드 횟수를 모두 사용한 링크입니다.\""
+    },
+    {
+      "area": "팀",
+      "file": "(6개)",
+      "item": "폴더 만들기·여러 파일 올리기",
+      "ok": true,
+      "detail": "보고서.pdf, 입사 안내.docx, 요구사항.csv, 회의록.md, 설정.json, 사진.png"
+    },
+    {
+      "area": "팀",
+      "file": "보고서.pdf",
+      "item": "미리보기",
+      "ok": true,
+      "detail": "내장 뷰어(iframe), application/pdf"
+    },
+    {
+      "area": "팀",
+      "file": "보고서.pdf",
+      "item": "내려받기",
+      "ok": true,
+      "detail": "이름·SHA-256 일치 (77,166 B)"
+    },
+    {
+      "area": "팀",
+      "file": "보고서.pdf",
+      "item": "AI 요약",
+      "ok": true,
+      "detail": "이 문서는 9월 말 기준 저장 공간 사용량을 정리한 보고서입니다. 전체 사용량은 412GB로 8월보다 9% 늘었으며, 증가분の"
+    },
+    {
+      "area": "팀",
+      "file": "보고서.pdf",
+      "item": "번역(영어)",
+      "ok": true,
+      "detail": "Storage Usage Report / As of the end of September, total storage usage"
+    },
+    {
+      "area": "팀",
+      "file": "입사 안내.docx",
+      "item": "미리보기",
+      "ok": true,
+      "detail": "로컬 저장소라 Office 뷰어 대신 안내(설계대로) · 요약·번역 도구 표시"
+    },
+    {
+      "area": "팀",
+      "file": "입사 안내.docx",
+      "item": "내려받기",
+      "ok": true,
+      "detail": "이름·SHA-256 일치 (1,676 B)"
+    },
+    {
+      "area": "팀",
+      "file": "입사 안내.docx",
+      "item": "AI 요약",
+      "ok": true,
+      "detail": "신규 입사자를 위한 안내 문서로, 입사 첫 주의 진행 내용과 참고 자료 위치, 질문 방법을 설명합니다. 첫 주에는 계정 발급,"
+    },
+    {
+      "area": "팀",
+      "file": "입사 안내.docx",
+      "item": "번역(중국어(간체))",
+      "ok": true,
+      "detail": "新员工指南 / 第一周将进行账户开通、安全培训和团队介绍。 / 共用云盘中的“入职”文件夹里有工作规则和常见问题。 / 如果在团队聊天室留下"
+    },
+    {
+      "area": "팀",
+      "file": "요구사항.csv",
+      "item": "미리보기",
+      "ok": true,
+      "detail": "본문 표시(\"공유 링크 만료 단축\")"
+    },
+    {
+      "area": "팀",
+      "file": "요구사항.csv",
+      "item": "내려받기",
+      "ok": true,
+      "detail": "이름·SHA-256 일치 (244 B)"
+    },
+    {
+      "area": "팀",
+      "file": "요구사항.csv",
+      "item": "AI 요약",
+      "ok": true,
+      "detail": "이 문서는 요구사항 항목별 담당자, 상태, 메모를 정리한 CSV 파일입니다. 세 가지 항목이 있으며, 공유 링크 만료 단축은 "
+    },
+    {
+      "area": "팀",
+      "file": "요구사항.csv",
+      "item": "번역(일본어)",
+      "ok": true,
+      "detail": "項目,担当,状態,メモ / 共有リンクの有効期限短縮,김하늘,進行中,\"セキュリティ点検の指摘、3日へ\" / バージョン一覧インデックス,이"
+    },
+    {
+      "area": "팀",
+      "file": "회의록.md",
+      "item": "미리보기",
+      "ok": true,
+      "detail": "본문 표시(\"3분기 제품 회의록\")"
+    },
+    {
+      "area": "팀",
+      "file": "회의록.md",
+      "item": "내려받기",
+      "ok": true,
+      "detail": "이름·SHA-256 일치 (1,292 B)"
+    },
+    {
+      "area": "팀",
+      "file": "회의록.md",
+      "item": "AI 요약",
+      "ok": true,
+      "detail": "9월 24일 열린 3분기 제품 회의록으로, 김하늘(PM), 이도윤(백엔드), 박서연(프론트), 최민준(QA)이 참석했다. 링크"
+    },
+    {
+      "area": "팀",
+      "file": "회의록.md",
+      "item": "번역(영어)",
+      "ok": true,
+      "detail": "# Q3 Product Meeting Minutes / Date: September 24, 14:00 · Attendees: "
+    },
+    {
+      "area": "팀",
+      "file": "설정.json",
+      "item": "미리보기",
+      "ok": true,
+      "detail": "본문 표시(\"알림 설정\")"
+    },
+    {
+      "area": "팀",
+      "file": "설정.json",
+      "item": "내려받기",
+      "ok": true,
+      "detail": "이름·SHA-256 일치 (114 B)"
+    },
+    {
+      "area": "팀",
+      "file": "설정.json",
+      "item": "AI 요약",
+      "ok": true,
+      "detail": "이 문서는 \"설정.json\" 파일로, 알림 설정 내용을 담고 있습니다. 새 버전이 저장되면 팀에 알리도록 되어 있으며, 해당 "
+    },
+    {
+      "area": "팀",
+      "file": "설정.json",
+      "item": "번역(일본어)",
+      "ok": false,
+      "detail": "locator.waitFor: Timeout 90000ms exceeded. (fail-2.png)"
+    },
+    {
+      "area": "팀",
+      "file": "사진.png",
+      "item": "미리보기",
+      "ok": true,
+      "detail": "이미지 400×240"
+    },
+    {
+      "area": "팀",
+      "file": "사진.png",
+      "item": "내려받기",
+      "ok": true,
+      "detail": "이름·SHA-256 일치 (855 B)"
+    },
+    {
+      "area": "팀",
+      "file": "사진.png",
+      "item": "요약·번역 도구 없음",
+      "ok": true,
+      "detail": "이미지에는 단추가 없음(설계대로)"
+    },
+    {
+      "area": "팀",
+      "file": "회의록.md",
+      "item": "편집·저장(새 버전)",
+      "ok": true,
+      "detail": "저장 알림·버전 기록 2개"
+    },
+    {
+      "area": "팀",
+      "file": "회의록.md",
+      "item": "편집기에서 AI 요약(새 버전)",
+      "ok": true,
+      "detail": "9월 24일에 열린 3분기 제품 회의의 회의록이다. 참석자는 김하늘(PM), 이도윤(백엔드), 박서연(프론트), 최민준(QA)"
+    },
+    {
+      "area": "팀",
+      "file": "회의록.md",
+      "item": "편집 뒤 내려받기에 반영",
+      "ok": true,
+      "detail": "편집한 줄 포함"
+    },
+    {
+      "area": "팀",
+      "file": "보고서.pdf",
+      "item": "공유 링크 만들기(비밀번호·1회)",
+      "ok": true,
+      "detail": "링크 생성·복사"
+    },
+    {
+      "area": "팀",
+      "file": "보고서.pdf",
+      "item": "로그인 없이 링크로 내려받기",
+      "ok": true,
+      "detail": "틀린 비밀번호 거절(\"비밀번호가 일치하지 않습니다.\") · 내려받기 SHA 일치 · 1회 뒤 \"링크를 사용할 수 없습니다 만료되었거나 다운로드 횟수를 모두 사용한 링크입니다.\""
+    },
+    {
+      "area": "팀 채팅",
+      "file": "-",
+      "item": "메시지 보내기 → 다른 멤버가 실시간 수신",
+      "ok": true,
+      "detail": "이도윤 화면에 표시"
+    },
+    {
+      "area": "팀 채팅",
+      "file": "채팅-입사 안내-1791729831501.docx",
+      "item": "파일 첨부해 보내기 → 다른 멤버 수신",
+      "ok": true,
+      "detail": "보낸 사람·받는 사람 모두 파일 카드 표시"
+    },
+    {
+      "area": "팀 채팅",
+      "file": "채팅-입사 안내-1791729831501.docx",
+      "item": "받은 파일 미리보기·AI 요약(팀 멤버)",
+      "ok": true,
+      "detail": "이 문서는 신규 입사자를 위한 안내문입니다. 첫 주의 진행 일정(계정 발급, 보안 교육, 팀 소개)을 알려주"
+    },
+    {
+      "area": "팀 채팅",
+      "file": "채팅-입사 안내-1791729831501.docx",
+      "item": "받은 파일 내려받기",
+      "ok": true,
+      "detail": "SHA 일치 (채팅-입사 안내-1791729831501.docx)"
+    },
+    {
+      "area": "권한",
+      "file": "보고서.pdf",
+      "item": "팀 밖 사용자 접근(내려받기·요약·번역)",
+      "ok": true,
+      "detail": "모두 404 (404, 404, 404, 404)"
+    }
+  ],
+  "problems": [
+    "[김하늘] 502 POST http://localhost:8090/api/files/14/translation?target=JA",
+    "[김하늘] console: Failed to load resource: the server responded with a status of 502 ()",
+    "[anonymous] console: Failed to load resource: the server responded with a status of 403 ()",
+    "[anonymous] console: Failed to load resource: the server responded with a status of 410 ()",
+    "[김하늘] 502 POST http://localhost:8090/api/files/20/translation?target=JA",
+    "[김하늘] console: Failed to load resource: the server responded with a status of 502 ()",
+    "[anonymous] console: Failed to load resource: the server responded with a status of 403 ()",
+    "[anonymous] console: Failed to load resource: the server responded with a status of 410 ()"
+  ]
+}
