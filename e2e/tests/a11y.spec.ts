@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright'
 import type { Page } from '@playwright/test'
 import { expect, test } from './fixtures'
-import { login, openDemoTeam } from './helpers'
+import { login, newUserPage, openDemoTeam } from './helpers'
 
 /** WCAG 2.1 A·AA 와 axe 의 모범 사례 규칙 */
 const RULE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice']
@@ -20,6 +20,8 @@ test('[UX-01] 주요 화면에 접근성 위반(WCAG 2.1 AA·모범 사례)이 �
   expect(await violations(page), '로그인').toEqual([])
 
   await login(page, 'demo1')
+  // 드라이브 화면은 지연 로딩이라, 그려진 뒤에 검사합니다(로딩 화면 자체도 main·h1 을 가짐)
+  await page.getByRole('heading', { level: 1, name: '내 드라이브' }).waitFor()
   expect(await violations(page), '내 드라이브').toEqual([])
 
   await openDemoTeam(page)
@@ -75,6 +77,20 @@ test('[QA-09~13] 팀 멤버·팀 메뉴·없는 폴더·공유 받기·좁은 �
   await page.goto('/drive')
   await page.getByRole('button', { name: '메뉴 열기' }).waitFor()
   expect(await violations(page), '좁은 화면 내 드라이브').toEqual([])
+})
+
+// 안 읽은 채팅 표시는 역할 없는 span 의 aria-label(axe 가 금지하는 형태)이었고, 위의 검사들은 안 읽은 메시지가 없는 상태만 봤습니다 [M-7]
+test('[M-7] 다른 멤버의 새 메시지로 안 읽은 표시가 떠 있어도 접근성 위반이 없다', async ({ browser, page }) => {
+  await login(page, 'demo1')
+  const other = await newUserPage(browser, 'demo2')
+  await openDemoTeam(other)
+  await other.getByLabel('메시지').fill(`안 읽은 표시 ${Date.now()}`)
+  await other.getByLabel('메시지').press('Enter')
+
+  await page.getByRole('heading', { level: 1, name: '내 드라이브' }).waitFor()
+  await expect(page.getByRole('img', { name: '새 채팅 메시지' })).toBeVisible({ timeout: 5000 })
+  expect(await violations(page), '안 읽은 표시가 있는 내 드라이브').toEqual([])
+  await other.context().close()
 })
 
 test('[UX-02] 화면마다 탭 제목이 바뀐다', async ({ page }) => {

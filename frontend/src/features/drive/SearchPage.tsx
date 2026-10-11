@@ -34,6 +34,9 @@ export default function SearchPage() {
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
         {results.isPending && q && <Spinner className="p-6" />}
+        {results.isError && (
+          <p role="alert" className="px-4 py-6 text-sm text-red-600 sm:px-6">검색하지 못했습니다. {results.error.message}</p>
+        )}
         {results.data?.length === 0 && <EmptyState icon={SearchX} title="일치하는 파일이 없습니다" description="다른 검색어를 입력해 보세요." />}
         <ul>
           {results.data?.map((r) => (

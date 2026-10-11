@@ -4,6 +4,7 @@ import { Copy, KeyRound, Link2, Trash2 } from 'lucide-react'
 import { shareApi } from '@/api/endpoints'
 import type { Item } from '@/api/types'
 import { Button, IconButton } from '@/components/ui/Button'
+import { useConfirm } from '@/components/ui/Confirm'
 import { Dialog } from '@/components/ui/Dialog'
 import { Badge, Spinner } from '@/components/ui/misc'
 import { useToast } from '@/components/ui/Toast'
@@ -34,6 +35,7 @@ export function ShareDialog({ file, onClose }: { file: Item | null; onClose: () 
 function ShareLinks({ fileId }: { fileId: number }) {
   const qc = useQueryClient()
   const toast = useToast()
+  const confirm = useConfirm()
   const [password, setPassword] = useState('')
   const [expiry, setExpiry] = useState(3)
   const [limit, setLimit] = useState('')
@@ -63,6 +65,17 @@ function ShareLinks({ fileId }: { fileId: number }) {
     },
     onError: (e: Error) => toast.error(e.message),
   })
+
+  // 해제하면 링크를 받은 사람들의 주소가 바로 끊기므로 확인을 받습니다 [L-8]
+  const askRevoke = async (id: number) => {
+    const ok = await confirm({
+      title: '공유 링크를 해제할까요?',
+      message: '이 링크를 받은 사람은 더 이상 내려받을 수 없습니다. 되돌릴 수 없습니다.',
+      confirmLabel: '해제',
+      danger: true,
+    })
+    if (ok) revoke.mutate(id)
+  }
 
   const copy = async (path: string) => {
     const url = `${window.location.origin}${path}`
@@ -110,6 +123,7 @@ function ShareLinks({ fileId }: { fileId: number }) {
 
       <h3 className="mt-6 mb-2 text-sm font-semibold text-slate-700">만든 링크</h3>
       {links.isPending && <Spinner />}
+      {links.isError && <p role="alert" className="text-sm text-red-600">링크 목록을 불러오지 못했습니다. {links.error.message}</p>}
       {links.data?.length === 0 && <p className="text-sm text-slate-500">아직 만든 링크가 없습니다.</p>}
       <ul className="grid gap-2">
         {links.data?.map((l) => (
@@ -132,7 +146,8 @@ function ShareLinks({ fileId }: { fileId: number }) {
             <IconButton label="링크 복사" onClick={() => copy(l.path)} disabled={!l.active}>
               <Copy className="size-4" />
             </IconButton>
-            <IconButton label="링크 해제" onClick={() => revoke.mutate(l.id)}>
+            <IconButton label="링크 해제" onClick={() => void askRevoke(l.id)}
+              disabled={revoke.isPending && revoke.variables === l.id}>
               <Trash2 className="size-4 text-red-500" />
             </IconButton>
           </li>

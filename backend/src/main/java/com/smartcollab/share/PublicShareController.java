@@ -1,6 +1,5 @@
 package com.smartcollab.share;
 
-import com.smartcollab.file.FileService;
 import com.smartcollab.global.security.ClientIp;
 import com.smartcollab.global.util.FileResponses;
 import io.swagger.v3.oas.annotations.Operation;
@@ -24,7 +23,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class PublicShareController {
 
     private final ShareService shareService;
-    private final FileService fileService;
 
     @GetMapping
     public ShareDtos.PublicInfo info(@PathVariable String token) {
@@ -42,7 +40,7 @@ public class PublicShareController {
     @Operation(summary = "다운로드", description = "비밀번호가 걸린 링크는 unlock 으로 받은 grant 가 필요합니다. 호출마다 다운로드 횟수가 1 차감됩니다.")
     @GetMapping("/download")
     public ResponseEntity<Resource> download(@PathVariable String token, @RequestParam(required = false) String grant) {
-        FileService.DownloadTarget target = shareService.consume(token, grant);
-        return FileResponses.stream(fileService.open(target), target.size(), target.filename(), false);
+        ShareService.Download download = shareService.download(token, grant);
+        return FileResponses.stream(download.stream(), download.target().size(), download.target().filename(), false);
     }
 }

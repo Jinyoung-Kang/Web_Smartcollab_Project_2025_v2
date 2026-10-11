@@ -1,10 +1,11 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { shareApi } from '@/api/endpoints'
 import { ApiError } from '@/api/http'
 import type { Item, ShareLink } from '@/api/types'
+import { ConfirmProvider } from '@/components/ui/Confirm'
 import { ToastProvider } from '@/components/ui/Toast'
 import { ShareDialog } from './ShareDialog'
 
@@ -21,7 +22,9 @@ function setup(initial: Item | null) {
   client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   const wrap = (node: ReactNode) => (
     <QueryClientProvider client={client}>
-      <ToastProvider>{node}</ToastProvider>
+      <ToastProvider>
+        <ConfirmProvider>{node}</ConfirmProvider>
+      </ToastProvider>
     </QueryClientProvider>
   )
   const view = render(wrap(<ShareDialog file={initial} onClose={vi.fn()} />))
@@ -66,7 +69,26 @@ describe('ShareDialog', () => {
     const user = userEvent.setup()
     setup(file(1, 'A.txt'))
     await user.click(await screen.findByRole('button', { name: '링크 해제' }))
+    await user.click(within(await screen.findByRole('dialog', { name: '공유 링크를 해제할까요?' })).getByRole('button', { name: '해제' }))
 
     expect(await screen.findByText('파일을 올린 사람 또는 팀장만 공유 링크를 관리할 수 있습니다.')).toBeInTheDocument()
+  })
+
+  it('[L-8] 링크 해제는 확인을 받는다 — 누르자마자 해제돼 받은 사람들의 주소가 바로 끊겼음', async () => {
+    vi.spyOn(shareApi, 'list').mockResolvedValue([link])
+    const revoke = vi.spyOn(shareApi, 'revoke').mockResolvedValue(undefined)
+    const user = userEvent.setup()
+    setup(file(1, 'A.txt'))
+    await user.click(await screen.findByRole('button', { name: '링크 해제' }))
+    await user.click(within(await screen.findByRole('dialog', { name: '공유 링크를 해제할까요?' })).getByRole('button', { name: '취소' }))
+
+    expect(revoke).not.toHaveBeenCalled()
+  })
+
+  it('[L-8] 링크 목록을 불러오지 못하면 알린다 — 이전에는 빈 화면', async () => {
+    vi.spyOn(shareApi, 'list').mockRejectedValue(new ApiError(500, 'INTERNAL', '서버 오류'))
+    setup(file(1, 'A.txt'))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('링크 목록을 불러오지 못했습니다')
   })
 })

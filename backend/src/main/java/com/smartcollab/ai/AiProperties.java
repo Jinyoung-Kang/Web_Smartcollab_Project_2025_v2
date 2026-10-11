@@ -16,9 +16,12 @@ import java.time.Duration;
  * @param tokensPerUserPerDay 한 사용자가 24시간 동안 쓸 수 있는 토큰(입력+출력) [AI-03]
  * @param maxDocumentSize     PDF·Word 문서 크기 상한 [AI-02]
  * @param timeout             요청 하나의 시간 상한
+ * @param translationTimeout  번역(스트리밍) 하나의 시간 상한 [H-2]
+ * @param maxConcurrent       서버 전체에서 동시에 돌리는 요약·번역 수 [M-1]
  */
 @ConfigurationProperties(prefix = "app.ai")
-public record AiProperties(String apiKey, String model, String summaryEffort, String translationEffort, long tokensPerUserPerDay, DataSize maxDocumentSize, Duration timeout) {
+public record AiProperties(String apiKey, String model, String summaryEffort, String translationEffort, long tokensPerUserPerDay, DataSize maxDocumentSize, Duration timeout,
+                          Duration translationTimeout, int maxConcurrent) {
 
     public boolean enabled() {
         return StringUtils.hasText(apiKey);

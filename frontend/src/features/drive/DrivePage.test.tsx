@@ -86,6 +86,20 @@ describe('DrivePage — 팀 패널', () => {
 
     expect(panel.lastVisible).toBe(true)
   })
+
+  it('[L-8] 좁은 화면의 팀 패널은 Esc 로 닫히고, 초점이 연 단추로 돌아온다', async () => {
+    renderDrive(false)
+    await screen.findByRole('button', { name: '회의록' })
+    const user = userEvent.setup()
+    const open = screen.getByRole('button', { name: /팀 채팅·멤버/ })
+    await user.click(open)
+    expect(screen.getByRole('complementary', { name: '팀 패널' })).toContainElement(document.activeElement as HTMLElement)
+
+    await user.keyboard('{Escape}')
+
+    expect(panel.lastVisible).toBe(false)
+    expect(open).toHaveFocus()
+  })
 })
 
 describe('DrivePage — 변경 뒤 다시 불러오기', () => {

@@ -208,6 +208,8 @@ public class TeamService {
         if (next.getId().equals(current.getId())) {
             throw ApiException.badRequest("이미 팀장입니다.");
         }
+        // 매일 초기화는 체험 계정이 이끄는 팀을 영구 삭제합니다 — 일반 사용자의 팀이 체험 계정에게 넘어가면 그 팀이 통째로 사라졌습니다 [H-3]
+        demoAccounts.forbidIfDemo(next.getUser(), "체험 계정에게는 팀장을 넘길 수 없습니다.");
         // 팀을 만들 때와 같은 상한을 넘겨받을 때도 지킵니다 — 이전에는 위임으로 한 사람이 10개 넘게 이끌 수 있었습니다 [S-10].
         int max = props.quota().teamsPerUser();
         if (teams.countByOwnerId(next.getUser().getId()) >= max) {

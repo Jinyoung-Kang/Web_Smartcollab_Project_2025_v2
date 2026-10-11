@@ -1,0 +1,20 @@
+# 2MB 텍스트(문장 299,593개) 추출 요약 — qa/scripts/probes/run-summary-minheap.sh
+# 성공하는 최소 힙: 수정 전 80MB → 수정 후 32MB, 시간은 같음(약 0.5초)
+== 수정 전 (78fa304, 문장마다 토큰 목록을 들고 전체 정렬)
+mode=text-2mb xmx=24MB OOM ms=174 heapPeakMB=30
+mode=text-2mb xmx=32MB OOM ms=470 heapPeakMB=39
+mode=text-2mb xmx=40MB OOM ms=524 heapPeakMB=56
+mode=text-2mb xmx=48MB OOM ms=691 heapPeakMB=69
+mode=text-2mb xmx=64MB OOM ms=780 heapPeakMB=91
+mode=text-2mb xmx=80MB chars=2097151 sentences=299593 ms=2067 heapPeakMB=112
+mode=text-2mb xmx=96MB chars=2097151 sentences=299593 ms=596 heapPeakMB=117
+mode=text-2mb xmx=112MB chars=2097151 sentences=299593 ms=520 heapPeakMB=125
+== 수정 후 (토큰 목록을 들고 있지 않고 상위 k 개만)
+mode=text-2mb xmx=24MB OOM ms=165 heapPeakMB=30
+mode=text-2mb xmx=32MB chars=2097151 sentences=299593 ms=536 heapPeakMB=35
+mode=text-2mb xmx=40MB chars=2097151 sentences=299593 ms=512 heapPeakMB=45
+mode=text-2mb xmx=48MB chars=2097151 sentences=299593 ms=538 heapPeakMB=51
+mode=text-2mb xmx=64MB chars=2097151 sentences=299593 ms=534 heapPeakMB=58
+mode=text-2mb xmx=80MB chars=2097151 sentences=299593 ms=498 heapPeakMB=62
+mode=text-2mb xmx=96MB chars=2097151 sentences=299593 ms=510 heapPeakMB=64
+mode=text-2mb xmx=112MB chars=2097151 sentences=299593 ms=547 heapPeakMB=69

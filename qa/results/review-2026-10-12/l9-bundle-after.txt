@@ -1,0 +1,4 @@
+# 변경 후 — 로그인 화면·앱 틀·드라이브를 지연 로딩(b91ee12), node v24.3.0, vite build
+/share/:token (비로그인)	JS 8개	376.1 KB	gzip 121.6 KB	index-Cfp2K8km.js queryKeys-Cl3GnZE9.js Toast-CHRUDhKX.js SharePage-CKnitGwg.js download-DXlMcKER.js fileIcons-BnIojCJY.js key-round-DKmsy54P.js format-DBsBQvpY.js
+/login	JS 7개	375.1 KB	gzip 121.4 KB	index-Cfp2K8km.js queryKeys-Cl3GnZE9.js Toast-CHRUDhKX.js LoginPage-Dx6EkcLy.js messages-square-DOwqq4mV.js rotate-ccw-clock-BPGeloMu.js sparkles-B_cjIu-u.js
+/drive (로그인 뒤)	JS 19개	487.8 KB	gzip 160.3 KB	index-Cfp2K8km.js queryKeys-Cl3GnZE9.js Toast-CHRUDhKX.js AppShell-DQ-iBQMY.js useMutation-B92j9QHo.js UploadProvider-KOrEn22O.js driveCache-BB2QNdYe.js format-DBsBQvpY.js DrivePage-WwgVXfvs.js VersionHistoryDialog-BsfEy9fE.js rotate-ccw-Bc7Xs4MC.js DocumentTools-Dy-TPHV7.js sparkles-B_cjIu-u.js download-DXlMcKER.js fileIcons-BnIojCJY.js PreviewDialog-CyQB37sc.js key-round-DKmsy54P.js messages-square-DOwqq4mV.js rotate-ccw-clock-BPGeloMu.js

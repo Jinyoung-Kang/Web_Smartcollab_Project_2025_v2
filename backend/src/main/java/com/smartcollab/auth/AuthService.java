@@ -5,6 +5,7 @@ import com.smartcollab.folder.RootFolders;
 import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.error.ErrorCode;
+import com.smartcollab.global.tx.TransactionRunner;
 import com.smartcollab.global.security.JwtTokenService;
 import com.smartcollab.global.security.SecurityEventLog;
 import com.smartcollab.global.security.SlidingWindowRateLimiter;
@@ -33,6 +34,7 @@ public class AuthService {
     private final JwtTokenService tokens;
     private final SlidingWindowRateLimiter rateLimiter;
     private final AppProperties props;
+    private final TransactionRunner tx;
 
     /** 존재하지 않는 아이디로 로그인할 때도 BCrypt 비교를 수행해 응답 시간으로 계정 존재 여부를 추측하지 못하게 합니다. */
     private static final Pattern USERNAME = Pattern.compile(AuthDtos.USERNAME_REGEX);
@@ -40,7 +42,6 @@ public class AuthService {
     private volatile String dummyHash;
 
     /** 외부 요청의 가입. 한 IP 에서 계정을 대량으로 만드는 것을 막습니다 [SEC-05]. */
-    @Transactional
     public Account signUp(AuthDtos.SignUpRequest req, String clientIp) {
         if (!rateLimiter.tryAcquire("signup:" + clientIp, props.rateLimit().signupPerHour(), Duration.ofHours(1))) {
             SecurityEventLog.rateLimited("signup-ip", clientIp);
@@ -52,32 +53,36 @@ public class AuthService {
         return Account.of(signUp(req));
     }
 
-    /** 가입 (요청 제한 없음 — 데모 데이터 생성 등 서버 내부용). */
-    @Transactional
+    /**
+     * 가입 (요청 제한 없음 — 데모 데이터 생성 등 서버 내부용). 비밀번호 해시(bcrypt)는 트랜잭션 밖에서 만들어, 그동안 DB 커넥션을
+     * 쥐지 않습니다 [M-2]. 인증 없이 부를 수 있는 경로라 동시 요청이 풀을 차지하면 다른 API 가 커넥션을 기다렸습니다.
+     */
     public User signUp(AuthDtos.SignUpRequest req) {
         if (!req.password().equals(req.passwordConfirm())) {
             throw ApiException.badRequest("비밀번호와 비밀번호 확인이 일치하지 않습니다.");
         }
-        if (users.existsByUsername(req.username())) {
-            throw ApiException.conflict("이미 사용 중인 아이디입니다.");
-        }
+        String hash = passwordEncoder.encode(req.password());
         // v1 은 빈 이메일("")을 그대로 저장해, 이메일 없이 가입한 두 번째 사용자부터 UNIQUE 위반(500)이 났습니다.
         String email = StringUtils.hasText(req.email()) ? req.email().strip().toLowerCase(Locale.ROOT) : null;
-        if (email != null && users.existsByEmail(email)) {
-            throw ApiException.conflict("이미 사용 중인 이메일입니다.");
-        }
-        User user = users.save(new User(req.username(), passwordEncoder.encode(req.password()), req.name().strip(),
-                email, Role.USER));
-        rootFolders.createPersonal(user);
-        return user;
+        return tx.writeReadCommitted(() -> {
+            if (users.existsByUsername(req.username())) {
+                throw ApiException.conflict("이미 사용 중인 아이디입니다.");
+            }
+            if (email != null && users.existsByEmail(email)) {
+                throw ApiException.conflict("이미 사용 중인 이메일입니다.");
+            }
+            User user = users.save(new User(req.username(), hash, req.name().strip(), email, Role.USER));
+            rootFolders.createPersonal(user);
+            return user;
+        });
     }
 
     /**
      * 로그인. 시도 횟수를 IP 단위(분당)와 계정 단위(10분)로 함께 제한합니다.
      * 계정 단위 제한은 여러 IP 에서 한 계정의 비밀번호를 맞히려는 시도를 막으며, 성공하면 초기화됩니다.
      * 제한에 걸리면 비밀번호가 맞아도 거절합니다(그렇지 않으면 응답 차이로 비밀번호를 계속 맞혀 볼 수 있음).
+     * 트랜잭션 없이 사용자 조회 한 번만 DB 를 쓰고, bcrypt 비교 동안 커넥션을 쥐지 않습니다 [M-2].
      */
-    @Transactional(readOnly = true)
     public Account authenticate(String username, String password, String clientIp) {
         if (!rateLimiter.tryAcquire("login:" + clientIp, props.rateLimit().loginPerMinute(), Duration.ofMinutes(1))) {
             SecurityEventLog.rateLimited("login-ip", clientIp);

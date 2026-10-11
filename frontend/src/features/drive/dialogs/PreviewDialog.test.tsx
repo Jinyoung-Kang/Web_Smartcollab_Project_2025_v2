@@ -79,6 +79,24 @@ describe('PreviewDialog — 요약·번역 [AI-02]', () => {
     expect(screen.getByRole('button', { name: '번역' })).toBeDisabled()
   })
 
+  it('동작 고정: AI 키 없이 DeepL 만 있으면 Word 는 핵심 문장만 되고, 번역은 꺼진 채 AI 키가 필요하다고 알린다', async () => {
+    renderPreview(item(12, '기획.docx', 'OFFICE'), { translationEnabled: true, aiEnabled: false })
+
+    expect(await screen.findByRole('button', { name: /핵심 문장/ })).toBeEnabled()
+    const translate = screen.getByRole('button', { name: '번역' })
+    // 공개 설정을 받은 뒤의 안내
+    await vi.waitFor(() => expect(translate).toHaveAttribute('title', 'PDF·Word 번역은 서버에 AI API 키(ANTHROPIC_API_KEY)가 있어야 합니다'))
+    expect(translate).toBeDisabled()
+  })
+
+  it('동작 고정: AI 키가 있으면 요약·번역 단추가 모델 이름과 전송 사실을 알린다', async () => {
+    renderPreview(item(13, '보고서.pdf', 'PDF'), ai)
+
+    const summary = await screen.findByRole('button', { name: /AI 요약/ })
+    expect(summary).toHaveAttribute('title', 'AI(Claude Haiku 5.5)로 요약합니다. 문서 내용이 Anthropic(Claude API)으로 전송됩니다.')
+    expect(screen.getByRole('button', { name: '번역' })).toHaveAttribute('title', 'AI(Claude Haiku 5.5)로 번역합니다. 문서 내용이 Anthropic(Claude API)으로 전송됩니다.')
+  })
+
   it('AI 키 없이 DeepL 만 있으면 텍스트 문서는 번역할 수 있다', async () => {
     vi.spyOn(fileApi, 'content').mockResolvedValue({
       name: '메모.txt', folderId: 1, content: '안녕하세요', versionId: 1, editable: true, updatedAt: '2026-09-01T00:00:00Z',
@@ -88,4 +106,20 @@ describe('PreviewDialog — 요약·번역 [AI-02]', () => {
     const button = await screen.findByRole('button', { name: '번역' })
     await vi.waitFor(() => expect(button).toBeEnabled())
   })
+
+  it('[M-5] 요약 중에는 요약 단추가 꺼져, 연달아 눌러도 요청은 한 번 — 누를 때마다 과금됐음. 번역으로 바꾸는 것은 됨', async () => {
+    const user = userEvent.setup()
+    const summary = vi.spyOn(fileApi, 'summary').mockReturnValue(new Promise(() => {}))
+    renderPreview(item(12, '보고서.pdf', 'PDF'), ai)
+
+    const button = await screen.findByRole('button', { name: /AI 요약/ })
+    await vi.waitFor(() => expect(button).toBeEnabled())
+    await user.click(button)
+    await user.click(button)
+
+    expect(summary).toHaveBeenCalledTimes(1)
+    expect(button).toBeDisabled()
+    expect(screen.getByRole('button', { name: '번역' })).toBeEnabled()   // 다른 작업으로 바꾸기(5단계)는 그대로
+  })
 })
+

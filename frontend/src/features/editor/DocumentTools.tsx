@@ -6,9 +6,8 @@ import { Button, IconButton } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/misc'
 import { useToast } from '@/components/ui/Toast'
 import { cn } from '@/lib/cn'
+import { PRIVACY, toolAvailability } from './toolAvailability'
 import { LANGUAGES, modelName, type DocumentKind, type DocumentTools, type ToolResult } from './useDocumentTools'
-
-const PRIVACY = '문서 내용이 Anthropic(Claude API)으로 전송됩니다.'
 
 /**
  * 요약·번역 단추 [AI-01·02]. 서버에 AI 키가 있으면 Claude 로 요약·번역(텍스트·PDF·Word),
@@ -17,35 +16,22 @@ const PRIVACY = '문서 내용이 Anthropic(Claude API)으로 전송됩니다.'
 export function DocumentToolButtons({ kind, tools }: { kind: DocumentKind; tools: DocumentTools }) {
   const config = usePublicConfig()
   const [language, setLanguage] = useState<TargetLanguage>('EN')
-  const ai = !!config?.aiEnabled
-  const model = modelName(config?.aiModel)
-  const canSummarize = ai || kind !== 'PDF'
-  const canTranslate = ai || (!!config?.translationEnabled && kind === 'TEXT')
-
-  const summaryTitle = ai
-    ? `AI(${model})로 요약합니다. ${PRIVACY}`
-    : canSummarize
-      ? '저장된 최신 버전에서 중요한 문장을 고릅니다 (단어 빈도, 생성형 AI 아님)'
-      : 'PDF 요약은 서버에 AI API 키(ANTHROPIC_API_KEY)가 있어야 합니다'
-  const translateTitle = ai
-    ? `AI(${model})로 번역합니다. ${PRIVACY}`
-    : canTranslate
-      ? 'DeepL 로 번역합니다'
-      : config?.translationEnabled
-        ? 'PDF·Word 번역은 서버에 AI API 키(ANTHROPIC_API_KEY)가 있어야 합니다'
-        : '서버에 번역 API 키가 설정되지 않았습니다'
+  const { ai, canSummarize, canTranslate, summaryLabel, summaryTitle, translateTitle } = toolAvailability(kind, config)
+  // 진행 중인 작업의 단추는 끕니다 — 연달아 누르면 그만큼 요청·과금됐음 [M-5].
+  // 다른 작업으로 바꾸는 것(요약 중 번역)은 그대로 되고, 마지막에 누른 결과만 보입니다(5단계)
+  const pending = tools.tool?.kind === 'loading' ? tools.tool.action : null
 
   return (
     <>
-      <Button size="sm" variant="ghost" disabled={!canSummarize} onClick={() => void tools.summarize(ai)} title={summaryTitle}>
-        <Sparkles className="size-4" /> {ai ? 'AI 요약' : '핵심 문장'}
+      <Button size="sm" variant="ghost" disabled={!canSummarize || pending === 'summary'} onClick={() => void tools.summarize(ai)} title={summaryTitle}>
+        <Sparkles className="size-4" /> {summaryLabel}
       </Button>
       <span className="inline-flex items-center gap-1">
         <select aria-label="번역 언어" value={language} onChange={(e) => setLanguage(e.target.value as TargetLanguage)}
           className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-700">
           {LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
         </select>
-        <Button size="sm" variant="ghost" disabled={!canTranslate} onClick={() => void tools.translate(language)} title={translateTitle}>
+        <Button size="sm" variant="ghost" disabled={!canTranslate || pending === 'translation'} onClick={() => void tools.translate(language)} title={translateTitle}>
           <Languages className="size-4" /> 번역
         </Button>
       </span>

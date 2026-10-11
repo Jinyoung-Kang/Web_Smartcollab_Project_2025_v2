@@ -38,6 +38,18 @@ export function ChatTab({ teamId, team, active = true }: { teamId: number; team:
   const [text, setText] = useState('')
   const fileInput = useRef<HTMLInputElement>(null)
 
+  // 화면 읽기 프로그램에는 다른 사람이 보낸 새 메시지 하나만 알립니다 — 목록 전체가 aria-live 라 처음 불러올 때와
+  // 이전 기록을 불러올 때마다 대화가 통째로 읽혔음 [L-8]. (렌더 중 상태 조정 — effect 로 한 번 더 그리지 않음)
+  const last = messages.at(-1)
+  const [seenLastId, setSeenLastId] = useState(last?.id)
+  const [announcement, setAnnouncement] = useState('')
+  if (last?.id !== seenLastId) {
+    setSeenLastId(last?.id)
+    if (seenLastId !== undefined && last && last.id > seenLastId && last.sender.username !== me.username) {
+      setAnnouncement(`${last.sender.name}: ${last.type === 'FILE_SHARE' && last.file ? `파일 ${last.file.name}` : last.content}`)
+    }
+  }
+
   // 보이는 동안만 이 팀의 새 메시지를 "읽음"으로 칩니다. 좁은 화면에서 닫힌 패널이 보는 중으로 등록해 새 메시지
   // 표시가 뜨지 않았습니다 [FB-06].
   useEffect(() => {
@@ -51,9 +63,13 @@ export function ChatTab({ teamId, team, active = true }: { teamId: number; team:
     const checked = validateChatMessage(text)
     if (!checked) return
     if ('error' in checked) return toast.error(checked.error)
+    const written = text
     setText('')
     followNewMessages()
-    void send({ content: checked.content })
+    // 보내지 못하면 쓴 내용을 되돌립니다 — 그사이 새로 쓰기 시작했으면 덮지 않음 [M-4]
+    void send({ content: checked.content }).then((sent) => {
+      if (!sent) setText((now) => (now === '' ? written : now))
+    })
   }
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -65,7 +81,9 @@ export function ChatTab({ teamId, team, active = true }: { teamId: number; team:
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div ref={scroller} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto px-4 py-3" aria-live="polite">
+      {/* 이름을 달지 않습니다 — 읽을 내용이 곧 알림이고, '메시지' 이름의 입력란과 겹치지 않게 */}
+      <p role="status" className="sr-only">{announcement}</p>
+      <div ref={scroller} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
         {chat.isPending && <Spinner />}
         {chat.isFetchingNextPage && <Spinner className="mb-2 w-full justify-center" label="이전 메시지 불러오는 중" />}
         {chat.data && messages.length === 0 && (

@@ -100,28 +100,23 @@ public class FileContentService {
         String key = "versions/" + UUID.randomUUID();
         StoredBlob blob = storage.put(key, new ByteArrayInputStream(bytes), bytes.length);
 
-        try {
-            // READ COMMITTED: 저장 한도 확인이 잠금 읽기 없이 최신 값을 보게 합니다(다른 사용자와의 교착 방지) [QA-06]
-            return tx.writeReadCommitted(() -> {
-                FileEntity file = requireSavable(fileId, baseVersionId, userId);
-                User editor = users.findById(userId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
-                // 새 버전은 저장 공간을 더 차지하므로 한도를 확인합니다 (반복 저장으로 버전을 한없이 쌓지 못하게) [SEC-05]
-                quota.lockAndCheckRoom(StorageQuota.Scope.of(file.getFolder()), blob.size());
-                // 서명·복원과 차례로 처리되도록 새 버전 행을 넣기 전에 파일 행을 잠급니다 [S-17]. 새 버전 INSERT 의 외래 키 확인이
-                // 파일 행에 공유 잠금을 걸고 뒤이은 UPDATE 가 배타 잠금으로 올리는 사이에, 서명이 기다리며 교착되지 않게 하려는 것입니다.
-                // (이미 읽은 엔티티는 갱신되지 않지만, 그 사이 다른 변경이 있었다면 @Version 확인이 409 로 막습니다.)
-                fileService.lockActive(fileId);
-                FileVersion version = versions.save(new FileVersion(file, key, editor, blob.size(), blob.sha256()));
-                quota.record(StorageQuota.Scope.of(file.getFolder()), blob.size());
-                file.activate(version);
-                events.publishEvent(new FileEvents.CurrentVersionChanged(fileId));   // 기존 서명 무효 (서명 모듈)
-                publishChanged(file);
-                return new SaveResult(version.getId(), file.getUpdatedAt());
-            });
-        } catch (RuntimeException e) {
-            blobLifecycle.discard(List.of(key));
-            throw e;
-        }
+        // READ COMMITTED: 저장 한도 확인이 잠금 읽기 없이 최신 값을 보게 합니다(다른 사용자와의 교착 방지) [QA-06]
+        return tx.writeReadCommitted(() -> {
+            FileEntity file = requireSavable(fileId, baseVersionId, userId);
+            User editor = users.findById(userId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
+            // 새 버전은 저장 공간을 더 차지하므로 한도를 확인합니다 (반복 저장으로 버전을 한없이 쌓지 못하게) [SEC-05]
+            quota.lockAndCheckRoom(StorageQuota.Scope.of(file.getFolder()), blob.size());
+            // 서명·복원과 차례로 처리되도록 새 버전 행을 넣기 전에 파일 행을 잠급니다 [S-17]. 새 버전 INSERT 의 외래 키 확인이
+            // 파일 행에 공유 잠금을 걸고 뒤이은 UPDATE 가 배타 잠금으로 올리는 사이에, 서명이 기다리며 교착되지 않게 하려는 것입니다.
+            // (이미 읽은 엔티티는 갱신되지 않지만, 그 사이 다른 변경이 있었다면 @Version 확인이 409 로 막습니다.)
+            fileService.lockActive(fileId);
+            FileVersion version = versions.save(new FileVersion(file, key, editor, blob.size(), blob.sha256()));
+            quota.record(StorageQuota.Scope.of(file.getFolder()), blob.size());
+            file.activate(version);
+            events.publishEvent(new FileEvents.CurrentVersionChanged(fileId));   // 기존 서명 무효 (서명 모듈)
+            publishChanged(file);
+            return new SaveResult(version.getId(), file.getUpdatedAt());
+        }, () -> blobLifecycle.discard(List.of(key)));
     }
 
     /** 저장할 수 있는지(권한·형식·편집 시작 버전) 확인합니다. 저장소에 쓰기 전과 쓴 뒤에 한 번씩 봅니다. */
@@ -172,47 +167,6 @@ public class FileContentService {
         }
     }
 
-    /**
-     * 요약·번역할 문서 — 읽기 권한·형식·크기를 짧은 읽기 트랜잭션에서 확인합니다 [AI-02]. 권한을 가장 먼저 봐서, 볼 수 없는 파일은
-     * AI 설정과 상관없이 404 입니다. 내용은 {@link #loadDocument} 로 트랜잭션 밖에서 읽습니다.
-     *
-     * @param maxBytes PDF·Word 크기 상한. 텍스트 문서는 편집기 한도와 둘 중 작은 값을 씁니다
-     */
-    public DocumentRef resolveDocument(Long fileId, Long userId, long maxBytes) {
-        return tx.readOnly(() -> {
-            FileEntity file = fileService.getActive(fileId);
-            accessPolicy.requireFileRead(file, userId);
-            DocumentKind kind = DocumentKind.of(file.getName());
-            if (kind == null) {
-                throw ApiException.badRequest("요약·번역은 텍스트(txt, md, log, csv, json)·PDF·Word(docx) 문서만 지원합니다.");
-            }
-            FileVersion active = file.getActiveVersion();
-            long limit = kind == DocumentKind.TEXT ? Math.min(maxBytes, props.files().textEditMaxBytes()) : maxBytes;
-            if (active.getSize() > limit) {
-                throw new ApiException(ErrorCode.PAYLOAD_TOO_LARGE, "요약·번역할 수 있는 문서 크기(" + (limit / (1024 * 1024)) + "MB)를 넘었습니다.");
-            }
-            return new DocumentRef(file.getName(), kind, active.getId(), active.getStoredPath(), active.getSize());
-        });
-    }
-
-    /** {@link #resolveDocument} 로 확인한 버전의 내용. 읽는 사이에 새 버전이 저장돼도 확인한 버전을 읽습니다(버전마다 파일이 따로) */
-    public byte[] loadDocument(DocumentRef ref) {
-        try (InputStream in = storage.open(ref.storedPath())) {
-            return in.readNBytes((int) Math.min(Integer.MAX_VALUE - 8, ref.size()));
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    /** 요약·번역용 텍스트 */
-    public String readUtf8Content(Long fileId, Long userId, long maxBytes) {
-        TextContent text = readText(fileId, userId);
-        if (text.content().getBytes(StandardCharsets.UTF_8).length > maxBytes) {
-            throw new ApiException(ErrorCode.PAYLOAD_TOO_LARGE, "처리할 수 있는 문서 크기를 넘었습니다.");
-        }
-        return text.content();
-    }
-
     private static void requireText(FileEntity file) {
         if (!FileNames.isTextEditable(file.getName())) {
             throw ApiException.badRequest("텍스트 문서(txt, md, log, csv, json)만 지원합니다.");
@@ -236,9 +190,6 @@ public class FileContentService {
     }
 
     /** 요약·번역할 문서 — 버전 ID 가 같으면 내용도 같습니다(결과 캐시의 열쇠) */
-    public record DocumentRef(String name, DocumentKind kind, Long versionId, String storedPath, long size) {
-    }
-
     public record SaveResult(Long versionId, Instant updatedAt) {
     }
 

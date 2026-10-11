@@ -6,12 +6,14 @@ import { UploadProvider } from '@/features/drive/UploadProvider'
 import { Header } from './Header'
 import { Sidebar } from './Sidebar'
 import { cn } from '@/lib/cn'
+import { useDrawer } from '@/lib/useDrawer'
 import { useMediaQuery } from '@/lib/useMediaQuery'
 
 export function AppShell() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const location = useLocation()
   const wide = useMediaQuery('(min-width: 1024px)')
+  const drawer = useDrawer(drawerOpen && !wide, () => setDrawerOpen(false))
 
   // 화면을 이동하면 모바일 메뉴를 닫습니다 (렌더 중 상태 조정 패턴 — effect 로 한 번 더 렌더하지 않음).
   const [lastPath, setLastPath] = useState(location.pathname)
@@ -42,8 +44,9 @@ export function AppShell() {
                   onClick={() => setDrawerOpen(false)}
                 />
                 <div
+                  {...drawer.panelProps}
                   className={cn(
-                    'absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-white shadow-xl transition-transform',
+                    'absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-white shadow-xl transition-transform outline-none',
                     drawerOpen ? 'translate-x-0' : '-translate-x-full',
                   )}
                 >

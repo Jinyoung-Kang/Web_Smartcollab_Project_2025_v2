@@ -3,6 +3,8 @@ package com.smartcollab.ai;
 import com.anthropic.client.AnthropicClient;
 import com.anthropic.client.okhttp.AnthropicOkHttpClient;
 import com.anthropic.core.JsonValue;
+import com.anthropic.core.RequestOptions;
+import com.anthropic.core.Timeout;
 import com.anthropic.core.http.StreamResponse;
 import com.anthropic.errors.AnthropicException;
 import com.anthropic.errors.AnthropicIoException;
@@ -30,7 +32,8 @@ import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
-import java.util.Base64;
+import java.io.InterruptedIOException;
+import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -56,8 +59,6 @@ import java.util.stream.Collectors;
 @Component
 public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
 
-    static final long TRANSLATION_MAX_TOKENS = 64_000;
-    static final long SUMMARY_MAX_TOKENS = 8_000;
 
     static final String TRANSLATION_SYSTEM = """
             You translate documents for a team file-sharing service.
@@ -134,17 +135,49 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
     private final AnthropicClient client;
     private final OutputConfig.Effort summaryEffort;
     private final OutputConfig.Effort translationEffort;
+    private final Retry retry;
+
+    /**
+     * 과금 전 실패(429·5xx·연결 실패)를 다시 보내는 횟수와 첫 대기(두 배씩 늘림) [H-2]. SDK 의 재시도는 끕니다 — SDK 는 시간 초과까지
+     * 다시 보내는데, 시간 초과는 서버가 이미 처리해 과금했을 수 있어 다시 보내면 과금이 겹칩니다.
+     */
+    record Retry(int attempts, Duration firstDelay) {
+        static final Retry DEFAULT = new Retry(3, Duration.ofMillis(500));
+        static final Retry NONE = new Retry(1, Duration.ZERO);
+    }
 
     @Autowired
     public ClaudeDocumentAi(AiProperties props) {
-        this(props, props.enabled()
-                ? AnthropicOkHttpClient.builder().apiKey(props.apiKey()).timeout(props.timeout()).build()
-                : null);
+        this(props, props.enabled() ? client(props, null, 0) : null, Retry.DEFAULT);
+    }
+
+    /**
+     * 운영과 같은 설정의 클라이언트 — 시험은 baseUrl 만 가짜 서버로 바꿔 씁니다.
+     * AI_TIMEOUT 은 요약·토큰 세기 요청 하나의 상한이자 응답 바이트 사이의 최대 간격입니다. 번역은 요청마다 더 긴 전체 상한을 줍니다 [H-2].
+     */
+    static AnthropicClient client(AiProperties props, String baseUrl, int maxRetries) {
+        AnthropicOkHttpClient.Builder builder = AnthropicOkHttpClient.builder().apiKey(props.apiKey())
+                .timeout(timeout(props, props.timeout()))
+                .maxRetries(maxRetries);
+        if (baseUrl != null) {
+            builder.baseUrl(baseUrl);
+        }
+        return builder.build();
+    }
+
+    /** 연결 10초, 읽기·쓰기(바이트 사이 간격)는 AI_TIMEOUT, 요청 전체는 request */
+    private static Timeout timeout(AiProperties props, Duration request) {
+        return Timeout.builder().connect(Duration.ofSeconds(10)).read(props.timeout()).write(props.timeout()).request(request).build();
     }
 
     ClaudeDocumentAi(AiProperties props, AnthropicClient client) {
+        this(props, client, Retry.NONE);
+    }
+
+    ClaudeDocumentAi(AiProperties props, AnthropicClient client, Retry retry) {
         this.props = props;
         this.client = client;
+        this.retry = retry;
         this.summaryEffort = effort(props.summaryEffort());
         this.translationEffort = effort(props.translationEffort());
     }
@@ -190,17 +223,17 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
     public Output<Summary> summarize(AiDocument document) {
         MessageCreateParams params = MessageCreateParams.builder()
                 .model(props.model())
-                .maxTokens(SUMMARY_MAX_TOKENS)
+                .maxTokens(SUMMARY_MAX_OUTPUT_TOKENS)
                 .system(SUMMARY_SYSTEM)
                 .outputConfig(summaryOutput())
                 .addUserMessageOfBlockParams(blocks(document, summaryInstruction(), true))
                 .build();
-        Message message = call(() -> requireClient().messages().create(params));
+        Message message = call(() -> requireClient().messages().create(params), true);
         String json = answerText(message);
         try {
             SummaryJson parsed = JSON.readValue(json, SummaryJson.class);
             if (parsed.summary() == null || parsed.summary().isBlank()) {
-                throw new ApiException(ErrorCode.UPSTREAM_ERROR, "AI 가 빈 요약을 돌려주었습니다. 다시 시도하세요.");
+                throw billed(message, ErrorCode.UPSTREAM_ERROR, "AI 가 빈 요약을 돌려주었습니다. 다시 시도하세요.");
             }
             String source = document.text();
             List<String> points = parsed.keyPoints() == null ? List.of()
@@ -210,38 +243,68 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
                     message.usage().inputTokens(), message.usage().outputTokens());
         } catch (JacksonException e) {
             log.warn("Claude summary was not valid JSON ({} chars)", json.length());
-            throw new ApiException(ErrorCode.UPSTREAM_ERROR, "AI 의 요약 형식이 올바르지 않습니다. 다시 시도하세요.");
+            throw billed(message, ErrorCode.UPSTREAM_ERROR, "AI 의 요약 형식이 올바르지 않습니다. 다시 시도하세요.");
         }
     }
 
     @Override
-    public Output<String> translate(AiDocument document, TargetLanguage target) {
+    public Output<String> translate(AiDocument document, TargetLanguage target, long maxOutputTokens) {
         MessageCreateParams params = MessageCreateParams.builder()
                 .model(props.model())
-                .maxTokens(TRANSLATION_MAX_TOKENS)
+                .maxTokens(maxOutputTokens)
                 .system(translationSystem(target))
                 .outputConfig(OutputConfig.builder().effort(translationEffort).format(TRANSLATION_FORMAT).build())
                 .addUserMessageOfBlockParams(blocks(document, translationInstruction(target), false))
                 .build();
-        Message message = call(() -> {
-            MessageAccumulator accumulator = MessageAccumulator.create();
-            try (StreamResponse<RawMessageStreamEvent> stream = requireClient().messages().createStreaming(params)) {
-                stream.stream().forEach(accumulator::accumulate);
+        // 번역은 출력이 길어 전체 상한을 따로 둡니다(AI_TRANSLATION_TIMEOUT). 바이트가 AI_TIMEOUT 넘게 멈추면 끊습니다 [H-2]
+        RequestOptions options = RequestOptions.builder().timeout(timeout(props, props.translationTimeout())).build();
+        boolean[] started = {false};
+        Message message;
+        try {
+            message = call(() -> {
+                MessageAccumulator accumulator = MessageAccumulator.create();
+                try (StreamResponse<RawMessageStreamEvent> stream = requireClient().messages().createStreaming(params, options)) {
+                    stream.stream().forEach(event -> {
+                        started[0] = true;
+                        accumulator.accumulate(event);
+                    });
+                } catch (AnthropicException | IllegalStateException e) {
+                    // IllegalStateException: 끝 표시(message_stop) 없이 닫힌 스트림을 누적기가 거절할 때
+                    if (started[0]) {
+                        // 응답을 받기 시작한 뒤 끊김 — 이미 과금됐지만 얼마인지 모름. 다시 보내지 않음
+                        log.warn("Claude translation stream broke after it started: {}", e.getClass().getSimpleName());
+                        throw new BilledFailure(ErrorCode.UPSTREAM_ERROR, "AI 의 번역 응답이 중간에 끊겼습니다. 다시 시도하세요.", null);
+                    }
+                    throw e;
+                }
+                try {
+                    return accumulator.message();
+                } catch (IllegalStateException e) {
+                    // 시작한 스트림이 끝 표시 없이 닫힘 — 이미 과금됐지만 얼마인지 모름
+                    log.warn("Claude translation stream ended without message_stop");
+                    throw new BilledFailure(ErrorCode.UPSTREAM_ERROR, "AI 의 번역 응답이 중간에 끊겼습니다. 다시 시도하세요.", null);
+                }
+            }, true);
+        } catch (ApiException e) {
+            if (started[0]) {
+                // 응답을 받기 시작한 뒤 끊김 — 이미 과금됐지만 얼마인지 모름
+                log.warn("Claude translation stream broke after it started: {}", e.code());
+                throw new BilledFailure(e.code(), e.getMessage(), null);
             }
-            return accumulator.message();
-        });
+            throw e;
+        }
         String json = answerText(message);
         TranslationJson parsed;
         try {
             parsed = JSON.readValue(json, TranslationJson.class);
         } catch (JacksonException e) {
             log.warn("Claude translation was not valid JSON ({} chars)", json.length());
-            throw new ApiException(ErrorCode.UPSTREAM_ERROR, "AI 의 번역 형식이 올바르지 않습니다. 다시 시도하세요.");
+            throw billed(message, ErrorCode.UPSTREAM_ERROR, "AI 의 번역 형식이 올바르지 않습니다. 다시 시도하세요.");
         }
         if (parsed.translation() == null || parsed.translation().isBlank()) {
             log.warn("Claude translation field was empty: jsonChars={} notesChars={}", json.length(),
                     parsed.notes() == null ? -1 : parsed.notes().length());
-            throw new ApiException(ErrorCode.UPSTREAM_ERROR, "AI 가 빈 결과를 돌려주었습니다. 다시 시도하세요.");
+            throw billed(message, ErrorCode.UPSTREAM_ERROR, "AI 가 빈 결과를 돌려주었습니다. 다시 시도하세요.");
         }
         String translation = unwrapTranslation(parsed.translation(), document);
         return new Output<>(target == TargetLanguage.KO ? fixKanaParticle(translation) : translation,
@@ -335,7 +398,7 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
             doc.title(document.title());
         }
         if (document.isPdf()) {
-            doc.source(Base64PdfSource.builder().data(Base64.getEncoder().encodeToString(document.pdf())).build());
+            doc.source(Base64PdfSource.builder().data(document.pdfBase64()).build());
         } else {
             doc.source(PlainTextSource.builder().data(document.text()).build());
         }
@@ -344,7 +407,7 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
     }
 
     private long count(MessageCountTokensParams.Builder params) {
-        return call(() -> requireClient().messages().countTokens(params.build())).inputTokens();
+        return call(() -> requireClient().messages().countTokens(params.build()), false).inputTokens();
     }
 
     /** 답(텍스트)만 읽습니다. 응답은 생각 블록으로 시작할 수 있어 순서가 아니라 종류로 고릅니다 */
@@ -353,10 +416,10 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
         if (StopReason.REFUSAL.equals(reason)) {
             log.warn("Claude refused the request: category={}",
                     message.stopDetails().flatMap(d -> d.category().map(Object::toString)).orElse("unknown"));
-            throw new ApiException(ErrorCode.AI_REFUSED, "AI 가 안전 기준에 따라 이 문서의 처리를 거절했습니다.");
+            throw billed(message, ErrorCode.AI_REFUSED, "AI 가 안전 기준에 따라 이 문서의 처리를 거절했습니다.");
         }
         if (StopReason.MAX_TOKENS.equals(reason) || StopReason.MODEL_CONTEXT_WINDOW_EXCEEDED.equals(reason)) {
-            throw new ApiException(ErrorCode.PAYLOAD_TOO_LARGE, "결과가 너무 길어 끝까지 만들지 못했습니다. 문서를 나눠서 시도하세요.");
+            throw billed(message, ErrorCode.PAYLOAD_TOO_LARGE, "결과가 너무 길어 끝까지 만들지 못했습니다. 문서를 나눠서 시도하세요.");
         }
         String text = message.content().stream()
                 .flatMap(block -> block.text().stream())
@@ -366,36 +429,85 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
             log.warn("Claude returned no text: blocks={} stop={} outputTokens={}",
                     message.content().stream().map(b -> b.isText() ? "text" : b.isThinking() ? "thinking" : "other").toList(),
                     reason, message.usage().outputTokens());
-            throw new ApiException(ErrorCode.UPSTREAM_ERROR, "AI 가 빈 결과를 돌려주었습니다. 다시 시도하세요.");
+            throw billed(message, ErrorCode.UPSTREAM_ERROR, "AI 가 빈 결과를 돌려주었습니다. 다시 시도하세요.");
         }
         return text;
     }
 
+    /** 응답을 다 받은 뒤의 실패 — 응답에 적힌 사용량을 함께 알려 하루 한도에서 돌려주지 않게 합니다 [H-2] */
+    private static BilledFailure billed(Message message, ErrorCode code, String text) {
+        return new BilledFailure(code, text, message.usage().inputTokens() + message.usage().outputTokens());
+    }
+
     /**
      * SDK 오류를 화면에 보일 오류로 바꿉니다 [AI-04]. 요청 한도·과부하·5xx 는 잠시 뒤 다시 시도하면 되는 503, 읽을 수 없는 문서(400·422)는
-     * 400, 그 밖의 API 오류(인증 실패 등)는 502 입니다. SDK 가 429·5xx 를 이미 두 번까지 다시 시도한 뒤입니다.
+     * 400, 그 밖의 API 오류(인증 실패 등)는 502 입니다. 과금 전 실패(429·5xx·연결 실패)만 {@link Retry} 만큼 다시 보냅니다.
+     * 시간 초과는 서버가 처리(과금)했는지 알 수 없어 다시 보내지 않고, 과금되는 요청이면 사용량을 모르는 {@link BilledFailure} 로 알립니다 [H-2].
+     *
+     * @param billable 과금되는 요청(요약·번역). 토큰 세기는 무료라 시간 초과도 그냥 503
      */
-    private static <T> T call(Supplier<T> action) {
+    private <T> T call(Supplier<T> action, boolean billable) {
+        for (int attempt = 1; ; attempt++) {
+            boolean last = attempt >= retry.attempts();
+            try {
+                return action.get();
+            } catch (AnthropicServiceException e) {
+                int status = e.statusCode();
+                if (status == 429 || status >= 500) {
+                    if (!last) {
+                        backOff(attempt);
+                        continue;
+                    }
+                    log.warn("Claude unavailable: status={} type={}", status, e.errorType().map(Object::toString).orElse("-"));
+                    throw new ApiException(ErrorCode.SERVICE_UNAVAILABLE, "AI 서비스가 바빠 지금은 처리할 수 없습니다. 잠시 후 다시 시도하세요.");
+                }
+                if (status == 400 || status == 422) {
+                    log.warn("Claude rejected the document: status={} type={}", status, e.errorType().map(Object::toString).orElse("-"));
+                    throw ApiException.badRequest("AI 가 이 문서를 읽지 못했습니다. 손상되었거나 암호가 걸린 파일인지 확인하세요.");
+                }
+                log.error("Claude call failed: status={} type={}", status, e.errorType().map(Object::toString).orElse("-"));
+                throw new ApiException(ErrorCode.UPSTREAM_ERROR, "AI 서비스 호출에 실패했습니다.");
+            } catch (AnthropicIoException e) {
+                if (mayHaveBeenProcessed(e)) {
+                    log.warn("Claude call timed out (billable={}); not retrying", billable);
+                    String message = "AI 응답이 늦어 중단했습니다. 잠시 후 다시 시도하세요.";
+                    throw billable ? new BilledFailure(ErrorCode.SERVICE_UNAVAILABLE, message, null)
+                            : new ApiException(ErrorCode.SERVICE_UNAVAILABLE, message);
+                }
+                if (!last) {
+                    backOff(attempt);
+                    continue;
+                }
+                log.warn("Claude connection failed: {}", e.getMessage());
+                throw new ApiException(ErrorCode.UPSTREAM_ERROR, "AI 서비스에 연결하지 못했습니다. 잠시 후 다시 시도하세요.");
+            } catch (AnthropicException e) {
+                log.warn("Claude response could not be read: {}", e.getClass().getSimpleName());
+                throw new ApiException(ErrorCode.UPSTREAM_ERROR, "AI 서비스의 응답을 읽지 못했습니다. 다시 시도하세요.");
+            }
+        }
+    }
+
+    /**
+     * 서버가 요청을 처리(과금)했을 수 있는 시간 초과 — 요청을 보낸 뒤 응답을 기다리다 난 것. OkHttp 의 읽기·호출 시간 초과는
+     * InterruptedIOException(SocketTimeoutException 포함)으로 옵니다. 연결 단계의 시간 초과("Connect timed out", JDK Socket.connect)는
+     * 요청이 서버에 닿지 않았으므로 과금 전 실패로 보아 다시 시도합니다.
+     */
+    static boolean mayHaveBeenProcessed(Throwable e) {
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            if (t instanceof InterruptedIOException) {
+                String message = t.getMessage();
+                return message == null || !message.toLowerCase(Locale.ROOT).contains("connect timed out");
+            }
+        }
+        return false;
+    }
+
+    private void backOff(int attempt) {
         try {
-            return action.get();
-        } catch (AnthropicServiceException e) {
-            int status = e.statusCode();
-            if (status == 429 || status >= 500) {
-                log.warn("Claude unavailable: status={} type={}", status, e.errorType().map(Object::toString).orElse("-"));
-                throw new ApiException(ErrorCode.SERVICE_UNAVAILABLE, "AI 서비스가 바빠 지금은 처리할 수 없습니다. 잠시 후 다시 시도하세요.");
-            }
-            if (status == 400 || status == 422) {
-                log.warn("Claude rejected the document: status={} type={}", status, e.errorType().map(Object::toString).orElse("-"));
-                throw ApiException.badRequest("AI 가 이 문서를 읽지 못했습니다. 손상되었거나 암호가 걸린 파일인지 확인하세요.");
-            }
-            log.error("Claude call failed: status={} type={}", status, e.errorType().map(Object::toString).orElse("-"));
-            throw new ApiException(ErrorCode.UPSTREAM_ERROR, "AI 서비스 호출에 실패했습니다.");
-        } catch (AnthropicIoException e) {
-            log.warn("Claude connection failed: {}", e.getMessage());
-            throw new ApiException(ErrorCode.UPSTREAM_ERROR, "AI 서비스에 연결하지 못했습니다. 잠시 후 다시 시도하세요.");
-        } catch (AnthropicException e) {
-            log.warn("Claude response could not be read: {}", e.getClass().getSimpleName());
-            throw new ApiException(ErrorCode.UPSTREAM_ERROR, "AI 서비스의 응답을 읽지 못했습니다. 다시 시도하세요.");
+            Thread.sleep(retry.firstDelay().multipliedBy(1L << (attempt - 1)));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new ApiException(ErrorCode.SERVICE_UNAVAILABLE, "AI 서비스가 바빠 지금은 처리할 수 없습니다. 잠시 후 다시 시도하세요.");
         }
     }
 

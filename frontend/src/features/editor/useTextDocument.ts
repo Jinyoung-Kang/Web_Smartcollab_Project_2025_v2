@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { fileApi } from '@/api/endpoints'
 import { ApiError } from '@/api/http'
@@ -22,6 +22,12 @@ export function useTextDocument(fileId: number, initial: TextContent) {
   const [savedAt, setSavedAt] = useState<string | null>(initial.updatedAt)
   const dirty = draft !== saved
   const editable = initial.editable
+  // 비동기 응답이 도착했을 때 그 사이의 입력·진행 중 저장을 확인하려고 최신 값을 둡니다 [L-8]
+  const latestDraft = useRef(draft)
+  const busy = useRef(false)
+  useEffect(() => {
+    latestDraft.current = draft
+  }, [draft])
 
   const fetchLatest = () => qc.fetchQuery({ queryKey: queryKeys.fileContent(fileId), queryFn: () => fileApi.content(fileId), staleTime: 0 })
   const adopt = (latest: TextContent) => {
@@ -30,26 +36,47 @@ export function useTextDocument(fileId: number, initial: TextContent) {
     setBaseVersion(latest.versionId)
   }
 
-  const save = useCallback(async () => {
-    if (!editable || saving) return
+  /** 저장·덮어쓰기 공통: 새 버전을 반영하고, 버전 기록·폴더 목록·사용량(옛 버전도 저장 공간에 들어감)을 새로 고칩니다 */
+  const commitVersion = useCallback((content: string, res: { versionId: number; updatedAt: string }, latest?: TextContent) => {
+    setBaseVersion(res.versionId)
+    setSavedAt(res.updatedAt)
+    setSaved(content)
+    setConflict(false)
+    qc.setQueryData(queryKeys.fileContent(fileId), (old: TextContent | undefined) => {
+      const base = latest ?? old
+      return base && { ...base, content, versionId: res.versionId }
+    })
+    void qc.invalidateQueries({ queryKey: queryKeys.versions.of(fileId) })
+    void qc.invalidateQueries({ queryKey: queryKeys.folder.all })
+    void qc.invalidateQueries({ queryKey: queryKeys.usage.all })
+  }, [fileId, qc])
+
+  /** 저장·덮어쓰기를 한 번에 하나만 실행합니다 — 연달아 누르면 같은 내용의 버전이 여러 개 생겼음 [L-8] */
+  const exclusive = useCallback(async (work: () => Promise<void>) => {
+    if (busy.current) return
+    busy.current = true
     setSaving(true)
     try {
-      const res = await fileApi.save(fileId, draft, baseVersion)
-      setBaseVersion(res.versionId)
-      setSavedAt(res.updatedAt)
-      setSaved(draft)
-      setConflict(false)
-      qc.setQueryData(queryKeys.fileContent(fileId), (old: TextContent | undefined) => old && { ...old, content: draft, versionId: res.versionId })
-      void qc.invalidateQueries({ queryKey: queryKeys.versions.of(fileId) })
-      void qc.invalidateQueries({ queryKey: queryKeys.folder.all })
-      toast.success('새 버전으로 저장했습니다.')
-    } catch (e) {
-      if (e instanceof ApiError && e.code === 'EDIT_CONFLICT') setConflict(true)
-      else toast.error((e as Error).message)
+      await work()
     } finally {
+      busy.current = false
       setSaving(false)
     }
-  }, [draft, baseVersion, editable, saving, fileId, qc, toast])
+  }, [])
+
+  const save = useCallback(async () => {
+    if (!editable) return
+    await exclusive(async () => {
+      try {
+        const res = await fileApi.save(fileId, draft, baseVersion)
+        commitVersion(draft, res)
+        toast.success('새 버전으로 저장했습니다.')
+      } catch (e) {
+        if (e instanceof ApiError && e.code === 'EDIT_CONFLICT') setConflict(true)
+        else toast.error((e as Error).message)
+      }
+    })
+  }, [draft, baseVersion, editable, fileId, toast, exclusive, commitVersion])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -78,25 +105,27 @@ export function useTextDocument(fileId: number, initial: TextContent) {
   }
 
   /** 충돌 해결 2: 최신 버전을 기준으로 내 내용을 새 버전으로 저장 (이전 버전은 기록에 남음) */
-  const overwrite = async () => {
+  const overwrite = () => exclusive(async () => {
     try {
       const latest = await fileApi.content(fileId)
       const res = await fileApi.save(fileId, draft, latest.versionId)
-      setConflict(false)
-      setBaseVersion(res.versionId)
-      setSavedAt(res.updatedAt)
-      setSaved(draft)
-      qc.setQueryData(queryKeys.fileContent(fileId), { ...latest, content: draft, versionId: res.versionId })
+      commitVersion(draft, res, latest)
       toast.success('내 내용으로 새 버전을 저장했습니다. 상대방의 버전은 버전 기록에 남아 있습니다.')
     } catch (e) {
       toast.error((e as Error).message)
     }
-  }
+  })
 
-  /** 버전을 되돌린 뒤 최신 내용을 다시 불러옵니다 (변경 중이 아닐 때만) */
+  /** 버전을 되돌린 뒤 최신 내용을 다시 불러옵니다 (변경 중이 아닐 때만 — 응답을 기다리는 사이 입력했으면 그 입력을 둠) */
   const reloadIfClean = () => {
     if (dirty) return
-    void fetchLatest().then(adopt, (e: Error) => toast.error(`최신 내용을 불러오지 못했습니다. ${e.message}`))
+    const before = draft
+    void fetchLatest().then(
+      (latest) => {
+        if (latestDraft.current === before) adopt(latest)
+      },
+      (e: Error) => toast.error(`최신 내용을 불러오지 못했습니다. ${e.message}`),
+    )
   }
 
   return { draft, setDraft, dirty, editable, saving, savedAt, conflict, save, loadLatest, overwrite, reloadIfClean }

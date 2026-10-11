@@ -1,6 +1,5 @@
 package com.smartcollab.ai;
 
-import com.smartcollab.file.FileContentService;
 import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.error.ErrorCode;
@@ -21,16 +20,21 @@ import java.util.Locale;
 @RequiredArgsConstructor
 public class TranslationService {
 
-    private final FileContentService contentService;
     private final DeepLTranslationClient translator;
     private final SlidingWindowRateLimiter rateLimiter;
     private final AppProperties props;
 
-    public TranslationResult translate(Long fileId, Long userId, TargetLanguage target) {
+    public boolean enabled() {
+        return translator.enabled();
+    }
+
+    /**
+     * @param text 권한·형식·크기를 확인하고 읽은 문서 본문 — 문서 확인과 읽기는 호출하는 쪽(DocumentToolsService)이 한 번만 합니다 [L-4]
+     */
+    public TranslationResult translate(String text, Long userId, TargetLanguage target) {
         String deeplTarget = target.deeplCode();
-        String text = contentService.readUtf8Content(fileId, userId, props.files().textEditMaxBytes());
         if (!translator.enabled()) {
-            throw new ApiException(ErrorCode.FEATURE_DISABLED, "번역 API 키(ANTHROPIC_API_KEY 또는 DEEPL_API_KEY)가 설정되지 않아 번역을 사용할 수 없습니다.");
+            throw disabled();
         }
         if (text.length() > DeepLTranslationClient.MAX_CHARS) {
             throw new ApiException(ErrorCode.PAYLOAD_TOO_LARGE, "번역은 " + DeepLTranslationClient.MAX_CHARS + "자 이하 문서만 가능합니다.");
@@ -49,6 +53,10 @@ public class TranslationService {
             throw e;
         }
         return new TranslationResult(t.text(), deeplTarget, t.detectedSourceLanguage());
+    }
+
+    static ApiException disabled() {
+        return new ApiException(ErrorCode.FEATURE_DISABLED, "번역 API 키(ANTHROPIC_API_KEY 또는 DEEPL_API_KEY)가 설정되지 않아 번역을 사용할 수 없습니다.");
     }
 
     /** 번역 결과. 응답 형식은 컨트롤러가 정합니다 [A-05]. */

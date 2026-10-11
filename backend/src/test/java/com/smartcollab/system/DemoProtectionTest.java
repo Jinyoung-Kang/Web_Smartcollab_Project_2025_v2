@@ -26,6 +26,15 @@ class DemoProtectionTest extends LimitedStorageIntegrationTest {
     @Autowired
     UserRepository users;
 
+    @Autowired
+    com.smartcollab.team.TeamService teamService;
+
+    @Autowired
+    com.smartcollab.team.TeamRepository teams;
+
+    @Autowired
+    com.smartcollab.user.AccountService accountService;
+
     private Api.Session demo(String username) {
         return api().login(username, DEMO_PASSWORD);
     }
@@ -102,5 +111,38 @@ class DemoProtectionTest extends LimitedStorageIntegrationTest {
                 .doesNotContain("방문자가 만든 폴더");
         assertThat(Api.body(fresh.get("/api/teams/{t}", team))).contains("demo2").contains("demo3");
         outsider.get("/api/files/{id}/content", outsiderFile).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("[H-3] 일반 사용자는 체험 계정에게 팀장을 넘길 수 없다 — 넘기면 매일 초기화가 그 팀(다른 사람 파일 포함)을 영구 삭제했음")
+    void cannotDelegateLeadershipToDemoAccount() throws Exception {
+        Api.Session owner = api().signUp("h3owner");
+        long[] team = owner.createTeam("일반 팀");
+        long ownerFile = owner.uploadText(team[1], "팀 문서.txt", "keep me");
+        owner.postJson("/api/teams/{t}/invitations", Map.of("username", "demo2"), team[0]).andExpect(status().isCreated());
+        Api.Session visitor = demo("demo2");
+        long invitation = ((Number) Api.read(visitor.get("/api/notifications"), "$.items[0].invitationId")).longValue();
+        visitor.post("/api/invitations/{id}/accept", invitation).andExpect(status().isNoContent());
+
+        owner.post("/api/teams/{t}/leader/{m}", team[0], memberId(owner, team[0], "demo2"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.detail").value(containsString("체험 계정")));
+
+        seeder.reset();
+        owner.get("/api/files/{id}/content", ownerFile).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("[L-3] 초기화가 중간에 실패해 체험 계정 일부만 남아도, 다음 시드가 남은 것을 정리하고 다시 만든다 — 예전에는 '이미 사용 중'으로 기동이 실패")
+    void seedRecoversFromPartialReset() throws Exception {
+        long demo1 = users.findByUsername("demo1").orElseThrow().getId();
+        for (Long team : teams.findIdsOwnedBy(demo1)) teamService.purgeTeam(team, null);
+        accountService.purgeAccount(demo1);   // demo1 만 지워지고 demo2·demo3 은 남은 상태
+
+        seeder.seed();
+
+        assertThat(users.existsByUsername("demo1")).isTrue();
+        assertThat(Api.body(demo("demo1").get("/api/teams"))).contains("SmartCollab 데모 팀");
+        assertThat(Api.body(demo("demo1").get("/api/teams/{t}", demoTeamId(demo("demo1"))))).contains("demo2").contains("demo3");
     }
 }

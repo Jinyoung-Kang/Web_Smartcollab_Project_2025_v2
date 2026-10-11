@@ -108,7 +108,7 @@ public class ItemTransferService {
      *   <li>트랜잭션 밖: 계획한 파일을 저장소에서 복사</li>
      *   <li>짧은 쓰기 트랜잭션: 대상 폴더와 편집 권한을 다시 확인하고 폴더·파일·첫 버전 저장</li>
      * </ol>
-     * 2·3단계가 실패하면 이미 복사한 파일을 지웁니다.
+     * 2단계가 실패하거나 3단계가 확실히 롤백되면 이미 복사한 파일을 지웁니다(커밋 결과를 모르는 실패는 고아 파일 정리에 맡김).
      */
     public int copy(DriveDtos.TransferRequest req, Long userId) {
         CopyPlan plan = tx.readOnly(() -> plan(req, userId));
@@ -118,14 +118,15 @@ public class ItemTransferService {
                 storage.copy(file.sourceKey(), file.targetKey());
                 copied.add(file.targetKey());
             }
-            tx.writeReadCommitted(() -> {
-                apply(plan, userId);
-                return null;
-            });
         } catch (RuntimeException e) {
             blobLifecycle.discard(copied);
             throw e;
         }
+        // 확실히 롤백됐을 때만 복사한 파일을 지웁니다 — 커밋 결과를 모르는 실패에서 지우면 커밋된 복사본이 내용을 잃음 [H-4]
+        tx.writeReadCommitted(() -> {
+            apply(plan, userId);
+            return null;
+        }, () -> blobLifecycle.discard(copied));
         return plan.fileCount();
     }
 

@@ -1,0 +1,7 @@
+# [M-6] 파일 N개 계정의 탈퇴 시간 — BENCH=true ./gradlew test --tests '*BulkDeletionBenchmarkTest' (Testcontainers MySQL 8.4)
+# 파일·버전 행은 SQL 로 바로 넣음(저장소 파일 없음). 트랜잭션 시간 상한 30초(DB_TX_TIMEOUT 기본값)
+[M-6] files=5000 status=204 ms=1078 filesLeft=0
+[M-6] files=20000 status=204 ms=3049 filesLeft=0
+[M-6] files=50000 status=204 ms=7129 filesLeft=0
+# 결론: 파일 하나에 약 0.14ms 로 거의 선형 → 30초 상한에는 약 20만 개에서 닿음. 지금 규모(사용자당 수만 개)에서는 문제가 아니라 코드는 바꾸지 않음.
+#       그 이상을 받을 운영이면 이 작업들에 시간 상한을 따로 두거나 배치로 나눠야 함(REVIEW_2026-10-12 남은 위험)

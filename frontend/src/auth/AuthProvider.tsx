@@ -1,10 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
-import { onUnauthorized } from '@/api/http'
+import { ApiError, onUnauthorized } from '@/api/http'
 import { authApi, configApi } from '@/api/endpoints'
 import type { Me, PublicConfig } from '@/api/types'
 import { queryKeys } from '@/api/queryKeys'
+import { useToast } from '@/components/ui/Toast'
 
 interface AuthState {
   me: Me | null
@@ -28,6 +29,7 @@ const AuthContext = createContext<AuthState | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
+  const toast = useToast()
   const navigate = useNavigate()
   const [signingOut, setSigningOut] = useState(false)
   const [sessionExpired, setSessionExpired] = useState(false)
@@ -75,12 +77,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => onUnauthorized(null)
   }, [queryClient, endSession])
 
+  /**
+   * 로그아웃. 서버가 쿠키를 지워야 끝나므로, 요청이 실패하면(네트워크·5xx) 로그인 상태로 두고 알립니다 [M-3] —
+   * 예전에는 실패해도 로그인 화면으로 가, HttpOnly 쿠키가 남은 공용 PC 에서 다음 사람이 새로고침하면 이어 쓸 수 있었습니다.
+   * 401 은 이미 끝난 세션이라 그대로 로그인 화면으로 갑니다.
+   */
   const logout = async () => {
     try {
       await authApi.logout()
-    } finally {
-      endSession()
+    } catch (e) {
+      if (!(e instanceof ApiError && e.status === 401)) {
+        toast.error(`로그아웃하지 못했습니다. ${(e as Error).message}`)
+        return
+      }
     }
+    endSession()
   }
 
   return (

@@ -33,7 +33,7 @@ export function documentKind(file: { name: string; textEditable: boolean }): Doc
 export type ToolResult =
   | { kind: 'summary'; generative: boolean; summary?: string; points: string[]; total?: number; model?: string }
   | { kind: 'translation'; text: string; language: string; provider?: string; model?: string }
-  | { kind: 'loading'; label: string }
+  | { kind: 'loading'; label: string; action: 'summary' | 'translation' }
   | { kind: 'error'; message: string }
 
 /**
@@ -45,9 +45,9 @@ export function useDocumentTools(fileId: number | undefined) {
   const [state, setState] = useState<{ fileId: number; tool: ToolResult } | null>(null)
   const latest = useRef(0)
 
-  const run = async (id: number, loadingLabel: string, request: () => Promise<ToolResult>) => {
+  const run = async (id: number, action: 'summary' | 'translation', loadingLabel: string, request: () => Promise<ToolResult>) => {
     const requestId = ++latest.current
-    setState({ fileId: id, tool: { kind: 'loading', label: loadingLabel } })
+    setState({ fileId: id, tool: { kind: 'loading', label: loadingLabel, action } })
     let result: ToolResult
     try {
       result = await request()
@@ -65,7 +65,7 @@ export function useDocumentTools(fileId: number | undefined) {
     },
     summarize: (generative: boolean) => {
       if (fileId === undefined) return
-      return run(fileId, generative ? 'AI 가 요약하는 중' : '핵심 문장을 고르는 중', async () => {
+      return run(fileId, 'summary', generative ? 'AI 가 요약하는 중' : '핵심 문장을 고르는 중', async () => {
         const r = await fileApi.summary(fileId)
         return {
           kind: 'summary', generative: r.method === 'generative', summary: r.summary, points: r.sentences,
@@ -75,7 +75,7 @@ export function useDocumentTools(fileId: number | undefined) {
     },
     translate: (target: TargetLanguage) => {
       if (fileId === undefined) return
-      return run(fileId, `${languageName(target)}로 번역하는 중`, async () => {
+      return run(fileId, 'translation', `${languageName(target)}로 번역하는 중`, async () => {
         const r = await fileApi.translate(fileId, target)
         return { kind: 'translation', text: r.text, language: languageName(target), provider: r.provider, model: r.model }
       })

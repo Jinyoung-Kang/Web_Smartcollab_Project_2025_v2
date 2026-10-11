@@ -50,6 +50,39 @@ services:
       QUOTA_TEAM: ${QUOTA_TEAM:-5GB}
       DEMO_QUOTA: ${DEMO_QUOTA:-50MB}
       COOKIE_SECURE: "false"
+      # 그 밖의 설정은 .env(또는 셸)에 있을 때만 그대로 넘깁니다 — 없으면 앱 기본값(application.yml). 예전에는 여기 없는 설정을
+      # .env 에 넣어도 앱에 닿지 않았습니다 [L-6]. 설명은 docs/DEPLOYMENT.md §2. PORT 는 컨테이너 안에서 8080 고정이라 넘기지 않습니다.
+      AI_MAX_CONCURRENT:
+      AI_MAX_DOCUMENT_SIZE:
+      AI_TIMEOUT:
+      AI_TRANSLATION_TIMEOUT:
+      AZURE_STORAGE_CONTAINER:
+      CORS_ALLOWED_ORIGINS:
+      DB_CONNECTION_TIMEOUT_MS:
+      DB_POOL_SIZE:
+      DB_TX_TIMEOUT:
+      DEEPL_API_URL:
+      DEMO_RESET_CRON:
+      DEMO_RESET_ZONE:
+      JWT_TTL:
+      MAX_COPY_FOLDERS:
+      MAX_FOLDER_DEPTH:
+      MAX_REQUEST_BODY_SIZE:
+      MAX_TEAMS_PER_USER:
+      ORPHAN_CLEANUP_CRON:
+      ORPHAN_GRACE:
+      SHARE_PASSWORD_LINK_RATE:
+      SHARE_PASSWORD_RATE:
+      SIGNUP_RATE_PER_HOUR:
+      SQL_LOG_LEVEL:
+      TEXT_EDIT_MAX_BYTES:
+      TRANSLATION_CHARS_PER_USER_PER_DAY:
+      TRASH_PURGE_CRON:
+      TRASH_PURGE_ZONE:
+      TRASH_RETENTION_DAYS:
+      UPLOAD_MAX_FILE_SIZE:
+      UPLOAD_MAX_REQUEST_SIZE:
+      USAGE_RECONCILE_CRON:
       # 로컬에는 앞단 프록시가 없으므로 X-Forwarded-For 를 믿지 않습니다 (Docker 게이트웨이도 사설 대역이라 기본값이면 믿게 됨).
       SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES: "127\\.0\\.0\\.1|0:0:0:0:0:0:0:1"
     ports:

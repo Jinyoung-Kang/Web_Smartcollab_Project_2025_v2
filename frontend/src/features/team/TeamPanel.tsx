@@ -53,7 +53,9 @@ export function TeamPanel({ teamId, visible = true, onClose }: { teamId: number;
             >
               <Icon aria-hidden className="size-4" />
               {label}
-              {key === 'chat' && tab !== 'chat' && unread.has(teamId) && <span className="size-2 rounded-full bg-red-500" />}
+              {key === 'chat' && tab !== 'chat' && unread.has(teamId) && (
+                <span role="img" aria-label="새 메시지" className="size-2 rounded-full bg-red-500" />
+              )}
             </button>
           ),
         )}

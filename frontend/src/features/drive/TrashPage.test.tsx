@@ -66,3 +66,41 @@ describe('TrashPage — 폴더 휴지통 [UX-06]', () => {
     expect(purgeFolder).toHaveBeenCalledWith(7)
   })
 })
+
+describe('TrashPage — 중복 요청', () => {
+  it('[L-8] 복원 중에는 같은 항목의 복원 단추를 다시 누를 수 없다', async () => {
+    const user = userEvent.setup()
+    renderTrash()
+    const restore = vi.spyOn(trashApi, 'restore').mockReturnValue(new Promise(() => {}))
+    const button = (await screen.findAllByRole('button', { name: '복원' }))[1]!
+
+    await user.click(button)
+    await user.click(button)
+
+    expect(restore).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('TrashPage — 보관 기간 (동작 고정)', () => {
+  it('남은 보관 일수를 보여 주고, 3일 이하면 빨간 글씨로 강조한다', async () => {
+    const day = 86_400_000
+    vi.spyOn(trashApi, 'list').mockResolvedValue([
+      { ...file, id: 1, name: '오늘.txt', deletedAt: new Date().toISOString() },
+      { ...file, id: 2, name: '오래된.txt', deletedAt: new Date(Date.now() - 28 * day - 1000).toISOString() },
+    ])
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const router = createMemoryRouter([{ path: '/trash', element: <TrashPage /> }], { initialEntries: ['/trash'] })
+    render(
+      <QueryClientProvider client={client}>
+        <ToastProvider>
+          <ConfirmProvider>
+            <RouterProvider router={router} />
+          </ConfirmProvider>
+        </ToastProvider>
+      </QueryClientProvider>,
+    )
+
+    expect(await screen.findByText('30일 후 영구 삭제')).not.toHaveClass('text-red-600')
+    expect(screen.getByText('2일 후 영구 삭제')).toHaveClass('text-red-600')
+  })
+})

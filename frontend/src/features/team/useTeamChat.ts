@@ -8,7 +8,6 @@ import type { ChatMessage } from '@/api/types'
 import { usePublicConfig } from '@/auth/AuthProvider'
 import { useConfirm } from '@/components/ui/Confirm'
 import { useToast } from '@/components/ui/Toast'
-import { useRealtime } from '@/realtime/RealtimeProvider'
 import { appendChatMessage } from '@/realtime/TeamActivity'
 import { validateUpload } from '@/features/drive/validateUpload'
 
@@ -20,7 +19,6 @@ export function useTeamChat(teamId: number, rootFolderId: number) {
   const qc = useQueryClient()
   const toast = useToast()
   const confirm = useConfirm()
-  const { publish } = useRealtime()
   const config = usePublicConfig()
   const [uploading, setUploading] = useState(false)
 
@@ -37,13 +35,19 @@ export function useTeamChat(teamId: number, rootFolderId: number) {
     [chat.data],
   )
 
-  const send = async (body: { content?: string; fileId?: number }) => {
-    if (publish(`/app/teams/${teamId}/chat`, body)) return
+  /**
+   * HTTP 로 보내 저장됐는지 확인합니다(서버가 커밋 뒤 웹소켓으로 모두에게 방송, 같은 메시지는 id 로 한 번만 붙음) [M-4].
+   * 예전에는 웹소켓이 "연결됨"이면 확인 없이 보내, 절전 복귀처럼 반쯤 끊긴 소켓에서 메시지가 조용히 사라졌습니다.
+   * @returns 보냈으면 true — 실패하면 화면이 쓴 내용을 되돌릴 수 있게
+   */
+  const send = async (body: { content?: string; fileId?: number }): Promise<boolean> => {
     try {
       const msg = await chatApi.send(teamId, body)
       appendChatMessage(qc, teamId, msg)
+      return true
     } catch (e) {
       toast.error((e as Error).message)
+      return false
     }
   }
 

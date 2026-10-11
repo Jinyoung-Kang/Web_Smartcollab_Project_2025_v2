@@ -20,6 +20,7 @@ import static com.smartcollab.ai.DocxFixtures.docx;
 import static com.smartcollab.ai.DocxFixtures.paragraph;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
@@ -43,6 +44,12 @@ class DocumentToolsTest extends IntegrationTest {
     @MockitoBean
     DocumentAi documentAi;
 
+    @MockitoBean
+    DeepLTranslationClient deepl;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    com.smartcollab.global.security.SlidingWindowRateLimiter rateLimiter;
+
     @BeforeEach
     void enableAi() {
         reset(documentAi);
@@ -52,7 +59,7 @@ class DocumentToolsTest extends IntegrationTest {
         when(documentAi.countTranslationTokens(any(), any())).thenReturn(100L);
         when(documentAi.summarize(any())).thenReturn(new DocumentAi.Output<>(
                 new DocumentAi.Summary("회의 결과를 정리한 문서입니다.", List.of("일정 확정", "권한 정리")), 100, 50));
-        when(documentAi.translate(any(), any())).thenReturn(new DocumentAi.Output<>("Translated", 100, 30));
+        when(documentAi.translate(any(), any(), anyLong())).thenReturn(new DocumentAi.Output<>("Translated", 100, 30));
     }
 
     @Test
@@ -87,7 +94,7 @@ class DocumentToolsTest extends IntegrationTest {
                 .andExpect(jsonPath("$.targetLang").value("JA"))
                 .andExpect(jsonPath("$.provider").value("claude"))
                 .andExpect(jsonPath("$.model").value("claude-haiku-5-5"));
-        verify(documentAi).translate(any(), org.mockito.ArgumentMatchers.eq(TargetLanguage.JA));
+        verify(documentAi).translate(any(), org.mockito.ArgumentMatchers.eq(TargetLanguage.JA), anyLong());
 
         s.send(MockMvcRequestBuilders.post("/api/files/{id}/translation?target=FR", file))
                 .andExpect(status().isBadRequest())
@@ -103,6 +110,28 @@ class DocumentToolsTest extends IntegrationTest {
 
         stranger.send(MockMvcRequestBuilders.post("/api/files/{id}/summary", file)).andExpect(status().isNotFound());
         stranger.send(MockMvcRequestBuilders.post("/api/files/{id}/translation?target=EN", file)).andExpect(status().isNotFound());
+
+        verify(documentAi, never()).countSummaryTokens(any());
+        verify(documentAi, never()).countTranslationTokens(any(), any());
+    }
+
+    @Test
+    @DisplayName("[L-5] 동작 고정: 휴지통의 파일은 404, 지원하지 않는 형식은 안내 문구와 함께 400, 텍스트는 편집기 한도(2MB)를 넘으면 413")
+    void documentChecksBeforeAnyAiWork() throws Exception {
+        Api.Session s = api().signUp("l5lock");
+        long trashed = s.uploadText(s.rootFolderId, "지운.txt", "내용");
+        s.postJson("/api/items/delete", Map.of("items", List.of(Map.of("type", "file", "id", trashed)))).andExpect(status().isOk());
+        long png = Api.id(s.upload(s.rootFolderId, "그림.png", new byte[]{1, 2, 3}));
+        long big = Api.id(s.upload(s.rootFolderId, "긴 글.txt", "가".repeat(700_000).getBytes(StandardCharsets.UTF_8)));   // 2.1MB
+
+        s.send(MockMvcRequestBuilders.post("/api/files/{id}/summary", trashed)).andExpect(status().isNotFound());
+        s.send(MockMvcRequestBuilders.post("/api/files/{id}/translation?target=EN", trashed)).andExpect(status().isNotFound());
+        s.send(MockMvcRequestBuilders.post("/api/files/{id}/translation?target=EN", png))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("요약·번역은 텍스트(txt, md, log, csv, json)·PDF·Word(docx) 문서만 지원합니다."));
+        s.send(MockMvcRequestBuilders.post("/api/files/{id}/summary", big))
+                .andExpect(status().is(413))
+                .andExpect(jsonPath("$.detail").value("요약·번역할 수 있는 문서 크기(2MB)를 넘었습니다."));
 
         verify(documentAi, never()).countSummaryTokens(any());
         verify(documentAi, never()).countTranslationTokens(any(), any());
@@ -126,9 +155,9 @@ class DocumentToolsTest extends IntegrationTest {
         ArgumentCaptor<AiDocument> summarized = ArgumentCaptor.forClass(AiDocument.class);
         verify(documentAi).summarize(summarized.capture());
         assertThat(summarized.getValue().isPdf()).isTrue();
-        assertThat(summarized.getValue().pdf()).isEqualTo(pdf);
+        assertThat(java.util.Base64.getDecoder().decode(summarized.getValue().pdfBase64())).isEqualTo(pdf);
         ArgumentCaptor<AiDocument> translated = ArgumentCaptor.forClass(AiDocument.class);
-        verify(documentAi).translate(translated.capture(), any());
+        verify(documentAi).translate(translated.capture(), any(), anyLong());
         assertThat(translated.getValue().text()).isEqualTo("워드 본문\n둘째 문단");
     }
 
@@ -171,7 +200,7 @@ class DocumentToolsTest extends IntegrationTest {
         s.send(MockMvcRequestBuilders.post("/api/files/{id}/translation?target=EN", file))
                 .andExpect(status().is(413));
         verify(documentAi, never()).summarize(any());
-        verify(documentAi, never()).translate(any(), any());
+        verify(documentAi, never()).translate(any(), any(), anyLong());
     }
 
     @Test
@@ -180,11 +209,11 @@ class DocumentToolsTest extends IntegrationTest {
         Api.Session s = api().signUp("ai03b");
         long[] files = new long[4];
         for (int i = 0; i < files.length; i++) files[i] = s.uploadText(s.rootFolderId, "f" + i + ".txt", "문서 " + i);
-        // 한도 12,000. 예약 = 입력 3,000 + 출력 예약분, 실제 사용 = 3,000 + 200
-        when(documentAi.countSummaryTokens(any())).thenReturn(3_000L);
+        // 한도 12,000. 예약 = 입력 1,500 + 출력 상한 8,000(최악값, H-2), 실제 사용 = 1,500 + 200
+        when(documentAi.countSummaryTokens(any())).thenReturn(1_500L);
         when(documentAi.summarize(any()))
                 .thenThrow(new ApiException(ErrorCode.UPSTREAM_ERROR, "실패"))
-                .thenReturn(new DocumentAi.Output<>(new DocumentAi.Summary("요약", List.of("항목")), 3_000, 200));
+                .thenReturn(new DocumentAi.Output<>(new DocumentAi.Summary("요약", List.of("항목")), 1_500, 200));
 
         s.send(MockMvcRequestBuilders.post("/api/files/{id}/summary", files[0])).andExpect(status().isBadGateway());
         s.send(MockMvcRequestBuilders.post("/api/files/{id}/summary", files[1])).andExpect(status().isOk());
@@ -210,7 +239,7 @@ class DocumentToolsTest extends IntegrationTest {
         s.send(MockMvcRequestBuilders.post("/api/files/{id}/translation?target=EN", file)).andExpect(status().isOk());
         s.send(MockMvcRequestBuilders.post("/api/files/{id}/translation?target=EN", file)).andExpect(status().isOk());
         verify(documentAi, times(1)).summarize(any());
-        verify(documentAi, times(1)).translate(any(), any());
+        verify(documentAi, times(1)).translate(any(), any(), anyLong());
 
         long base = ((Number) Api.read(s.get("/api/files/{id}/content", file), "$.versionId")).longValue();
         s.putJson("/api/files/{id}/content", Map.of("content", "고친 내용", "baseVersionId", base), file).andExpect(status().isOk());
@@ -230,5 +259,101 @@ class DocumentToolsTest extends IntegrationTest {
         api().perform(MockMvcRequestBuilders.get("/api/public/config"))
                 .andExpect(jsonPath("$.aiEnabled").value(false))
                 .andExpect(jsonPath("$.translationEnabled").value(false));
+    }
+
+    @Test
+    @DisplayName("[H-1] Word 본문이 편집기 한도(2MB)보다 길면 키가 있든 없든 413 — 추출 요약이 2,100만 자를 받아 힙을 다 쓰던 문제")
+    void wordBodyOverTextLimitIs413() throws Exception {
+        Api.Session s = api().signUp("h1docx");
+        byte[] bomb = docx(paragraph("ab cd. ".repeat(320_000)));   // 224만 자, 압축하면 수 KB
+        long file = Api.id(s.upload(s.rootFolderId, "폭탄.docx", bomb));
+
+        s.send(MockMvcRequestBuilders.post("/api/files/{id}/summary", file))
+                .andExpect(status().is(413))
+                .andExpect(jsonPath("$.code").value("PAYLOAD_TOO_LARGE"));
+        verify(documentAi, never()).countSummaryTokens(any());
+
+        when(documentAi.enabled()).thenReturn(false);
+        s.send(MockMvcRequestBuilders.post("/api/files/{id}/summary", file))
+                .andExpect(status().is(413))
+                .andExpect(jsonPath("$.code").value("PAYLOAD_TOO_LARGE"));
+    }
+
+    @Test
+    @DisplayName("[H-2] 응답을 받은 뒤의 실패는 과금된 토큰을 하루 한도에 남긴다 — 예전에는 예약을 전부 돌려줘 같은 요청을 끝없이 되풀이해 과금할 수 있었음")
+    void billedFailureCountsAgainstBudget() throws Exception {
+        Api.Session s = api().signUp("h2bill");
+        long first = s.uploadText(s.rootFolderId, "a.txt", "첫 문서");
+        long second = s.uploadText(s.rootFolderId, "b.txt", "둘째 문서");
+        when(documentAi.countSummaryTokens(any())).thenReturn(1_000L);
+        when(documentAi.summarize(any()))
+                .thenThrow(new DocumentAi.BilledFailure(ErrorCode.PAYLOAD_TOO_LARGE, "결과가 너무 길어 끝까지 만들지 못했습니다.", 9_000L));
+
+        s.send(MockMvcRequestBuilders.post("/api/files/{id}/summary", first)).andExpect(status().is(413));
+        s.send(MockMvcRequestBuilders.post("/api/files/{id}/summary", second))   // 한도 12,000 중 9,000 을 이미 씀
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("RATE_LIMITED"));
+        verify(documentAi, times(1)).summarize(any());
+    }
+
+    @Test
+    @DisplayName("[M-1] 하루 한도를 다 쓴 사용자는 문서를 읽거나 토큰을 세기 전에 429 — 예전에는 매번 문서 전체를 읽고 토큰 세기 API 를 부른 뒤에야 거절")
+    void exhaustedBudgetIsRejectedBeforeAnyWork() throws Exception {
+        Api.Session s = api().signUp("m1budget");
+        long file = s.uploadText(s.rootFolderId, "a.txt", "본문");
+        rateLimiter.charge("ai-tokens:" + s.userId, 12_000, java.time.Duration.ofDays(1));
+
+        s.send(MockMvcRequestBuilders.post("/api/files/{id}/summary", file))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("RATE_LIMITED"));
+        s.send(MockMvcRequestBuilders.post("/api/files/{id}/translation?target=EN", file))
+                .andExpect(status().isTooManyRequests());
+        verify(documentAi, never()).countSummaryTokens(any());
+        verify(documentAi, never()).countTranslationTokens(any(), any());
+    }
+
+    @Test
+    @DisplayName("[L-4] AI 키 없이 DeepL 로 번역할 때도 같은 버전의 같은 언어는 다시 부르지 않는다 — 예전에는 매번 DeepL 월 사용량과 하루 글자 한도를 씀")
+    void deeplTranslationIsCachedPerVersion() throws Exception {
+        when(documentAi.enabled()).thenReturn(false);
+        when(deepl.enabled()).thenReturn(true);
+        when(deepl.translate(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(new DeepLTranslationClient.Translation("Hello", "KO"));
+        Api.Session s = api().signUp("l4deepl");
+        long file = s.uploadText(s.rootFolderId, "a.txt", "안녕하세요");
+
+        for (int i = 0; i < 2; i++) {
+            s.send(MockMvcRequestBuilders.post("/api/files/{id}/translation?target=EN", file))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.text").value("Hello"))
+                    .andExpect(jsonPath("$.provider").value("deepl"));
+        }
+        verify(deepl, times(1)).translate(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq("EN-US"));
+    }
+
+    @Test
+    @DisplayName("[SEC-07] AI 키 없이 DeepL 로 번역하는 경로도, 볼 수 없는 파일이면 번역 설정과 상관없이 404 (설정 정보를 먼저 드러내지 않음)")
+    void deeplPathChecksAccessFirst() throws Exception {
+        when(documentAi.enabled()).thenReturn(false);
+        when(deepl.enabled()).thenReturn(false);
+        Api.Session owner = api().signUp("l4owner");
+        Api.Session stranger = api().signUp("l4stranger");
+        long file = owner.uploadText(owner.rootFolderId, "비밀.txt", "비밀");
+
+        stranger.send(MockMvcRequestBuilders.post("/api/files/{id}/translation?target=EN", file)).andExpect(status().isNotFound());
+        verify(deepl, never()).translate(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    @DisplayName("[H-2] 호출 중 Error(메모리 부족 등)가 나도 예약을 돌려준다 — 예전에는 RuntimeException 만 돌려줘 하루 한도에 예약분이 남음(독립 검토에서 발견)")
+    void releasesReservationOnError() throws Exception {
+        Api.Session s = api().signUp("h2err");
+        long file = s.uploadText(s.rootFolderId, "메모.txt", "회의 결과");
+        when(documentAi.summarize(any())).thenThrow(new StackOverflowError("시험"));
+        s.send(MockMvcRequestBuilders.post("/api/files/{id}/summary", file)).andExpect(status().is5xxServerError());
+
+        reset(documentAi);
+        enableAi();
+        s.send(MockMvcRequestBuilders.post("/api/files/{id}/summary", file)).andExpect(status().isOk());   // 이전: 예약 8,100 이 남아 한도 12,000 을 넘어 429
     }
 }

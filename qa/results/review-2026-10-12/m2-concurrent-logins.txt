@@ -1,0 +1,10 @@
+# [M-2] 20명 동시 로그인(풀 10개) — PasswordCheckConnectionTest.concurrentLogins, 같은 Testcontainers MySQL
+# heldConnectionDuringBcrypt: bcrypt 에 들어간 스레드가 트랜잭션(=커넥션)을 쥐고 있던 횟수, folderListMs: 로그인들이 도는 동안 보낸 폴더 조회
+== 수정 전 (읽기 트랜잭션 안에서 bcrypt)
+[M-2] concurrentLogins=20 bcryptChecks=20 heldConnectionDuringBcrypt=20 folderListMsDuringLogins=718 totalMs=791
+[M-2] concurrentLogins=20 bcryptChecks=20 heldConnectionDuringBcrypt=20 folderListMsDuringLogins=576 totalMs=599
+[M-2] concurrentLogins=20 bcryptChecks=20 heldConnectionDuringBcrypt=20 folderListMsDuringLogins=809 totalMs=840
+== 수정 후
+[M-2] concurrentLogins=20 bcryptChecks=20 heldConnectionDuringBcrypt=0 folderListMsDuringLogins=530 totalMs=581
+[M-2] concurrentLogins=20 bcryptChecks=20 heldConnectionDuringBcrypt=0 folderListMsDuringLogins=460 totalMs=526
+[M-2] concurrentLogins=20 bcryptChecks=20 heldConnectionDuringBcrypt=0 folderListMsDuringLogins=539 totalMs=601

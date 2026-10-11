@@ -82,28 +82,49 @@ public class DemoDataSeeder {
     @Scheduled(cron = "${app.demo.reset-cron}", zone = "${app.demo.reset-zone}")
     public void reset() {
         if (!props.demo().enabled()) return;
-        List<User> demoUsers = DemoAccounts.ACCOUNTS.stream()
-                .map(a -> users.findByUsername(a.username()))
-                .flatMap(Optional::stream)
-                .toList();
         try {
-            for (User user : demoUsers) {
-                for (Long teamId : teams.findIdsOwnedBy(user.getId())) {
-                    teamService.purgeTeam(teamId, null);
-                }
-            }
-            for (User user : demoUsers) {
-                accountService.purgeAccount(user.getId());
-            }
+            purge(existingDemoUsers());
         } catch (RuntimeException e) {
-            // 일부만 지워진 상태로 다시 만들면 계정이 겹치므로, 다음 초기화 때 남은 것부터 다시 지웁니다.
+            // 일부만 지워진 상태는 다음 시드·초기화가 남은 것부터 다시 지웁니다 [L-3]
             log.error("Demo data reset failed; will retry at the next scheduled reset", e);
             return;
         }
         seed();
     }
 
+    /** 기동 때의 시드는 실패해도 앱 기동을 막지 않습니다 — 체험 데이터는 다음 초기화 때 다시 만듭니다 [L-3] */
     @EventListener(ApplicationReadyEvent.class)
+    public void seedOnStartup() {
+        try {
+            seed();
+        } catch (RuntimeException e) {
+            log.error("Demo data could not be created at startup; will retry at the next scheduled reset", e);
+        }
+    }
+
+    private List<User> existingDemoUsers() {
+        return DemoAccounts.ACCOUNTS.stream()
+                .map(a -> users.findByUsername(a.username()))
+                .flatMap(Optional::stream)
+                .toList();
+    }
+
+    /** 체험 계정이 이끄는 팀 → 체험 계정 순서로 지웁니다 */
+    private void purge(List<User> demoUsers) {
+        for (User user : demoUsers) {
+            for (Long teamId : teams.findIdsOwnedBy(user.getId())) {
+                teamService.purgeTeam(teamId, null);
+            }
+        }
+        for (User user : demoUsers) {
+            accountService.purgeAccount(user.getId());
+        }
+    }
+
+    /**
+     * 체험 데이터 만들기. 체험 계정이 모두 있으면 그대로 두고, 일부만 있으면(초기화가 중간에 실패) 남은 것부터 지운 뒤 다시 만듭니다 [L-3] —
+     * 예전에는 첫 계정만 보고 다시 만들다 남아 있던 계정에서 '이미 사용 중'으로 실패해 기동이 실패했습니다.
+     */
     public void seed() {
         if (!props.demo().enabled()) return;
         String password = props.demo().password();
@@ -111,7 +132,13 @@ public class DemoDataSeeder {
             log.warn("DEMO_ENABLED=true 이지만 DEMO_PASSWORD(8자 이상, 영문+숫자)가 없어 데모 데이터를 만들지 않습니다.");
             return;
         }
-        if (users.existsByUsername(DemoAccounts.ACCOUNTS.getFirst().username())) return;
+        List<User> existing = existingDemoUsers();
+        if (existing.size() == DemoAccounts.ACCOUNTS.size()) return;
+        if (!existing.isEmpty()) {
+            log.warn("Found {} of {} demo accounts (an earlier reset stopped halfway); removing them before seeding",
+                    existing.size(), DemoAccounts.ACCOUNTS.size());
+            purge(existing);
+        }
 
         User leader = signUp(DemoAccounts.ACCOUNTS.get(0), password);
         User editor = signUp(DemoAccounts.ACCOUNTS.get(1), password);

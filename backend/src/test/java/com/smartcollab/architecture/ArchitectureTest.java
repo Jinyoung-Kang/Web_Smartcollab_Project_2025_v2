@@ -1,12 +1,21 @@
 package com.smartcollab.architecture;
 
+import com.tngtech.archunit.base.DescribedPredicate;
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
+import com.tngtech.archunit.core.domain.JavaMethod;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
+import com.tngtech.archunit.lang.ArchCondition;
+import com.tngtech.archunit.lang.ConditionEvents;
+import com.tngtech.archunit.lang.SimpleConditionEvent;
 import jakarta.persistence.Entity;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.data.repository.Repository;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -35,9 +44,10 @@ class ArchitectureTest {
             "com.smartcollab.system..", "com.smartcollab.team..", "com.smartcollab.user.."};
 
     @Test
-    @DisplayName("컨트롤러는 리포지토리를 직접 쓰지 않는다 (서비스를 거친다)")
+    @DisplayName("컨트롤러(REST·STOMP)는 리포지토리를 직접 쓰지 않는다 (서비스를 거친다)")
     void controllersDoNotUseRepositories() {
-        noClasses().that().areAnnotatedWith(RestController.class)
+        // [L-7] @RestController 만 봐서 STOMP 의 @Controller 는 규칙 밖이었음
+        noClasses().that().areMetaAnnotatedWith(Controller.class)
                 .should().dependOnClassesThat().areAssignableTo(Repository.class)
                 .check(CLASSES);
     }
@@ -51,11 +61,19 @@ class ArchitectureTest {
     }
 
     @Test
-    @DisplayName("컨트롤러는 엔티티를 응답으로 돌려주지 않는다")
+    @DisplayName("컨트롤러는 엔티티를 응답으로 돌려주지 않는다 (List<엔티티>·ResponseEntity<엔티티> 같은 타입 인자 포함)")
     void controllersReturnDtosNotEntities() {
-        methods().that().areDeclaredInClassesThat().areAnnotatedWith(RestController.class).and().arePublic()
-                .should().notHaveRawReturnType(com.tngtech.archunit.base.DescribedPredicate.describe("an @Entity",
-                        (com.tngtech.archunit.core.domain.JavaClass c) -> c.isAnnotatedWith(Entity.class)))
+        // [L-7] 예전 규칙은 반환 타입 자체만 봐서 List<엔티티>·ResponseEntity<엔티티>·Optional<엔티티> 를 놓쳤음
+        methods().that().areDeclaredInClassesThat().areMetaAnnotatedWith(Controller.class).and().arePublic()
+                .should(new ArchCondition<JavaMethod>("not return an @Entity, even as a type argument") {
+                    @Override
+                    public void check(JavaMethod method, ConditionEvents events) {
+                        method.getReturnType().getAllInvolvedRawTypes().stream()
+                                .filter(type -> type.isAnnotatedWith(Entity.class))
+                                .forEach(entity -> events.add(SimpleConditionEvent.violated(method,
+                                        method.getFullName() + " returns entity " + entity.getName())));
+                    }
+                })
                 .check(CLASSES);
     }
 
@@ -90,5 +108,25 @@ class ArchitectureTest {
                 .should().dependOnClassesThat().resideInAnyPackage("org.springframework.web..", "org.springframework.http..")
                 .orShould().dependOnClassesThat().areAnnotatedWith(RestController.class)
                 .check(CLASSES);
+    }
+
+    @Test
+    @DisplayName("[L-7] 컨트롤러·설정 밖의 도메인 클래스는 들어오는 HTTP 요청·응답 타입(서블릿·업로드 파일·요청 바인딩·ResponseEntity)에 의존하지 않는다")
+    void domainComponentsDoNotDependOnInboundWebTypes() {
+        // @Service 만 보던 규칙을 @Component 등 나머지 도메인 클래스로 넓힘. 바깥으로 나가는 HTTP 클라이언트(DeepL)·웹소켓 이벤트는 허용
+        noClasses().that().resideInAnyPackage(DOMAIN_PACKAGES)
+                .and().areNotMetaAnnotatedWith(Controller.class)
+                .and().areNotMetaAnnotatedWith(Configuration.class)
+                .and(DescribedPredicate.not(enclosedInController()))
+                .should().dependOnClassesThat().resideInAnyPackage("jakarta.servlet..", "org.springframework.web.multipart..",
+                        "org.springframework.web.bind..", "org.springframework.web.servlet..")
+                .orShould().dependOnClassesThat().areAssignableTo(ResponseEntity.class)
+                .check(CLASSES);
+    }
+
+    /** 컨트롤러 안에 둔 요청·응답 레코드 */
+    private static DescribedPredicate<JavaClass> enclosedInController() {
+        return DescribedPredicate.describe("nested in a controller", c -> c.getEnclosingClass()
+                .map(outer -> outer.isMetaAnnotatedWith(Controller.class)).orElse(false));
     }
 }
