@@ -44,6 +44,9 @@ class DocumentToolsTest extends IntegrationTest {
     @MockitoBean
     DocumentAi documentAi;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    com.smartcollab.global.security.SlidingWindowRateLimiter rateLimiter;
+
     @BeforeEach
     void enableAi() {
         reset(documentAi);
@@ -266,5 +269,21 @@ class DocumentToolsTest extends IntegrationTest {
                 .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.code").value("RATE_LIMITED"));
         verify(documentAi, times(1)).summarize(any());
+    }
+
+    @Test
+    @DisplayName("[M-1] 하루 한도를 다 쓴 사용자는 문서를 읽거나 토큰을 세기 전에 429 — 예전에는 매번 문서 전체를 읽고 토큰 세기 API 를 부른 뒤에야 거절")
+    void exhaustedBudgetIsRejectedBeforeAnyWork() throws Exception {
+        Api.Session s = api().signUp("m1budget");
+        long file = s.uploadText(s.rootFolderId, "a.txt", "본문");
+        rateLimiter.charge("ai-tokens:" + s.userId, 12_000, java.time.Duration.ofDays(1));
+
+        s.send(MockMvcRequestBuilders.post("/api/files/{id}/summary", file))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("RATE_LIMITED"));
+        s.send(MockMvcRequestBuilders.post("/api/files/{id}/translation?target=EN", file))
+                .andExpect(status().isTooManyRequests());
+        verify(documentAi, never()).countSummaryTokens(any());
+        verify(documentAi, never()).countTranslationTokens(any(), any());
     }
 }
