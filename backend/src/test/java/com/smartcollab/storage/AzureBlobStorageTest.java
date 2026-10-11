@@ -103,4 +103,11 @@ class AzureBlobStorageTest {
         assertThat(listed).extracting(BlobStorage.Listed::key).containsExactlyInAnyOrder(prefix + "a", prefix + "b");
         assertThat(listed).allSatisfy(b -> assertThat(b.lastModified()).isBefore(Instant.now().plusSeconds(60)));
     }
+
+    @Test
+    @DisplayName("[L-1] 없는 원본을 복사하면 BlobNotFoundException(404) — 예전에는 Azure 예외가 그대로 나가 500")
+    void copyOfMissingSourceIsNotFound() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> storage.copy("files/없는-원본", "files/대상"))
+                .isInstanceOf(com.smartcollab.storage.BlobNotFoundException.class);
+    }
 }
