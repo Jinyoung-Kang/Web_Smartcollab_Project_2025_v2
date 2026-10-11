@@ -45,6 +45,7 @@ open http://localhost:8080
 | `MAX_FOLDER_DEPTH` / `MAX_COPY_FOLDERS` | | `50` / `1000` | 폴더 깊이(최상위 아래 단계) / 한 번에 복사하는 폴더 수 |
 | `SIGNUP_RATE_PER_HOUR` | | `5` | IP 당 시간당 가입 횟수 |
 | `DEMO_QUOTA` | | `50MB` | 체험 계정·체험 팀의 저장 한도 |
+| `DEMO_SAMPLE_FILES` | | `true` | 체험 계정마다 내 드라이브에 '파일 유형별 시험' 폴더(텍스트·PDF·Office·이미지·기타 표본 16개, 약 190KB)를 만듦. 초기화 때도 다시 만듦 |
 | `DEMO_RESET_CRON` / `DEMO_RESET_ZONE` | | `0 0 5 * * *` / `Asia/Seoul` | 체험 데이터 초기화 시각 |
 | `TRASH_PURGE_CRON` / `TRASH_PURGE_ZONE` | | `0 0 4 * * *` / `Asia/Seoul` | 휴지통 자동 비우기 시각과 그 기준 시간대 (아래 두 작업도 이 시간대) |
 | `USAGE_RECONCILE_CRON` | | `0 30 4 * * *` | 저장 사용량 집계를 실제 버전 합계와 맞춰 보는 시각. 어긋난 저장 공간이 있으면 바로잡고 경고 로그 |
