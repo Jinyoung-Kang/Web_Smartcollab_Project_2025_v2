@@ -12,6 +12,9 @@ open http://localhost:8080
 75% 를 힙으로 잡아, 다른 컨테이너와 메모리를 나누는 호스트에서는 부하 중 OOMKilled(137)로 죽었습니다(출시 기준 QA, IMP-06).
 2GB 한도에서는 같은 부하에 JVM 메모리가 최대 1,150MiB 였습니다.
 
+아래 §2 의 설정은 `.env` 에 넣으면 앱 컨테이너에 그대로 전달됩니다(없으면 기본값). 예전에는 `docker-compose.yml` 에 적힌 몇 가지만
+전달돼, 나머지(`AI_TIMEOUT`·`DB_POOL_SIZE` 등)는 `.env` 에 넣어도 무시됐습니다 [L-6].
+
 `DEMO_ENABLED=true` 와 `DEMO_PASSWORD` 를 넣으면 체험용 계정(demo1~3)·팀·문서가 만들어집니다.
 
 > 체험 모드에서는 `demo1~3` 계정과 그 데이터가 매일 초기화됩니다. 이 아이디는 가입에 쓸 수 없지만(2026-10 이후), 그 전에 같은 아이디로 가입한 실사용자가 있는 DB 라면 체험 모드를 켜기 전에 확인하세요.
@@ -34,7 +37,7 @@ open http://localhost:8080
 | `AZURE_STORAGE_CONTAINER` | | `smartcollab-files` | 컨테이너 이름 (없으면 생성) |
 | `COOKIE_SECURE` | | `false` (`prod` 는 `true`) | HTTPS 에서만 쿠키 전송 |
 | `CORS_ALLOWED_ORIGINS` | | 개발 `http://localhost:5173,…` / `prod` 는 비어 있음 | 다른 출처에서 API 를 부를 때만 |
-| `UPLOAD_MAX_FILE_SIZE` | | `200MB` | 업로드 한도 |
+| `UPLOAD_MAX_FILE_SIZE` / `UPLOAD_MAX_REQUEST_SIZE` | | `200MB` / `210MB` | 파일 하나의 업로드 한도 / 업로드 요청 전체(파일 + 양식) 한도. 파일 한도를 올리면 요청 한도도 그보다 크게 |
 | `MAX_REQUEST_BODY_SIZE` | | `6MB` | 업로드를 뺀 요청 본문(JSON) 한도. `TEXT_EDIT_MAX_BYTES` 를 올리면 그 2배 이상으로 함께 올리세요 |
 | `TRASH_RETENTION_DAYS` | | `30` | 휴지통 보관 기간 |
 | `QUOTA_PERSONAL` / `QUOTA_TEAM` | | `1GB` / `5GB` | 저장 공간 한도 (옛 버전·휴지통 포함) |
@@ -53,11 +56,15 @@ open http://localhost:8080
 | `AI_MODEL` | | `claude-haiku-5-5` | 요약·번역에 쓰는 Claude 모델 |
 | `AI_SUMMARY_EFFORT` / `AI_TRANSLATION_EFFORT` | | `low` / `medium` | 작업별 생각의 양(low·medium·high·xhigh·max, 잘못된 값이면 기동 거절). 실측으로 정한 값 — 모델을 바꾸면 `qa/scripts/ai-live.mjs` 로 다시 확인하세요 |
 | `AI_TOKENS_PER_USER_PER_DAY` | | `300000` | 사용자별 24시간 AI 토큰(입력 + 출력). 호출 전에 예상분을 예약하고 실제 사용량으로 정산합니다 |
-| `AI_MAX_DOCUMENT_SIZE` / `AI_TIMEOUT` | | `10MB` / `120s` | 요약·번역할 PDF·Word 크기 상한(텍스트는 편집기 한도) / Claude 호출 시간 제한 |
-| `DEEPL_API_KEY` | | – | AI 키가 없을 때의 텍스트 번역 (둘 다 없으면 번역 버튼 비활성) |
+| `AI_MAX_DOCUMENT_SIZE` / `AI_TIMEOUT` | | `10MB` / `120s` | 요약·번역할 PDF·Word 크기 상한(텍스트는 편집기 한도) / 요약·토큰 세기 요청 하나의 시간 상한이자 응답이 멈춰도 기다리는 최대 간격 |
+| `AI_TRANSLATION_TIMEOUT` | | `10m` | 번역(스트리밍) 하나의 전체 시간 상한 — 긴 번역(출력 최대 64,000 토큰)을 받을 수 있게 따로 둡니다 [H-2] |
+| `AI_MAX_CONCURRENT` | | `8` | 서버 전체에서 동시에 돌리는 요약·번역 수(넘으면 503, 사용자당 2건을 넘으면 429). 2GB 컨테이너 기준 값 — 메모리 한도를 바꾸면 함께 조정 [M-1] |
+| `DEEPL_API_KEY` / `DEEPL_API_URL` | | – / `https://api-free.deepl.com` | AI 키가 없을 때의 텍스트 번역 (둘 다 없으면 번역 버튼 비활성) / 유료 요금제면 `https://api.deepl.com` |
 | `TRANSLATION_CHARS_PER_USER_PER_DAY` | | `100000` | 사용자별 24시간 번역 글자 수. DeepL 요금제의 월 한도에 맞춰 조정하세요 |
 | `DEMO_ENABLED` / `DEMO_PASSWORD` | | `false` | 체험 계정·데이터 생성. 비밀번호가 공개 설정 API 로 안내되므로 체험 전용 배포에서만 켜세요 |
 | `SWAGGER_ENABLED` | | `false` (`prod`) | 운영에서 API 문서 노출 여부 |
+| `SQL_LOG_LEVEL` | | `warn` | 실행한 SQL 로그(`debug` 면 모두 출력). 문제를 볼 때만 잠깐 |
+| `PORT` | | `8080` | 앱이 듣는 포트(App Service 등). Docker Compose 에서는 컨테이너 안 8080 고정이고 밖의 포트는 `APP_PORT` |
 
 ## 3. Azure (App Service + Database for MySQL + Blob Storage)
 
