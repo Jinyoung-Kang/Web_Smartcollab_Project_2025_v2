@@ -67,6 +67,15 @@
 | 프론트 순수 함수 `chatMessages.test` · `teamEvents.test` · `validateUpload.test` · `keepDraft.test` | 메시지 묶기·검사, 팀 이벤트·알림의 캐시 반영(React 없이), 업로드 전 검사, 편집본 파일 이름 (5단계) |
 | 프론트 `EditorPage.test` · `PreviewDialog.test` (요약·번역) | AI 요약(요약 문단·핵심 항목·모델·Anthropic 전송 안내)·번역 언어 선택, 키가 없으면 핵심 문장·번역 꺼짐 / 미리보기의 PDF 요약·Word 번역, 이미지에는 도구 없음, AI 키가 없을 때 PDF 는 꺼지고 이유 안내, DeepL 만 있으면 텍스트 번역 (AI-01·02) |
 | 프론트 `AuthProvider.test` | 실제 App·데이터 라우터로 로그아웃·세션 만료(401)·탈퇴 뒤 로그인 화면에 머무는지, 이전 사용자 캐시 삭제, 편집 중 세션 만료 시 확인, 비밀번호 오류 뒤 로그인 (BUG-09), 세션 만료 안내 (UX-03) |
+| `DocxTextTest` · `ExtractiveSummarizerTest` · `DocumentToolsTest`(H-1) | 수 KB Word 압축 폭탄(앞쪽 항목에 숨긴 것 포함)이 힙을 다 쓰지 않고 413, 뽑은 본문이 편집기 한도를 넘으면 키가 있든 없든 413, 추출 요약을 상위 k 개 방식으로 바꾼 뒤에도 고르는 문장이 같음(동작 고정) — 측정은 `qa/scripts/probes` ([REVIEW_2026-10-12](REVIEW_2026-10-12.md)) |
+| `ClaudeDocumentAiTest` · `DocumentToolsTest`(H-2) · `DocumentToolsConcurrencyTest` · `DocumentToolSlotsTest` · `PdfRequestAllocationBenchmarkTest` | 응답을 받은 뒤의 실패(잘림·거절·형식 오류·스트림 끊김)는 과금 토큰을 한도에 남김, 번역 예약은 요청의 max_tokens 와 같음, 번역 스트림은 바이트가 계속 오면 `AI_TIMEOUT` 보다 오래 걸려도 받고 멈추면 끊되 과금으로 봄 (H-2) / 한도를 다 쓰면 문서를 읽기 전에 429, 사용자당 2·서버 전체 동시 실행 상한, PDF 요청 메모리 할당 상한 (M-1) |
+| `CommitOutcomeUnknownTest` · `TransactionRunnerTest` | 커밋은 됐는데 확인 응답을 못 받은 업로드·텍스트 저장·복사가 저장소 파일을 지우지 않음 — 실제 커밋 뒤 예외를 던지는 트랜잭션 관리자로 재현 (H-4) |
+| `DemoProtectionTest` · `PasswordCheckConnectionTest` · `ShareLinkTest` · `AzureBlobStorageTest` | 체험 계정에게 팀장 위임 불가 (H-3), 초기화가 중간에 실패해 일부만 남은 체험 계정도 다음 시드가 정리 (L-3) / 로그인·공유 비밀번호 확인 중 DB 커넥션을 잡지 않음 (M-2) / 공유 다운로드는 저장소를 연 뒤에만 횟수 차감 (L-2) / Azure 복사의 404·실패 상태 (L-1) |
+| `ArchitectureTest`(L-7) | STOMP 컨트롤러도 리포지토리 금지, `List<엔티티>`·`ResponseEntity<엔티티>` 응답 금지, `@Service` 밖 도메인 클래스의 들어오는 HTTP 타입 금지 — 일부러 넣은 위반 3종으로 규칙이 잡는지 확인 |
+| `BulkDeletionBenchmarkTest` (`BENCH=true` 일 때만) | 파일 5천·2만·5만 개 계정 삭제 시간 (M-6, 결과 `qa/results/review-2026-10-12`) |
+| 프론트 `useTextDocument.test` · `Dialog.test` · `DeleteAccountDialog.test` · `Menu.test` · `SearchPage.test` · `endpoints.test` 외 (L-8) | 응답을 기다리는 사이 입력한 글을 덮지 않음, 저장·덮어쓰기는 한 번에 하나·사용량 캐시도 갱신, 대화상자 안에서 끌다 밖에서 놓아도 닫히지 않음, 탈퇴 창 다시 열면 비밀번호 비움, 메뉴·좁은 화면 패널 Esc·초점 복귀, 검색·공유 링크·버전 기록·폴더 목록 오류 안내, 링크 해제 확인, 복원 중복 막기, 채팅은 새 메시지만 알림, 공유 토큰 인코딩 |
+| 프론트 `AuthProvider.test`(M-3) · `ChatTab.test`(M-4) · `PreviewDialog.test`(M-5) · `Sidebar.test`(M-7) | 로그아웃 실패 시 로그인 상태 유지·안내, 채팅은 HTTP 로 저장 확인 뒤 실패하면 입력 되돌림, 진행 중인 AI 작업 단추 끄기, 안 읽은 표시에 이름 |
+| 프론트 순수 함수 `toolAvailability.test` · `trashRules.test` | 형식·설정별 요약·번역 사용 가능 여부와 안내, 휴지통 남은 보관 일수·영구 삭제 문구 (구조 정리 뒤 단위 시험) |
 
 `.env` 의 `APP_PORT` 를 바꿨다면 E2E 에 주소를 알려 주세요: `E2E_BASE_URL=http://localhost:8081 npx playwright test`.
 
