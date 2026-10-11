@@ -65,12 +65,12 @@ await page.getByRole('dialog', { name: '버전 기록' }).getByText('현재 버�
 await shot(page, 'version-history')
 await page.keyboard.press('Escape')
 
-// 5) 편집기 + 핵심 문장 요약
+// 5) 편집기 + 요약 — 서버에 AI 키가 있으면 Claude 요약(과금, 1센트 미만), 없으면 핵심 문장 추출 요약 [AI-01]
 await page.getByLabel('킥오프 회의.md 선택').uncheck()
 await page.getByRole('button', { name: '킥오프 회의.md', exact: true }).click()
 await page.getByRole('button', { name: '편집기로 열기' }).click()
-await page.getByRole('button', { name: /핵심 문장/ }).click()
-await page.getByText('핵심 문장 (추출 요약)').waitFor()
+await page.getByRole('button', { name: /AI 요약|핵심 문장/ }).click()
+await page.getByRole('complementary', { name: '요약·번역' }).getByText(/만든 요약|원문 그대로 골랐습니다/).waitFor({ timeout: 60_000 })
 await shot(page, 'editor-summary')
 
 // 6) 기획 폴더 → 공유 링크 대화상자 (팀 번호는 DB 마다 다르므로 사이드바의 팀 링크로 이동)
