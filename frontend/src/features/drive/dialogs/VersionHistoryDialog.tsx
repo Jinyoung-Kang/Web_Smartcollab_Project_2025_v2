@@ -1,17 +1,14 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BadgeCheck, RotateCcw, ShieldAlert, Signature } from 'lucide-react'
-import { fileApi } from '@/api/endpoints'
 import type { Item, Permissions } from '@/api/types'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
-import { useConfirm } from '@/components/ui/Confirm'
 import { Avatar, Badge, Spinner } from '@/components/ui/misc'
-import { useToast } from '@/components/ui/Toast'
 import { formatBytes, formatDateTime } from '@/lib/format'
-import { queryKeys } from '@/api/queryKeys'
+import { useVersionHistory } from './useVersionHistory'
 
 /**
  * 버전 기록 · 복원 · 서명. 각 버전의 SHA-256 앞자리로 내용이 같은지 한눈에 비교할 수 있습니다.
+ * 데이터와 되돌리기·서명은 useVersionHistory 가 맡습니다.
  * v1 은 현재 버전이 무엇인지, 누가 서명했는지 화면에 보여 주지 않았고 서명 버튼도 없었습니다.
  */
 export function VersionHistoryDialog({ file, permissions, onClose }: {
@@ -19,44 +16,7 @@ export function VersionHistoryDialog({ file, permissions, onClose }: {
   permissions: Permissions
   onClose: () => void
 }) {
-  const qc = useQueryClient()
-  const toast = useToast()
-  const confirm = useConfirm()
-  const versions = useQuery({ queryKey: queryKeys.versions.of(file?.id), queryFn: () => fileApi.versions(file!.id), enabled: !!file })
-
-  // 요청을 보낸 파일의 ID 를 변수로 넘깁니다. 닫은 뒤에 끝나도 그 파일의 캐시를 갱신합니다 [FB-11].
-  const refresh = (fileId: number) => {
-    void qc.invalidateQueries({ queryKey: queryKeys.versions.of(fileId) })
-    void qc.invalidateQueries({ queryKey: queryKeys.fileContent(fileId) })
-    void qc.invalidateQueries({ queryKey: queryKeys.folder.all })
-  }
-
-  const restore = useMutation({
-    mutationFn: ({ fileId, versionId }: { fileId: number; versionId: number }) => fileApi.restore(fileId, versionId),
-    onSuccess: (_, { fileId }) => {
-      refresh(fileId)
-      toast.success('선택한 버전을 현재 버전으로 되돌렸습니다.')
-    },
-    onError: (e: Error) => toast.error(e.message),
-  })
-
-  const sign = useMutation({
-    mutationFn: (fileId: number) => fileApi.sign(fileId),
-    onSuccess: (_, fileId) => {
-      refresh(fileId)
-      toast.success('현재 버전에 서명했습니다.')
-    },
-    onError: (e: Error) => toast.error(e.message),
-  })
-
-  const askRestore = async (versionId: number, when: string) => {
-    const ok = await confirm({
-      title: '이 버전으로 되돌릴까요?',
-      message: `${when} 버전이 현재 버전이 됩니다. 이후 버전도 기록에 그대로 남으며, 기존 서명은 무효가 됩니다.`,
-      confirmLabel: '되돌리기',
-    })
-    if (ok && file) restore.mutate({ fileId: file.id, versionId })
-  }
+  const { versions, askRestore, signCurrent, signing } = useVersionHistory(file?.id)
 
   return (
     <Dialog
@@ -66,7 +26,7 @@ export function VersionHistoryDialog({ file, permissions, onClose }: {
       description={file?.name}
       size="lg"
       footer={
-        <Button variant="primary" onClick={() => file && sign.mutate(file.id)} loading={sign.isPending}>
+        <Button variant="primary" onClick={signCurrent} loading={signing}>
           <Signature className="size-4" /> 현재 버전에 서명
         </Button>
       }
