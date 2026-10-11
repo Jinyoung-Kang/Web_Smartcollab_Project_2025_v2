@@ -17,6 +17,7 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.TransactionSystemException;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -46,7 +47,7 @@ class CommitOutcomeUnknownTest extends IntegrationTest {
         long file = fileNamed(s, "보고서.txt");   // 커밋은 됐으므로 목록에 있음
         s.send(MockMvcRequestBuilders.get("/api/files/{id}/download", file))
                 .andExpect(status().isOk())
-                .andExpect(content().string("커밋된 내용"));
+                .andExpect(content().bytes("커밋된 내용".getBytes(StandardCharsets.UTF_8)));
     }
 
     @Test
@@ -76,7 +77,7 @@ class CommitOutcomeUnknownTest extends IntegrationTest {
         long copy = fileNamed(s, target, "원본.txt");
         s.send(MockMvcRequestBuilders.get("/api/files/{id}/download", copy))
                 .andExpect(status().isOk())
-                .andExpect(content().string("복사할 내용"));
+                .andExpect(content().bytes("복사할 내용".getBytes(StandardCharsets.UTF_8)));
     }
 
     private long fileNamed(Api.Session s, String name) throws Exception {

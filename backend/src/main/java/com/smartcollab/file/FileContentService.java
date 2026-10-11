@@ -100,28 +100,23 @@ public class FileContentService {
         String key = "versions/" + UUID.randomUUID();
         StoredBlob blob = storage.put(key, new ByteArrayInputStream(bytes), bytes.length);
 
-        try {
-            // READ COMMITTED: 저장 한도 확인이 잠금 읽기 없이 최신 값을 보게 합니다(다른 사용자와의 교착 방지) [QA-06]
-            return tx.writeReadCommitted(() -> {
-                FileEntity file = requireSavable(fileId, baseVersionId, userId);
-                User editor = users.findById(userId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
-                // 새 버전은 저장 공간을 더 차지하므로 한도를 확인합니다 (반복 저장으로 버전을 한없이 쌓지 못하게) [SEC-05]
-                quota.lockAndCheckRoom(StorageQuota.Scope.of(file.getFolder()), blob.size());
-                // 서명·복원과 차례로 처리되도록 새 버전 행을 넣기 전에 파일 행을 잠급니다 [S-17]. 새 버전 INSERT 의 외래 키 확인이
-                // 파일 행에 공유 잠금을 걸고 뒤이은 UPDATE 가 배타 잠금으로 올리는 사이에, 서명이 기다리며 교착되지 않게 하려는 것입니다.
-                // (이미 읽은 엔티티는 갱신되지 않지만, 그 사이 다른 변경이 있었다면 @Version 확인이 409 로 막습니다.)
-                fileService.lockActive(fileId);
-                FileVersion version = versions.save(new FileVersion(file, key, editor, blob.size(), blob.sha256()));
-                quota.record(StorageQuota.Scope.of(file.getFolder()), blob.size());
-                file.activate(version);
-                events.publishEvent(new FileEvents.CurrentVersionChanged(fileId));   // 기존 서명 무효 (서명 모듈)
-                publishChanged(file);
-                return new SaveResult(version.getId(), file.getUpdatedAt());
-            });
-        } catch (RuntimeException e) {
-            blobLifecycle.discard(List.of(key));
-            throw e;
-        }
+        // READ COMMITTED: 저장 한도 확인이 잠금 읽기 없이 최신 값을 보게 합니다(다른 사용자와의 교착 방지) [QA-06]
+        return tx.writeReadCommitted(() -> {
+            FileEntity file = requireSavable(fileId, baseVersionId, userId);
+            User editor = users.findById(userId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
+            // 새 버전은 저장 공간을 더 차지하므로 한도를 확인합니다 (반복 저장으로 버전을 한없이 쌓지 못하게) [SEC-05]
+            quota.lockAndCheckRoom(StorageQuota.Scope.of(file.getFolder()), blob.size());
+            // 서명·복원과 차례로 처리되도록 새 버전 행을 넣기 전에 파일 행을 잠급니다 [S-17]. 새 버전 INSERT 의 외래 키 확인이
+            // 파일 행에 공유 잠금을 걸고 뒤이은 UPDATE 가 배타 잠금으로 올리는 사이에, 서명이 기다리며 교착되지 않게 하려는 것입니다.
+            // (이미 읽은 엔티티는 갱신되지 않지만, 그 사이 다른 변경이 있었다면 @Version 확인이 409 로 막습니다.)
+            fileService.lockActive(fileId);
+            FileVersion version = versions.save(new FileVersion(file, key, editor, blob.size(), blob.sha256()));
+            quota.record(StorageQuota.Scope.of(file.getFolder()), blob.size());
+            file.activate(version);
+            events.publishEvent(new FileEvents.CurrentVersionChanged(fileId));   // 기존 서명 무효 (서명 모듈)
+            publishChanged(file);
+            return new SaveResult(version.getId(), file.getUpdatedAt());
+        }, () -> blobLifecycle.discard(List.of(key)));
     }
 
     /** 저장할 수 있는지(권한·형식·편집 시작 버전) 확인합니다. 저장소에 쓰기 전과 쓴 뒤에 한 번씩 봅니다. */

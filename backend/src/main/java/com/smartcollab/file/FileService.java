@@ -74,24 +74,20 @@ public class FileService {
             throw new UncheckedIOException("업로드 스트림을 읽지 못했습니다.", e);
         }
 
-        try {
-            // READ COMMITTED: 저장 한도 확인이 잠금 읽기 없이 최신 값을 보게 합니다(다른 사용자와의 교착 방지) [QA-06]
-            return tx.writeReadCommitted(() -> {
-                Folder folder = getFolder(folderId);
-                accessPolicy.requireEdit(folder, userId);
-                quota.lockAndCheckRoom(StorageQuota.Scope.of(folder), blob.size());
-                User uploader = users.findById(userId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
-                FileEntity file = files.save(new FileEntity(folder, uploader, name, blob.size()));
-                FileVersion first = versions.save(new FileVersion(file, key, uploader, blob.size(), blob.sha256()));
-                file.activate(first);
-                quota.record(StorageQuota.Scope.of(folder), blob.size());
-                publishChanged(folder);
-                return DriveDtos.ItemResponse.of(file);
-            });
-        } catch (RuntimeException e) {
-            blobLifecycle.discard(List.of(key));
-            throw e;
-        }
+        // READ COMMITTED: 저장 한도 확인이 잠금 읽기 없이 최신 값을 보게 합니다(다른 사용자와의 교착 방지) [QA-06]
+        // 확실히 롤백됐을 때만 방금 쓴 파일을 지웁니다 — 커밋 결과를 모르는 실패에서 지우면 커밋된 버전이 내용을 잃음 [H-4]
+        return tx.writeReadCommitted(() -> {
+            Folder folder = getFolder(folderId);
+            accessPolicy.requireEdit(folder, userId);
+            quota.lockAndCheckRoom(StorageQuota.Scope.of(folder), blob.size());
+            User uploader = users.findById(userId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
+            FileEntity file = files.save(new FileEntity(folder, uploader, name, blob.size()));
+            FileVersion first = versions.save(new FileVersion(file, key, uploader, blob.size(), blob.sha256()));
+            file.activate(first);
+            quota.record(StorageQuota.Scope.of(folder), blob.size());
+            publishChanged(folder);
+            return DriveDtos.ItemResponse.of(file);
+        }, () -> blobLifecycle.discard(List.of(key)));
     }
 
     private Folder getFolder(Long folderId) {

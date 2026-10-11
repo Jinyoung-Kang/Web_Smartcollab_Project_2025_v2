@@ -69,7 +69,11 @@ class StorageCleanupTest {
         when(folders.findById(10L)).thenReturn(Optional.of(folder));
         ArgumentCaptor<String> key = ArgumentCaptor.forClass(String.class);
         when(storage.put(key.capture(), any(InputStream.class), anyLong())).thenAnswer(inv -> new StoredBlob(inv.getArgument(0), 5, "h"));
-        when(tx.writeReadCommitted(any(Supplier.class))).thenThrow(ApiException.notFound("폴더"));
+        // 쓰기 트랜잭션 안에서 실패(확실한 롤백) — TransactionRunner 가 정리 콜백을 부른 뒤 다시 던짐 [H-4]
+        when(tx.writeReadCommitted(any(Supplier.class), any(Runnable.class))).thenAnswer(inv -> {
+            ((Runnable) inv.getArgument(1)).run();
+            throw ApiException.notFound("폴더");
+        });
         FileService service = new FileService(files, versions, folders, users, accessPolicy, blobLifecycle, storage, events, tx, quota);
 
         assertThatThrownBy(() -> service.upload(10L, UploadSource.of("a.txt", "hello".getBytes()), 1L))
@@ -103,7 +107,7 @@ class StorageCleanupTest {
         assertThatThrownBy(() -> service.copy(request, 1L)).isInstanceOf(BlobNotFoundException.class);
 
         verify(blobLifecycle).discard(List.of(firstCopy.getValue()));
-        verify(tx, never()).writeReadCommitted(any(Supplier.class));   // 복사의 DB 쓰기(이전에는 쓰지 않는 write 를 확인해 늘 통과)
+        verify(tx, never()).writeReadCommitted(any(Supplier.class), any(Runnable.class));   // 복사의 DB 쓰기(이전에는 쓰지 않는 write 를 확인해 늘 통과)
     }
 
     private static FileEntity file(String name, String storedPath) {
