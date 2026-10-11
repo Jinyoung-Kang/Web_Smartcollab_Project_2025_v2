@@ -235,7 +235,7 @@ public class DocumentToolsService {
             rateLimiter.charge(budgetKey, used, DAY);
             log.info("AI {} failed after billing file={} version={} code={} tokens={}", task, fileId, ref.versionId(), e.code(), used);
             throw e;
-        } catch (RuntimeException e) {
+        } catch (RuntimeException | Error e) {
             rateLimiter.release(budgetKey, reserve);
             throw e;
         }

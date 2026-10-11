@@ -268,7 +268,8 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
                         started[0] = true;
                         accumulator.accumulate(event);
                     });
-                } catch (AnthropicException e) {
+                } catch (AnthropicException | IllegalStateException e) {
+                    // IllegalStateException: 끝 표시(message_stop) 없이 닫힌 스트림을 누적기가 거절할 때
                     if (started[0]) {
                         // 응답을 받기 시작한 뒤 끊김 — 이미 과금됐지만 얼마인지 모름. 다시 보내지 않음
                         log.warn("Claude translation stream broke after it started: {}", e.getClass().getSimpleName());
@@ -276,7 +277,13 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
                     }
                     throw e;
                 }
-                return accumulator.message();
+                try {
+                    return accumulator.message();
+                } catch (IllegalStateException e) {
+                    // 시작한 스트림이 끝 표시 없이 닫힘 — 이미 과금됐지만 얼마인지 모름
+                    log.warn("Claude translation stream ended without message_stop");
+                    throw new BilledFailure(ErrorCode.UPSTREAM_ERROR, "AI 의 번역 응답이 중간에 끊겼습니다. 다시 시도하세요.", null);
+                }
             }, true);
         } catch (ApiException e) {
             if (started[0]) {
@@ -480,11 +487,16 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
         }
     }
 
-    /** 서버가 요청을 처리(과금)했을 수 있는 시간 초과. OkHttp 의 읽기·호출 시간 초과는 InterruptedIOException(SocketTimeoutException 포함)으로 옵니다 */
+    /**
+     * 서버가 요청을 처리(과금)했을 수 있는 시간 초과 — 요청을 보낸 뒤 응답을 기다리다 난 것. OkHttp 의 읽기·호출 시간 초과는
+     * InterruptedIOException(SocketTimeoutException 포함)으로 옵니다. 연결 단계의 시간 초과("Connect timed out", JDK Socket.connect)는
+     * 요청이 서버에 닿지 않았으므로 과금 전 실패로 보아 다시 시도합니다.
+     */
     static boolean mayHaveBeenProcessed(Throwable e) {
         for (Throwable t = e; t != null; t = t.getCause()) {
             if (t instanceof InterruptedIOException) {
-                return true;
+                String message = t.getMessage();
+                return message == null || !message.toLowerCase(Locale.ROOT).contains("connect timed out");
             }
         }
         return false;

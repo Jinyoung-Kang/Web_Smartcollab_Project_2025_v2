@@ -140,7 +140,7 @@ app:
     tokens-per-user-per-day: ${AI_TOKENS_PER_USER_PER_DAY:300000}
     # PDF·Word 문서 크기 상한(텍스트 문서는 편집기 한도를 따름) [AI-02]
     max-document-size: ${AI_MAX_DOCUMENT_SIZE:10MB}
-    # 요약·토큰 세기 요청 하나의 상한이자 응답 바이트 사이의 최대 간격(SDK 가 429·5xx·연결 실패를 두 번까지 다시 시도) [H-2]
+    # 요약·토큰 세기 요청 하나의 상한이자 응답 바이트 사이의 최대 간격. 429·5xx·연결 실패는 앱이 두 번까지 다시 보내고, 응답 대기 중 시간 초과는 다시 보내지 않음 [H-2]
     timeout: ${AI_TIMEOUT:120s}
     # 번역(스트리밍) 하나의 전체 상한 — 출력 64,000 토큰까지 받을 수 있게. 바이트가 AI_TIMEOUT 넘게 멈추면 그 전에 끊김 [H-2]
     translation-timeout: ${AI_TRANSLATION_TIMEOUT:10m}
