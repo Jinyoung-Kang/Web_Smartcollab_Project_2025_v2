@@ -104,6 +104,19 @@ describe('로그인 상태가 끝날 때 [BUG-09]', () => {
     expect(client.getQueryData(['me'])).toBeNull()
   })
 
+  it('[M-3] 로그아웃 요청이 실패하면(네트워크·5xx) 로그인 상태로 남기고 알린다 — 쿠키는 남는데 로그인 화면으로 가 공용 PC 에서 다음 사람이 이어 쓸 수 있었음', async () => {
+    const user = userEvent.setup()
+    const { router } = renderApp('/drive')
+    await screen.findByText('드라이브 화면')
+    vi.spyOn(authApi, 'logout').mockRejectedValue(new ApiError(0, 'NETWORK', '네트워크에 연결할 수 없습니다.'))
+
+    await user.click(screen.getByRole('button', { name: '로그아웃' }))
+
+    expect(await screen.findByText(/로그아웃하지 못했습니다/)).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/drive')
+    expect(screen.getByText('드라이브 화면')).toBeInTheDocument()
+  })
+
   it('세션이 만료되어 요청이 401 이면 로그인 화면으로 간다', async () => {
     const { router, client } = renderApp('/drive')
     await screen.findByText('드라이브 화면')

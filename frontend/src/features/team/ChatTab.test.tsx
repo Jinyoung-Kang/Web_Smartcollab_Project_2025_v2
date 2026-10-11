@@ -17,7 +17,8 @@ vi.mock('@/auth/AuthProvider', () => ({
 }))
 const upload = vi.hoisted(() => ({ uploadFile: vi.fn() }))
 vi.mock('@/api/upload', () => upload)
-vi.mock('@/realtime/RealtimeProvider', () => ({ useRealtime: () => ({ publish: () => false }) }))
+const realtime = vi.hoisted(() => ({ publish: vi.fn(() => false) }))
+vi.mock('@/realtime/RealtimeProvider', () => ({ useRealtime: () => realtime }))
 const activity = vi.hoisted(() => ({ setActiveChat: vi.fn() }))
 vi.mock('@/realtime/TeamActivity', () => ({ useTeamActivity: () => activity, appendChatMessage: vi.fn() }))
 
@@ -127,6 +128,33 @@ describe('ChatTab — 첨부 파일 검사', () => {
 
     expect(await screen.findByText(`최대 ${formatBytes(1024)}까지 올릴 수 있습니다.`)).toBeInTheDocument()
     expect(upload.uploadFile).not.toHaveBeenCalled()
+  })
+})
+
+describe('ChatTab — 메시지 보내기 [M-4]', () => {
+  it('보내기가 실패하면 쓴 메시지를 입력란에 되돌린다 — 예전에는 지운 뒤 실패 안내만 떠 메시지가 사라짐', async () => {
+    const user = userEvent.setup()
+    renderChat()
+    vi.spyOn(chatApi, 'send').mockRejectedValue(new ApiError(0, 'NETWORK', '네트워크에 연결할 수 없습니다.'))
+    const box = await screen.findByLabelText('메시지')
+
+    await user.type(box, '안녕하세요{Enter}')
+
+    expect(await screen.findByText('네트워크에 연결할 수 없습니다.')).toBeInTheDocument()
+    expect(box).toHaveValue('안녕하세요')
+  })
+
+  it('웹소켓이 연결돼 있어도 HTTP 로 보내 결과를 확인한다 — 반쯤 끊긴 소켓에 보낸 메시지가 확인 없이 사라졌음', async () => {
+    const user = userEvent.setup()
+    realtime.publish.mockReturnValue(true)
+    renderChat()
+    const sent = vi.spyOn(chatApi, 'send').mockResolvedValue({
+      id: 99, type: 'TEXT', content: '안녕하세요', sender: { username: 'demo1', name: '김하늘' }, createdAt,
+    })
+
+    await user.type(await screen.findByLabelText('메시지'), '안녕하세요{Enter}')
+
+    await vi.waitFor(() => expect(sent).toHaveBeenCalledWith(3, { content: '안녕하세요' }))
   })
 })
 

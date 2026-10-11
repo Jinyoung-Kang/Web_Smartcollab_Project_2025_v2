@@ -88,4 +88,20 @@ describe('PreviewDialog — 요약·번역 [AI-02]', () => {
     const button = await screen.findByRole('button', { name: '번역' })
     await vi.waitFor(() => expect(button).toBeEnabled())
   })
+
+  it('[M-5] 요약 중에는 요약·번역 단추가 꺼져, 연달아 눌러도 요청은 한 번 — 누를 때마다 과금됐음', async () => {
+    const user = userEvent.setup()
+    const summary = vi.spyOn(fileApi, 'summary').mockReturnValue(new Promise(() => {}))
+    renderPreview(item(12, '보고서.pdf', 'PDF'), ai)
+
+    const button = await screen.findByRole('button', { name: /AI 요약/ })
+    await vi.waitFor(() => expect(button).toBeEnabled())
+    await user.click(button)
+    await user.click(button)
+
+    expect(summary).toHaveBeenCalledTimes(1)
+    expect(button).toBeDisabled()
+    expect(screen.getByRole('button', { name: '번역' })).toBeDisabled()
+  })
 })
+
