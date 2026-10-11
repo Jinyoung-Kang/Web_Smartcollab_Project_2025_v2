@@ -33,7 +33,6 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Duration;
-import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -369,7 +368,7 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
             doc.title(document.title());
         }
         if (document.isPdf()) {
-            doc.source(Base64PdfSource.builder().data(Base64.getEncoder().encodeToString(document.pdf())).build());
+            doc.source(Base64PdfSource.builder().data(document.pdfBase64()).build());
         } else {
             doc.source(PlainTextSource.builder().data(document.text()).build());
         }

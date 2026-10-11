@@ -130,7 +130,7 @@ class DocumentToolsTest extends IntegrationTest {
         ArgumentCaptor<AiDocument> summarized = ArgumentCaptor.forClass(AiDocument.class);
         verify(documentAi).summarize(summarized.capture());
         assertThat(summarized.getValue().isPdf()).isTrue();
-        assertThat(summarized.getValue().pdf()).isEqualTo(pdf);
+        assertThat(java.util.Base64.getDecoder().decode(summarized.getValue().pdfBase64())).isEqualTo(pdf);
         ArgumentCaptor<AiDocument> translated = ArgumentCaptor.forClass(AiDocument.class);
         verify(documentAi).translate(translated.capture(), any(), anyLong());
         assertThat(translated.getValue().text()).isEqualTo("워드 본문\n둘째 문단");

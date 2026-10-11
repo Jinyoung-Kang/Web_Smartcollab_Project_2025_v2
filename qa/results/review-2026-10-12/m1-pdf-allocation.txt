@@ -1,0 +1,9 @@
+# [M-1] 10MB PDF 요약 1건(토큰 세기 + 요약)의 호출 스레드 할당량 — PdfRequestAllocationBenchmarkTest, 가짜 Anthropic 서버
+== 수정 전 (base64 를 count·create 마다 만듦)
+[M-1] pdfBytes=10485760 allocatedMB=133.4 ratio=13.34
+[M-1] pdfBytes=10485760 allocatedMB=133.4 ratio=13.34
+[M-1] pdfBytes=10485760 allocatedMB=133.4 ratio=13.34
+== 수정 후 (AiDocument 를 만들 때 한 번)
+[M-1] pdfBytes=10485760 allocatedMB=106.8 ratio=10.68
+[M-1] pdfBytes=10485760 allocatedMB=106.8 ratio=10.68
+[M-1] pdfBytes=10485760 allocatedMB=106.8 ratio=10.68
