@@ -81,7 +81,8 @@ export function ChatTab({ teamId, team, active = true }: { teamId: number; team:
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <p role="status" aria-label="새 메시지 알림" className="sr-only">{announcement}</p>
+      {/* 이름을 달지 않습니다 — 읽을 내용이 곧 알림이고, '메시지' 이름의 입력란과 겹치지 않게 */}
+      <p role="status" className="sr-only">{announcement}</p>
       <div ref={scroller} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
         {chat.isPending && <Spinner />}
         {chat.isFetchingNextPage && <Spinner className="mb-2 w-full justify-center" label="이전 메시지 불러오는 중" />}

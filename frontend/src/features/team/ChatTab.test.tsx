@@ -166,7 +166,7 @@ describe('ChatTab — 화면 읽기 프로그램 알림', () => {
   it('[L-8] 대화 목록 전체를 알리지 않고, 다른 사람이 보낸 새 메시지 하나만 알린다', async () => {
     renderChat()
     await screen.findByRole('button', { name: '화면 스케치.png 미리보기' })
-    const live = screen.getByRole('status', { name: '새 메시지 알림' })
+    const live = screen.getAllByRole('status').find((el) => el.tagName === 'P')!
     expect(live).toBeEmptyDOMElement()   // 처음 불러온 기록은 알리지 않음
 
     await act(async () => appendChatMessage(client, 3, {

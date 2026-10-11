@@ -16,11 +16,13 @@ const SearchPage = lazy(() => import('@/features/drive/SearchPage'))
 const EditorPage = lazy(() => import('@/features/editor/EditorPage'))
 const SharePage = lazy(() => import('@/features/share/SharePage'))
 
+/** 화면 코드를 받는 동안의 화면 — 이것만 보이는 순간에도 main·h1 이 있어야 합니다(지연 로딩 뒤 접근성 검사에서 발견) */
 function FullScreenSpinner() {
   return (
-    <div className="flex h-dvh items-center justify-center">
+    <main className="flex h-dvh items-center justify-center">
+      <h1 className="sr-only">불러오는 중</h1>
       <Spinner />
-    </div>
+    </main>
   )
 }
 
