@@ -236,6 +236,8 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
             throw new ApiException(ErrorCode.UPSTREAM_ERROR, "AI 의 번역 형식이 올바르지 않습니다. 다시 시도하세요.");
         }
         if (parsed.translation() == null || parsed.translation().isBlank()) {
+            log.warn("Claude translation field was empty: jsonChars={} notesChars={}", json.length(),
+                    parsed.notes() == null ? -1 : parsed.notes().length());
             throw new ApiException(ErrorCode.UPSTREAM_ERROR, "AI 가 빈 결과를 돌려주었습니다. 다시 시도하세요.");
         }
         return new Output<>(unwrapTranslation(parsed.translation(), document),
@@ -344,6 +346,9 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
                 .map(TextBlock::text)
                 .collect(Collectors.joining());
         if (text.isBlank()) {
+            log.warn("Claude returned no text: blocks={} stop={} outputTokens={}",
+                    message.content().stream().map(b -> b.isText() ? "text" : b.isThinking() ? "thinking" : "other").toList(),
+                    reason, message.usage().outputTokens());
             throw new ApiException(ErrorCode.UPSTREAM_ERROR, "AI 가 빈 결과를 돌려주었습니다. 다시 시도하세요.");
         }
         return text;
