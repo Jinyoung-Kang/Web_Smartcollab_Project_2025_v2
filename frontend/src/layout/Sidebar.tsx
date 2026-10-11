@@ -51,7 +51,7 @@ export function Sidebar() {
             <Users aria-hidden className="size-4 shrink-0" />
             <span className="min-w-0 flex-1 truncate">{team.name}</span>
             {unread.has(team.id) ? (
-              <span className="size-2 rounded-full bg-red-500" aria-label="새 채팅 메시지" />
+              <span role="img" aria-label="새 채팅 메시지" className="size-2 rounded-full bg-red-500" />
             ) : (
               <span className="text-xs text-slate-600">{team.memberCount}명</span>
             )}

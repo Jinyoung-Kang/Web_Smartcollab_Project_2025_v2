@@ -21,6 +21,9 @@ export function DocumentToolButtons({ kind, tools }: { kind: DocumentKind; tools
   const model = modelName(config?.aiModel)
   const canSummarize = ai || kind !== 'PDF'
   const canTranslate = ai || (!!config?.translationEnabled && kind === 'TEXT')
+  // 진행 중인 작업의 단추는 끕니다 — 연달아 누르면 그만큼 요청·과금됐음 [M-5].
+  // 다른 작업으로 바꾸는 것(요약 중 번역)은 그대로 되고, 마지막에 누른 결과만 보입니다(5단계)
+  const pending = tools.tool?.kind === 'loading' ? tools.tool.action : null
 
   const summaryTitle = ai
     ? `AI(${model})로 요약합니다. ${PRIVACY}`
@@ -37,7 +40,7 @@ export function DocumentToolButtons({ kind, tools }: { kind: DocumentKind; tools
 
   return (
     <>
-      <Button size="sm" variant="ghost" disabled={!canSummarize} onClick={() => void tools.summarize(ai)} title={summaryTitle}>
+      <Button size="sm" variant="ghost" disabled={!canSummarize || pending === 'summary'} onClick={() => void tools.summarize(ai)} title={summaryTitle}>
         <Sparkles className="size-4" /> {ai ? 'AI 요약' : '핵심 문장'}
       </Button>
       <span className="inline-flex items-center gap-1">
@@ -45,7 +48,7 @@ export function DocumentToolButtons({ kind, tools }: { kind: DocumentKind; tools
           className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-700">
           {LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
         </select>
-        <Button size="sm" variant="ghost" disabled={!canTranslate} onClick={() => void tools.translate(language)} title={translateTitle}>
+        <Button size="sm" variant="ghost" disabled={!canTranslate || pending === 'translation'} onClick={() => void tools.translate(language)} title={translateTitle}>
           <Languages className="size-4" /> 번역
         </Button>
       </span>

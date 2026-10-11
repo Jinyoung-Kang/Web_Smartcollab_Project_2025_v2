@@ -149,7 +149,7 @@ describe('ChatTab — 메시지 보내기 [M-4]', () => {
     realtime.publish.mockReturnValue(true)
     renderChat()
     const sent = vi.spyOn(chatApi, 'send').mockResolvedValue({
-      id: 99, type: 'TEXT', content: '안녕하세요', sender: { username: 'demo1', name: '김하늘' }, createdAt,
+      id: 99, type: 'CHAT', content: '안녕하세요', sender: { username: 'demo1', name: '김하늘' }, createdAt,
     })
 
     await user.type(await screen.findByLabelText('메시지'), '안녕하세요{Enter}')

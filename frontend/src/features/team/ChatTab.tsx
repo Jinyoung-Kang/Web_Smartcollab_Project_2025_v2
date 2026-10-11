@@ -51,9 +51,13 @@ export function ChatTab({ teamId, team, active = true }: { teamId: number; team:
     const checked = validateChatMessage(text)
     if (!checked) return
     if ('error' in checked) return toast.error(checked.error)
+    const written = text
     setText('')
     followNewMessages()
-    void send({ content: checked.content })
+    // 보내지 못하면 쓴 내용을 되돌립니다 — 그사이 새로 쓰기 시작했으면 덮지 않음 [M-4]
+    void send({ content: checked.content }).then((sent) => {
+      if (!sent) setText((now) => (now === '' ? written : now))
+    })
   }
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
