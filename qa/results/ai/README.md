@@ -21,6 +21,7 @@
 | AI-07 | 번역 결과에 생각·정정이 섞임("Wait, I must translate …") | [live-measurement-before-AI-07.md](live-measurement-before-AI-07.md), [runs-1](runs-1/comparison.md)~[3](runs-3/comparison.md) | 아래 표 |
 | AI-08 | 요약이 문서에 없는 연도를 적음("2024년 9월 24일") | runs-1~3, dates-*.json | 원문에 없는 연도를 뗌 |
 | AI-09 | 번역 전체가 코드 울타리(```` ``` ````)에 싸임 | [live-measurement-before-AI-09.md](live-measurement-before-AI-09.md) | 프롬프트 + 울타리를 벗김 |
+| AI-11 | 한국어 요약에 일본어 조사가 섞임("증가분の 대부분은") — 개인·팀 드라이브 기능 점검에서 발견 | [summary-script-before-AI-11.txt](summary-script-before-AI-11.txt) 5/10(프롬프트 4/10, effort medium 2/10) | 한글 바로 뒤의 "の"를 "의"로 → [after](summary-script-after-AI-11.txt) 0/10 |
 | AI-10 | 번역 첫 줄에 옮긴 파일 이름("週次会議メモ.txt")이 붙음 — 화면 확인에서 발견 | [title-before-AI-10.txt](title-before-AI-10.txt) 1/10 | 번역 요청에 파일 이름을 보내지 않음 → [title-after-AI-10.json](title-after-AI-10.json) 0/10 |
 
 ### AI-07 — 한국어 → 일본어·중국어 번역 (CSV·Word 각 10번, `qa/scripts/ai-translate-repeat.mjs`)
