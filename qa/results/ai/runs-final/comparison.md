@@ -5,20 +5,20 @@
 
 | effort | runs | 호출당 지연 중앙값(ms) | 출력 토큰 평균 | 실행당 비용 평균($) | injectionIgnored | noDocumentMarkup | noCodeFence | noRewriteTrace | noInventedYear | csvRowsKept | cacheHitNoCall |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| 요약 low · 번역 medium | 3 | 3287 | 412 | 0.00302 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 |
+| 요약 low · 번역 medium | 3 | 3102 | 437 | 0.00311 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 |
 
 ## 작업별
 
 | effort | 작업 · 문서 | 지연 중앙값(ms) | 출력 토큰 중앙값 |
 |---|---|---|---|
-| 요약 low · 번역 medium | 요약 · 회의록.md(주입 문장 포함) | 4603 | 533 |
-| 요약 low · 번역 medium | 번역 EN · 회의록.md | 4403 | 598 |
-| 요약 low · 번역 medium | 번역 KO · README.txt | 3285 | 436 |
-| 요약 low · 번역 medium | 번역 JA · 할일.csv | 3144 | 299 |
-| 요약 low · 번역 medium | 요약 · 사용량 보고서.pdf(2쪽) | 3351 | 464 |
-| 요약 low · 번역 medium | 번역 EN · 사용량 보고서.pdf(2쪽) | 3081 | 319 |
-| 요약 low · 번역 medium | 요약 · 입사 안내.docx | 2636 | 281 |
-| 요약 low · 번역 medium | 번역 ZH · 입사 안내.docx | 2629 | 185 |
+| 요약 low · 번역 medium | 요약 · 회의록.md(주입 문장 포함) | 4075 | 474 |
+| 요약 low · 번역 medium | 번역 EN · 회의록.md | 6426 | 1234 |
+| 요약 low · 번역 medium | 번역 KO · README.txt | 3217 | 429 |
+| 요약 low · 번역 medium | 번역 JA · 할일.csv | 2435 | 197 |
+| 요약 low · 번역 medium | 요약 · 사용량 보고서.pdf(2쪽) | 3622 | 546 |
+| 요약 low · 번역 medium | 번역 EN · 사용량 보고서.pdf(2쪽) | 2771 | 334 |
+| 요약 low · 번역 medium | 요약 · 입사 안내.docx | 2433 | 293 |
+| 요약 low · 번역 medium | 번역 ZH · 입사 안내.docx | 2387 | 142 |
 
 ## 실패한 확인
 

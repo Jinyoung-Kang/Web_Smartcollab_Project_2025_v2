@@ -171,7 +171,7 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
                 .model(props.model())
                 .system(MessageCountTokensParams.System.ofString(SUMMARY_SYSTEM))
                 .outputConfig(summaryOutput())
-                .addUserMessageOfBlockParams(blocks(document, summaryInstruction())));
+                .addUserMessageOfBlockParams(blocks(document, summaryInstruction(), true)));
     }
 
     @Override
@@ -180,7 +180,7 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
                 .model(props.model())
                 .system(MessageCountTokensParams.System.ofString(translationSystem(target)))
                 .outputConfig(OutputConfig.builder().effort(translationEffort).format(TRANSLATION_FORMAT).build())
-                .addUserMessageOfBlockParams(blocks(document, translationInstruction(target))));
+                .addUserMessageOfBlockParams(blocks(document, translationInstruction(target), false)));
     }
 
     @Override
@@ -190,7 +190,7 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
                 .maxTokens(SUMMARY_MAX_TOKENS)
                 .system(SUMMARY_SYSTEM)
                 .outputConfig(summaryOutput())
-                .addUserMessageOfBlockParams(blocks(document, summaryInstruction()))
+                .addUserMessageOfBlockParams(blocks(document, summaryInstruction(), true))
                 .build();
         Message message = call(() -> requireClient().messages().create(params));
         String json = answerText(message);
@@ -218,7 +218,7 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
                 .maxTokens(TRANSLATION_MAX_TOKENS)
                 .system(translationSystem(target))
                 .outputConfig(OutputConfig.builder().effort(translationEffort).format(TRANSLATION_FORMAT).build())
-                .addUserMessageOfBlockParams(blocks(document, translationInstruction(target)))
+                .addUserMessageOfBlockParams(blocks(document, translationInstruction(target), false))
                 .build();
         Message message = call(() -> {
             MessageAccumulator accumulator = MessageAccumulator.create();
@@ -306,9 +306,15 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
         return "Summarize the document above.";
     }
 
-    /** 문서(document 블록) 뒤에 짧은 요청 문장 — 긴 입력은 지시보다 앞에 두는 편이 결과가 좋습니다 */
-    private static List<ContentBlockParam> blocks(AiDocument document, String instruction) {
-        DocumentBlockParam.Builder doc = DocumentBlockParam.builder().title(document.title());
+    /**
+     * 문서(document 블록) 뒤에 짧은 요청 문장 — 긴 입력은 지시보다 앞에 두는 편이 결과가 좋습니다.
+     * 파일 이름은 요약에만 붙입니다. 번역에 붙이면 옮긴 파일 이름을 결과 첫 줄에 쓰는 일이 있었습니다 [AI-10].
+     */
+    private static List<ContentBlockParam> blocks(AiDocument document, String instruction, boolean withTitle) {
+        DocumentBlockParam.Builder doc = DocumentBlockParam.builder();
+        if (withTitle) {
+            doc.title(document.title());
+        }
         if (document.isPdf()) {
             doc.source(Base64PdfSource.builder().data(Base64.getEncoder().encodeToString(document.pdf())).build());
         } else {
