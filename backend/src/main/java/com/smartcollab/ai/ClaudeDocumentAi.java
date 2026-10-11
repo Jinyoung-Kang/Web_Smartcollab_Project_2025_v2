@@ -65,7 +65,8 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
             Rules:
             - Output only the final translation. Do not add a preface, notes, explanations, drafts, or corrections; \
             if you need to reconsider a word, do it before you write.
-            - Output the document text itself: no XML or HTML tags around it, and no document title or source label.
+            - Output the document text itself: no XML or HTML tags or Markdown code fences around it, and no document title \
+            or source label.
             - Keep the structure: line breaks, blank lines, Markdown syntax, list markers, tables, CSV delimiters and column order, \
             and JSON structure (translate only natural-language string values and keep the keys).
             - Keep code, URLs, email addresses, file names, numbers, and placeholders unchanged.
@@ -103,6 +104,9 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
     /** API 가 document 블록을 모델에게 보여 주는 표기. 번역이 이 표기째로 오는 일이 실측에서 있었습니다 [AI-06] */
     private static final Pattern DOCUMENT_MARKUP = Pattern.compile(
             "\\A\\s*<document\\b[^>]*>.*?<document_content>(.*)</document_content>\\s*</document>\\s*\\z", Pattern.DOTALL);
+
+    /** 결과 전체를 감싼 마크다운 코드 울타리 — CSV 번역이 이렇게 와 파일에 두 줄이 더해졌습니다 [AI-09] */
+    private static final Pattern CODE_FENCE = Pattern.compile("\\A\\s*```[\\w+-]*[ \\t]*\\R(.*?)\\R?```\\s*\\z", Pattern.DOTALL);
 
     private static final List<OutputConfig.Effort> EFFORTS = List.of(OutputConfig.Effort.LOW, OutputConfig.Effort.MEDIUM,
             OutputConfig.Effort.HIGH, OutputConfig.Effort.XHIGH, OutputConfig.Effort.MAX);
@@ -207,7 +211,7 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
             }
             return accumulator.message();
         });
-        return new Output<>(unwrapDocumentMarkup(answerText(message), document),
+        return new Output<>(unwrapTranslation(answerText(message), document),
                 message.usage().inputTokens(), message.usage().outputTokens());
     }
 
@@ -234,16 +238,28 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
         return out.toString();
     }
 
-    /** 번역이 문서 표기째로 오면 내용만 꺼냅니다. 원문이 처음부터 그 표기인 문서는 그대로 둡니다 [AI-06] */
-    static String unwrapDocumentMarkup(String output, AiDocument source) {
-        if (source.text() != null && source.text().stripLeading().startsWith("<document")) {
-            return output;
+    /**
+     * 번역 결과 전체를 감싼 것을 벗깁니다 — API 문서 표기 [AI-06], 마크다운 코드 울타리 [AI-09].
+     * 원문이 처음부터 그 모양인 문서는 그대로 둡니다.
+     */
+    static String unwrapTranslation(String output, AiDocument source) {
+        String original = source.text() == null ? "" : source.text().stripLeading();
+        String result = output;
+        if (!original.startsWith("<document")) {
+            result = unwrap(result, DOCUMENT_MARKUP, "document markup");
         }
-        Matcher m = DOCUMENT_MARKUP.matcher(output);
+        if (!original.startsWith("```")) {
+            result = unwrap(result, CODE_FENCE, "a code fence");
+        }
+        return result;
+    }
+
+    private static String unwrap(String output, Pattern wrapper, String what) {
+        Matcher m = wrapper.matcher(output);
         if (!m.matches()) {
             return output;
         }
-        log.info("Claude translation came wrapped in document markup; unwrapped");
+        log.info("Claude translation came wrapped in {}; unwrapped", what);
         return m.group(1);
     }
 
