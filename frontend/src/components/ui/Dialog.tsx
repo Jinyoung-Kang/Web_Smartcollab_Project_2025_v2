@@ -22,6 +22,7 @@ const SIZES = { sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-2xl', xl: 'max-w-5xl'
  */
 export function Dialog({ open, onClose, title, description, children, footer, size = 'md' }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null)
+  const pressedOnBackdrop = useRef(false)
   const titleId = useId()
   const descId = useId()
 
@@ -41,9 +42,13 @@ export function Dialog({ open, onClose, title, description, children, footer, si
         e.preventDefault()
         onClose()
       }}
+      onMouseDown={(e) => {
+        pressedOnBackdrop.current = e.target === ref.current
+      }}
       onClick={(e) => {
-        // 배경(dialog 요소 자체)을 클릭하면 닫기
-        if (e.target === ref.current) onClose()
+        // 배경(dialog 요소 자체)을 눌렀다 놓았을 때만 닫기 — 안에서 끌어 선택하다 바깥에서 놓은 click 도 대상이 dialog 라 닫혔음 [L-8]
+        if (e.target === ref.current && pressedOnBackdrop.current) onClose()
+        pressedOnBackdrop.current = false
       }}
       className={cn(
         'm-auto w-[calc(100%-2rem)] rounded-2xl bg-white p-0 text-slate-800 shadow-2xl',
