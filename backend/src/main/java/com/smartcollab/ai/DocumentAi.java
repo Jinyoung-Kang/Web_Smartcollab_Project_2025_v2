@@ -1,5 +1,8 @@
 package com.smartcollab.ai;
 
+import com.smartcollab.global.error.ApiException;
+import com.smartcollab.global.error.ErrorCode;
+
 import java.util.List;
 
 /**
@@ -31,5 +34,23 @@ public interface DocumentAi {
     }
 
     record Summary(String summary, List<String> keyPoints) {
+    }
+
+    /**
+     * 응답을 받기 시작한 뒤의 실패(출력 한도에서 잘림·거절·형식 오류·스트림 끊김) — 이미 과금됐으므로 하루 한도에서 돌려주지 않습니다 [H-2].
+     *
+     * @param totalTokens 과금된 토큰(입력+출력). 모르면 null
+     */
+    final class BilledFailure extends ApiException {
+        private final Long totalTokens;
+
+        public BilledFailure(ErrorCode code, String message, Long totalTokens) {
+            super(code, message);
+            this.totalTokens = totalTokens;
+        }
+
+        public Long totalTokens() {
+            return totalTokens;
+        }
     }
 }

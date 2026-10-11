@@ -249,4 +249,21 @@ class DocumentToolsTest extends IntegrationTest {
                 .andExpect(status().is(413))
                 .andExpect(jsonPath("$.code").value("PAYLOAD_TOO_LARGE"));
     }
+
+    @Test
+    @DisplayName("[H-2] 응답을 받은 뒤의 실패는 과금된 토큰을 하루 한도에 남긴다 — 예전에는 예약을 전부 돌려줘 같은 요청을 끝없이 되풀이해 과금할 수 있었음")
+    void billedFailureCountsAgainstBudget() throws Exception {
+        Api.Session s = api().signUp("h2bill");
+        long first = s.uploadText(s.rootFolderId, "a.txt", "첫 문서");
+        long second = s.uploadText(s.rootFolderId, "b.txt", "둘째 문서");
+        when(documentAi.countSummaryTokens(any())).thenReturn(1_000L);
+        when(documentAi.summarize(any()))
+                .thenThrow(new DocumentAi.BilledFailure(ErrorCode.PAYLOAD_TOO_LARGE, "결과가 너무 길어 끝까지 만들지 못했습니다.", 9_000L));
+
+        s.send(MockMvcRequestBuilders.post("/api/files/{id}/summary", first)).andExpect(status().is(413));
+        s.send(MockMvcRequestBuilders.post("/api/files/{id}/summary", second))   // 한도 12,000 중 9,000 을 이미 씀
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("RATE_LIMITED"));
+        verify(documentAi, times(1)).summarize(any());
+    }
 }

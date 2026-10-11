@@ -142,6 +142,7 @@ app:
     max-document-size: ${AI_MAX_DOCUMENT_SIZE:10MB}
     # 요청 하나의 시간 상한(SDK 가 429·5xx 를 두 번까지 다시 시도)
     timeout: ${AI_TIMEOUT:120s}
+    translation-timeout: ${AI_TRANSLATION_TIMEOUT:10m}
   demo:
     enabled: ${DEMO_ENABLED:false}
     password: ${DEMO_PASSWORD:}

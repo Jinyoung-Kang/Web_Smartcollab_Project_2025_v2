@@ -137,9 +137,17 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
 
     @Autowired
     public ClaudeDocumentAi(AiProperties props) {
-        this(props, props.enabled()
-                ? AnthropicOkHttpClient.builder().apiKey(props.apiKey()).timeout(props.timeout()).build()
-                : null);
+        this(props, props.enabled() ? client(props, null, 2) : null);
+    }
+
+    /** 운영과 같은 설정의 클라이언트 — 시험은 baseUrl 만 가짜 서버로 바꿔 씁니다 */
+    static AnthropicClient client(AiProperties props, String baseUrl, int maxRetries) {
+        AnthropicOkHttpClient.Builder builder = AnthropicOkHttpClient.builder().apiKey(props.apiKey()).timeout(props.timeout())
+                .maxRetries(maxRetries);
+        if (baseUrl != null) {
+            builder.baseUrl(baseUrl);
+        }
+        return builder.build();
     }
 
     ClaudeDocumentAi(AiProperties props, AnthropicClient client) {

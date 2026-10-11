@@ -35,7 +35,8 @@ class ClaudeDocumentAiTest {
     @BeforeEach
     void setUp() throws Exception {
         server = new FakeAnthropicServer();
-        AiProperties props = new AiProperties("test-key", "claude-haiku-5-5", "low", "low", 300_000, DataSize.ofMegabytes(10), Duration.ofSeconds(10));
+        AiProperties props = new AiProperties("test-key", "claude-haiku-5-5", "low", "low", 300_000, DataSize.ofMegabytes(10), Duration.ofSeconds(10),
+                Duration.ofSeconds(30));
         ai = new ClaudeDocumentAi(props, AnthropicOkHttpClient.builder()
                 .apiKey("test-key").baseUrl(server.baseUrl()).maxRetries(0).build());
     }
@@ -166,7 +167,8 @@ class ClaudeDocumentAiTest {
     @Test
     @DisplayName("[AI-07] effort 는 작업마다 설정을 따르고, 프롬프트에 최종 번역만(고쳐 쓴 흔적 금지)·날짜·숫자·이름은 문서 그대로를 적는다 — 실측에서 발견")
     void effortFromConfigAndStricterPrompts() {
-        AiProperties medium = new AiProperties("test-key", "claude-haiku-5-5", "high", "medium", 300_000, DataSize.ofMegabytes(10), Duration.ofSeconds(10));
+        AiProperties medium = new AiProperties("test-key", "claude-haiku-5-5", "high", "medium", 300_000, DataSize.ofMegabytes(10), Duration.ofSeconds(10),
+                Duration.ofSeconds(30));
         ClaudeDocumentAi mediumAi = new ClaudeDocumentAi(medium, AnthropicOkHttpClient.builder()
                 .apiKey("test-key").baseUrl(server.baseUrl()).maxRetries(0).build());
 
@@ -238,5 +240,45 @@ class ClaudeDocumentAiTest {
         assertThat(ai.translate(AiDocument.text("a.txt", "Team storage"), TargetLanguage.KO).value()).isEqualTo("팀의 저장 공간");
         server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 100, 50, translationChunks("チームの容量"))));
         assertThat(ai.translate(AiDocument.text("a.txt", "Team storage"), TargetLanguage.JA).value()).isEqualTo("チームの容量");
+    }
+
+    @Test
+    @DisplayName("[H-2] 응답을 받은 뒤의 실패(잘림·거절·형식 오류)는 과금된 토큰을 함께 알린다 — 하루 한도에서 돌려주지 않게. API 오류는 과금 전 실패")
+    void failuresAfterResponseCarryBilledTokens() {
+        server.reply(Reply.sse(FakeAnthropicServer.stream("max_tokens", 100, 64_000, "잘린 번역")));
+        assertThatThrownBy(() -> ai.translate(AiDocument.text("a.txt", "본문"), TargetLanguage.EN))
+                .isInstanceOfSatisfying(DocumentAi.BilledFailure.class, e -> {
+                    assertThat(e.code()).isEqualTo(ErrorCode.PAYLOAD_TOO_LARGE);
+                    assertThat(e.totalTokens()).isEqualTo(64_100L);
+                });
+
+        server.reply(Reply.json(FakeAnthropicServer.message("refusal", null, 300, 5,
+                "{\"type\":\"refusal\",\"category\":\"cyber\",\"explanation\":null}")));
+        assertThatThrownBy(() -> ai.summarize(AiDocument.text("a.txt", "본문")))
+                .isInstanceOfSatisfying(DocumentAi.BilledFailure.class, e -> assertThat(e.totalTokens()).isEqualTo(305L));
+
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 100, 50, "그냥 글")));
+        assertThatThrownBy(() -> ai.translate(AiDocument.text("a.txt", "본문"), TargetLanguage.EN))
+                .isInstanceOfSatisfying(DocumentAi.BilledFailure.class, e -> assertThat(e.totalTokens()).isEqualTo(150L));
+
+        server.reply(Reply.error(429, "rate_limit_error", "slow down"));
+        assertThatThrownBy(() -> ai.summarize(AiDocument.text("a.txt", "본문")))
+                .isNotInstanceOf(DocumentAi.BilledFailure.class);
+    }
+
+    @Test
+    @DisplayName("[H-2] 번역은 바이트가 계속 오면 AI_TIMEOUT 보다 오래 걸려도 끝까지 받고, 오다 멈추면 끊되 과금된 것으로 본다 — 120초가 스트림 전체에 걸려 큰 번역이 끊겼음")
+    void translationTimeoutCoversStalls() {
+        AiProperties shortTimeout = new AiProperties("test-key", "claude-haiku-5-5", "low", "low", 300_000, DataSize.ofMegabytes(10),
+                Duration.ofSeconds(1), Duration.ofSeconds(30));
+        ClaudeDocumentAi slow = new ClaudeDocumentAi(shortTimeout, ClaudeDocumentAi.client(shortTimeout, server.baseUrl(), 0));
+
+        server.reply(Reply.slowSse(FakeAnthropicServer.stream("end_turn", 100, 50, translationChunks("Hello")), 300));   // 10개 이벤트 약 3초
+        assertThat(slow.translate(AiDocument.text("a.txt", "안녕"), TargetLanguage.EN).value()).isEqualTo("Hello");
+
+        server.reply(Reply.slowSse(FakeAnthropicServer.stream("end_turn", 100, 50, translationChunks("Hello")), 2_000));   // 첫 이벤트 뒤 2초 멈춤
+        assertThatThrownBy(() -> slow.translate(AiDocument.text("a.txt", "안녕"), TargetLanguage.EN))
+                .isInstanceOfSatisfying(DocumentAi.BilledFailure.class, e -> assertThat(e.totalTokens()).isNull());
+        slow.destroy();
     }
 }
