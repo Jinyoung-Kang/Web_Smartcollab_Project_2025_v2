@@ -70,6 +70,21 @@ public class SlidingWindowRateLimiter {
         });
     }
 
+    /**
+     * 한도와 상관없이 무게를 기록합니다. 미리 넉넉히 예약한 뒤 실제 사용량으로 정산할 때 씁니다 — 예약분을 {@link #release} 하고
+     * 실제 쓴 만큼 기록합니다(이미 쓴 자원이라 한도를 넘어도 기록) [AI-03].
+     */
+    public void charge(String key, long weight, Duration window) {
+        long now = clock.millis();
+        windows.compute(key, (k, existing) -> {
+            Window w = existing == null ? new Window() : existing;
+            w.windowMillis = Math.max(w.windowMillis, window.toMillis());
+            w.expireUpTo(now - window.toMillis());
+            w.add(now, weight);
+            return w;
+        });
+    }
+
     /** 성공한 로그인 등으로 기록을 초기화합니다. */
     public void reset(String key) {
         windows.remove(key);

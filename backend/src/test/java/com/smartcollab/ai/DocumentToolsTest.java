@@ -19,7 +19,6 @@ import java.util.Map;
 import static com.smartcollab.ai.DocxFixtures.docx;
 import static com.smartcollab.ai.DocxFixtures.paragraph;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
@@ -68,7 +67,7 @@ class DocumentToolsTest extends IntegrationTest {
                 .andExpect(jsonPath("$.model").value("claude-haiku-5-5"))
                 .andExpect(jsonPath("$.summary").value("회의 결과를 정리한 문서입니다."))
                 .andExpect(jsonPath("$.sentences[0]").value("일정 확정"))
-                .andExpect(jsonPath("$.totalSentences").value(nullValue()));
+                .andExpect(jsonPath("$.totalSentences").doesNotExist());   // null 은 응답에서 빠짐(non_null)
 
         ArgumentCaptor<AiDocument> doc = ArgumentCaptor.forClass(AiDocument.class);
         verify(documentAi).summarize(doc.capture());

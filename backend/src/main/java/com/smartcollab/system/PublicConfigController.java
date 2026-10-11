@@ -1,6 +1,7 @@
 package com.smartcollab.system;
 
 import com.smartcollab.ai.DeepLTranslationClient;
+import com.smartcollab.ai.DocumentAi;
 import com.smartcollab.user.DemoAccounts;
 import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.storage.BlobStorage;
@@ -24,6 +25,7 @@ import java.util.List;
 public class PublicConfigController {
 
     private final DeepLTranslationClient translator;
+    private final DocumentAi documentAi;
     private final BlobStorage storage;
     private final AppProperties props;
 
@@ -37,10 +39,17 @@ public class PublicConfigController {
                 ? new Demo(true, DemoAccounts.ACCOUNTS.stream().map(a -> new DemoAccount(a.username(), a.name(), a.role())).toList(),
                 props.demo().password())
                 : new Demo(false, List.of(), null);
-        return new PublicConfig(translator.enabled(), "azure".equals(storage.type()), maxUpload.toBytes(), demo);
+        boolean ai = documentAi.enabled();
+        return new PublicConfig(ai || translator.enabled(), "azure".equals(storage.type()), maxUpload.toBytes(), demo,
+                ai, ai ? documentAi.model() : null);
     }
 
-    public record PublicConfig(boolean translationEnabled, boolean officePreviewEnabled, long maxUploadBytes, Demo demo) {
+    /**
+     * @param aiEnabled 생성형 요약·Claude 번역을 쓸 수 있는지 [AI-01]
+     * @param aiModel   그때 쓰는 모델 ID
+     */
+    public record PublicConfig(boolean translationEnabled, boolean officePreviewEnabled, long maxUploadBytes, Demo demo,
+                               boolean aiEnabled, String aiModel) {
     }
 
     public record Demo(boolean enabled, List<DemoAccount> accounts, String password) {

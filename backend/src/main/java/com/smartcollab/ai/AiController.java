@@ -1,7 +1,5 @@
 package com.smartcollab.ai;
 
-import com.smartcollab.file.FileContentService;
-import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.global.security.AuthUser;
 import com.smartcollab.global.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
@@ -14,35 +12,37 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-@Tag(name = "Document tools", description = "문서 요약(추출형)·번역(DeepL)")
+@Tag(name = "Document tools", description = "문서 요약·번역 — Claude(키가 있을 때), 없으면 추출 요약·DeepL")
 @RestController
 @RequiredArgsConstructor
 public class AiController {
 
-    private final FileContentService contentService;
-    private final ExtractiveSummarizer summarizer;
-    private final TranslationService translationService;
-    private final AppProperties props;
+    private final DocumentToolsService tools;
 
-    @Operation(summary = "핵심 문장 추출 요약", description = "저장된 현재 버전에서 단어 빈도 기반으로 중요한 문장을 고릅니다 (생성형 AI 아님).")
+    @Operation(summary = "문서 요약",
+            description = "텍스트·PDF·Word(docx)의 저장된 현재 버전을 요약합니다. ANTHROPIC_API_KEY 가 있으면 Claude 로 생성형 요약(method=generative), "
+                    + "없으면 단어 빈도로 원문 문장을 고르는 추출 요약(method=extractive-term-frequency, PDF 는 503). 하루 토큰 한도를 넘으면 429.")
     @PostMapping("/api/files/{fileId}/summary")
     public SummaryResponse summarize(@PathVariable Long fileId, @CurrentUser AuthUser user) {
-        String text = contentService.readUtf8Content(fileId, user.id(), props.files().textEditMaxBytes());
-        ExtractiveSummarizer.Summary summary = summarizer.summarize(text);
-        return new SummaryResponse(summary.sentences(), summary.totalSentences(), "extractive-term-frequency");
+        DocumentToolsService.SummaryResult r = tools.summarize(fileId, user.id());
+        return new SummaryResponse(r.sentences(), r.totalSentences(), r.method(), r.summary(), r.model());
     }
 
-    @Operation(summary = "번역", description = "target = EN 또는 KO. DEEPL_API_KEY 가 없으면 503, 하루 번역 분량을 넘으면 429.")
+    @Operation(summary = "번역", description = "target = EN·KO·JA·ZH. Claude(키가 있을 때) 또는 DeepL(텍스트 문서만). 둘 다 없으면 503, 하루 한도를 넘으면 429.")
     @PostMapping("/api/files/{fileId}/translation")
-    public TranslationResponse translate(@PathVariable Long fileId, @RequestParam String target,
-                                         @CurrentUser AuthUser user) {
-        TranslationService.TranslationResult result = translationService.translate(fileId, user.id(), target);
-        return new TranslationResponse(result.text(), result.targetLanguage(), result.detectedSourceLanguage());
+    public TranslationResponse translate(@PathVariable Long fileId, @RequestParam String target, @CurrentUser AuthUser user) {
+        DocumentToolsService.TranslationResult r = tools.translate(fileId, user.id(), target);
+        return new TranslationResponse(r.text(), r.targetLanguage(), r.detectedSourceLanguage(), r.provider(), r.model());
     }
 
-    public record SummaryResponse(List<String> sentences, int totalSentences, String method) {
+    /**
+     * @param sentences      생성형이면 핵심 항목, 추출형이면 고른 원문 문장
+     * @param totalSentences 추출형일 때 원문 문장 수(생성형이면 null)
+     * @param summary        생성형 요약 문단(추출형이면 null)
+     */
+    public record SummaryResponse(List<String> sentences, Integer totalSentences, String method, String summary, String model) {
     }
 
-    public record TranslationResponse(String text, String targetLang, String detectedSourceLang) {
+    public record TranslationResponse(String text, String targetLang, String detectedSourceLang, String provider, String model) {
     }
 }
