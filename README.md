@@ -97,7 +97,7 @@ API 문서: <http://localhost:8080/swagger-ui.html> · 전체 목록 [docs/API.m
 
 ```bash
 cd backend && ./gradlew test          # 327건 (MySQL·Azurite 컨테이너 자동 실행), 커버리지 리포트 포함
-cd frontend && npm test               # 102건
+cd frontend && npm test               # 139건
 docker compose up -d --wait && cd e2e && npm ci && npx playwright test   # E2E 14건 (접근성 자동 검사 포함)
 ```
 
