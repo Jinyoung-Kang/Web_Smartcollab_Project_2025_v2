@@ -26,6 +26,15 @@ class DemoProtectionTest extends LimitedStorageIntegrationTest {
     @Autowired
     UserRepository users;
 
+    @Autowired
+    com.smartcollab.team.TeamService teamService;
+
+    @Autowired
+    com.smartcollab.team.TeamRepository teams;
+
+    @Autowired
+    com.smartcollab.user.AccountService accountService;
+
     private Api.Session demo(String username) {
         return api().login(username, DEMO_PASSWORD);
     }
@@ -121,5 +130,19 @@ class DemoProtectionTest extends LimitedStorageIntegrationTest {
 
         seeder.reset();
         owner.get("/api/files/{id}/content", ownerFile).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("[L-3] 초기화가 중간에 실패해 체험 계정 일부만 남아도, 다음 시드가 남은 것을 정리하고 다시 만든다 — 예전에는 '이미 사용 중'으로 기동이 실패")
+    void seedRecoversFromPartialReset() throws Exception {
+        long demo1 = users.findByUsername("demo1").orElseThrow().getId();
+        for (Long team : teams.findIdsOwnedBy(demo1)) teamService.purgeTeam(team, null);
+        accountService.purgeAccount(demo1);   // demo1 만 지워지고 demo2·demo3 은 남은 상태
+
+        seeder.seed();
+
+        assertThat(users.existsByUsername("demo1")).isTrue();
+        assertThat(Api.body(demo("demo1").get("/api/teams"))).contains("SmartCollab 데모 팀");
+        assertThat(Api.body(demo("demo1").get("/api/teams/{t}", demoTeamId(demo("demo1"))))).contains("demo2").contains("demo3");
     }
 }
