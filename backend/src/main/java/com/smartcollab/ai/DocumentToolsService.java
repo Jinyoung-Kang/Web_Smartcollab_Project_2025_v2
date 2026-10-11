@@ -30,6 +30,7 @@ import java.util.function.Supplier;
  *       예약해 넘으면 429 [AI-03, H-2]. 동시에 보낸 요청도 한도를 넘지 못합니다. 과금 전 실패(API 오류·연결 실패)는 예약을 돌려주고,
  *       성공과 응답을 받은 뒤의 실패(잘림·거절·형식 오류·스트림 끊김)는 실제 사용량(모르면 예약분 전부)으로 정산합니다.</li>
  * </ol>
+ * 결과 캐시를 놓친 요청은 남은 한도를 먼저 보고, 사용자당·서버 전체 동시 실행 상한 안에서만 문서를 읽고 부릅니다 [M-1].
  * 호출마다 한 줄(작업·파일·버전·모델·토큰·걸린 시간)을 남깁니다. 문서 내용과 결과는 남기지 않습니다.
  */
 @Slf4j
@@ -52,6 +53,7 @@ public class DocumentToolsService {
     private final SlidingWindowRateLimiter rateLimiter;
     private final AiProperties props;
     private final AppProperties appProps;
+    private final DocumentToolSlots slots;
     private final Map<String, SummaryResult> summaries = lru(200);
     private final Map<String, TranslationResult> translations = lru(50);
 
@@ -61,22 +63,27 @@ public class DocumentToolsService {
             if (ref.kind() == DocumentKind.PDF) {
                 throw new ApiException(ErrorCode.FEATURE_DISABLED, "PDF 요약은 AI API 키(ANTHROPIC_API_KEY)가 설정되어 있어야 합니다.");
             }
-            ExtractiveSummarizer.Summary s = summarizer.summarize(text(ref, contentService.loadDocument(ref)));
-            return new SummaryResult(EXTRACTIVE, null, null, s.sentences(), s.totalSentences());
+            try (DocumentToolSlots.Slot ignored = slots.acquire(userId)) {
+                ExtractiveSummarizer.Summary s = summarizer.summarize(text(ref, contentService.loadDocument(ref)));
+                return new SummaryResult(EXTRACTIVE, null, null, s.sentences(), s.totalSentences());
+            }
         }
         String key = ref.versionId() + ":" + ai.model();
         SummaryResult cached = summaries.get(key);
         if (cached != null) {
             return cached;
         }
-        AiDocument doc = aiDocument(ref);
-        long input = ai.countSummaryTokens(doc);
-        requireWithinCap(input, SUMMARY_INPUT_CAP, "요약");
-        DocumentAi.Output<DocumentAi.Summary> out = withBudget("summary", fileId, userId, ref, input, DocumentAi.SUMMARY_MAX_OUTPUT_TOKENS,
-                () -> ai.summarize(doc));
-        SummaryResult result = new SummaryResult(GENERATIVE, ai.model(), out.value().summary(), out.value().keyPoints(), null);
-        summaries.put(key, result);
-        return result;
+        requireBudgetLeft(userId, DocumentAi.SUMMARY_MAX_OUTPUT_TOKENS);
+        try (DocumentToolSlots.Slot ignored = slots.acquire(userId)) {
+            AiDocument doc = aiDocument(ref);
+            long input = ai.countSummaryTokens(doc);
+            requireWithinCap(input, SUMMARY_INPUT_CAP, "요약");
+            DocumentAi.Output<DocumentAi.Summary> out = withBudget("summary", fileId, userId, ref, input,
+                    DocumentAi.SUMMARY_MAX_OUTPUT_TOKENS, () -> ai.summarize(doc));
+            SummaryResult result = new SummaryResult(GENERATIVE, ai.model(), out.value().summary(), out.value().keyPoints(), null);
+            summaries.put(key, result);
+            return result;
+        }
     }
 
     public TranslationResult translate(Long fileId, Long userId, String target) {
@@ -86,23 +93,47 @@ public class DocumentToolsService {
             if (ref.kind() != DocumentKind.TEXT) {
                 throw new ApiException(ErrorCode.FEATURE_DISABLED, "PDF·Word 번역은 AI API 키(ANTHROPIC_API_KEY)가 설정되어 있어야 합니다.");
             }
-            TranslationService.TranslationResult t = deepl.translate(fileId, userId, lang);
-            return new TranslationResult(t.text(), lang.name(), t.detectedSourceLanguage(), "deepl", null);
+            try (DocumentToolSlots.Slot ignored = slots.acquire(userId)) {
+                TranslationService.TranslationResult t = deepl.translate(fileId, userId, lang);
+                return new TranslationResult(t.text(), lang.name(), t.detectedSourceLanguage(), "deepl", null);
+            }
         }
         String key = ref.versionId() + ":" + lang + ":" + ai.model();
         TranslationResult cached = translations.get(key);
         if (cached != null) {
             return cached;
         }
-        AiDocument doc = aiDocument(ref);
-        long input = ai.countTranslationTokens(doc, lang);
-        requireWithinCap(input, TRANSLATION_INPUT_CAP, "번역");
-        long maxOutput = DocumentAi.translationMaxOutputTokens(input);
-        DocumentAi.Output<String> out = withBudget("translate-" + lang, fileId, userId, ref, input, maxOutput,
-                () -> ai.translate(doc, lang, maxOutput));
-        TranslationResult result = new TranslationResult(out.value(), lang.name(), null, "claude", ai.model());
-        translations.put(key, result);
-        return result;
+        requireBudgetLeft(userId, DocumentAi.translationMaxOutputTokens(0));
+        try (DocumentToolSlots.Slot ignored = slots.acquire(userId)) {
+            AiDocument doc = aiDocument(ref);
+            long input = ai.countTranslationTokens(doc, lang);
+            requireWithinCap(input, TRANSLATION_INPUT_CAP, "번역");
+            long maxOutput = DocumentAi.translationMaxOutputTokens(input);
+            DocumentAi.Output<String> out = withBudget("translate-" + lang, fileId, userId, ref, input, maxOutput,
+                    () -> ai.translate(doc, lang, maxOutput));
+            TranslationResult result = new TranslationResult(out.value(), lang.name(), null, "claude", ai.model());
+            translations.put(key, result);
+            return result;
+        }
+    }
+
+    /**
+     * 문서를 읽고 토큰을 세기 전에, 남은 하루 한도가 가장 작은 예약(출력 상한)에도 못 미치면 바로 429 [M-1].
+     * 예전에는 한도를 다 쓴 사용자도 요청마다 문서 전체를 읽고 토큰 세기 API 를 부른 뒤에야 거절됐습니다.
+     */
+    private void requireBudgetLeft(Long userId, long minimumReserve) {
+        if (rateLimiter.used(budgetKey(userId), DAY) + minimumReserve > props.tokensPerUserPerDay()) {
+            throw budgetExceeded();
+        }
+    }
+
+    private static String budgetKey(Long userId) {
+        return "ai-tokens:" + userId;
+    }
+
+    private ApiException budgetExceeded() {
+        return new ApiException(ErrorCode.RATE_LIMITED, "하루 AI 사용량(" + NumberFormat.getIntegerInstance(Locale.KOREA)
+                .format(props.tokensPerUserPerDay()) + " 토큰)을 넘었습니다. 24시간 안에 쓴 양이 줄어들면 다시 사용할 수 있습니다.");
     }
 
     private AiDocument aiDocument(DocumentRef ref) {
@@ -138,12 +169,10 @@ public class DocumentToolsService {
     /** 하루 토큰 한도에 예약 → 호출 → 정산(과금 전 실패면 예약 취소, 과금 뒤 실패면 쓴 만큼) */
     private <T> DocumentAi.Output<T> withBudget(String task, Long fileId, Long userId, DocumentRef ref, long input,
                                                 long outputReserve, Supplier<DocumentAi.Output<T>> call) {
-        String budgetKey = "ai-tokens:" + userId;
+        String budgetKey = budgetKey(userId);
         long reserve = input + outputReserve;
-        long daily = props.tokensPerUserPerDay();
-        if (!rateLimiter.tryAcquire(budgetKey, reserve, daily, DAY)) {
-            throw new ApiException(ErrorCode.RATE_LIMITED, "하루 AI 사용량(" + NumberFormat.getIntegerInstance(Locale.KOREA).format(daily)
-                    + " 토큰)을 넘었습니다. 24시간 안에 쓴 양이 줄어들면 다시 사용할 수 있습니다.");
+        if (!rateLimiter.tryAcquire(budgetKey, reserve, props.tokensPerUserPerDay(), DAY)) {
+            throw budgetExceeded();
         }
         long started = System.nanoTime();
         DocumentAi.Output<T> out;

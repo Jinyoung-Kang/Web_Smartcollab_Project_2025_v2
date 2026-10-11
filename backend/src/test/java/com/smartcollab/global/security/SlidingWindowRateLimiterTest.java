@@ -134,4 +134,18 @@ class SlidingWindowRateLimiterTest {
         clock.now = clock.now.plus(Duration.ofMinutes(31));
         assertThat(limiter.tryAcquire("signup:1.2.3.4", 5, Duration.ofHours(1))).isTrue();
     }
+
+    @Test
+    @DisplayName("[M-1] 창 안의 무게 합계를 미리 볼 수 있고, 창이 지나면 빠진다 (비싼 작업 전 남은 한도 확인용)")
+    void usedWithinWindow() {
+        MutableClock clock = new MutableClock();
+        SlidingWindowRateLimiter limiter = new SlidingWindowRateLimiter(clock);
+        limiter.tryAcquire("ai", 300, 1_000, Duration.ofMinutes(1));
+        limiter.charge("ai", 200, Duration.ofMinutes(1));
+
+        assertThat(limiter.used("ai", Duration.ofMinutes(1))).isEqualTo(500);
+        assertThat(limiter.used("없는 키", Duration.ofMinutes(1))).isZero();
+        clock.now = clock.now.plus(Duration.ofMinutes(2));
+        assertThat(limiter.used("ai", Duration.ofMinutes(1))).isZero();
+    }
 }

@@ -36,7 +36,7 @@ class ClaudeDocumentAiTest {
     void setUp() throws Exception {
         server = new FakeAnthropicServer();
         AiProperties props = new AiProperties("test-key", "claude-haiku-5-5", "low", "low", 300_000, DataSize.ofMegabytes(10), Duration.ofSeconds(10),
-                Duration.ofSeconds(30));
+                Duration.ofSeconds(30), 8);
         ai = new ClaudeDocumentAi(props, AnthropicOkHttpClient.builder()
                 .apiKey("test-key").baseUrl(server.baseUrl()).maxRetries(0).build());
     }
@@ -168,7 +168,7 @@ class ClaudeDocumentAiTest {
     @DisplayName("[AI-07] effort 는 작업마다 설정을 따르고, 프롬프트에 최종 번역만(고쳐 쓴 흔적 금지)·날짜·숫자·이름은 문서 그대로를 적는다 — 실측에서 발견")
     void effortFromConfigAndStricterPrompts() {
         AiProperties medium = new AiProperties("test-key", "claude-haiku-5-5", "high", "medium", 300_000, DataSize.ofMegabytes(10), Duration.ofSeconds(10),
-                Duration.ofSeconds(30));
+                Duration.ofSeconds(30), 8);
         ClaudeDocumentAi mediumAi = new ClaudeDocumentAi(medium, AnthropicOkHttpClient.builder()
                 .apiKey("test-key").baseUrl(server.baseUrl()).maxRetries(0).build());
 
@@ -270,7 +270,7 @@ class ClaudeDocumentAiTest {
     @DisplayName("[H-2] 번역은 바이트가 계속 오면 AI_TIMEOUT 보다 오래 걸려도 끝까지 받고, 오다 멈추면 끊되 과금된 것으로 본다 — 120초가 스트림 전체에 걸려 큰 번역이 끊겼음")
     void translationTimeoutCoversStalls() {
         AiProperties shortTimeout = new AiProperties("test-key", "claude-haiku-5-5", "low", "low", 300_000, DataSize.ofMegabytes(10),
-                Duration.ofSeconds(1), Duration.ofSeconds(30));
+                Duration.ofSeconds(1), Duration.ofSeconds(30), 8);
         ClaudeDocumentAi slow = new ClaudeDocumentAi(shortTimeout, ClaudeDocumentAi.client(shortTimeout, server.baseUrl(), 0));
 
         server.reply(Reply.slowSse(FakeAnthropicServer.stream("end_turn", 100, 50, translationChunks("Hello")), 300));   // 10개 이벤트 약 3초

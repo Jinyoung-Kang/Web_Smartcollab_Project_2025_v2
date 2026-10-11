@@ -85,6 +85,18 @@ public class SlidingWindowRateLimiter {
         });
     }
 
+    /** 창 안의 무게 합계(지금 기준). 비싼 작업 전에 남은 한도를 미리 보는 데 씁니다 [M-1] */
+    public long used(String key, Duration window) {
+        long windowStart = clock.millis() - window.toMillis();
+        long[] total = {0};
+        windows.computeIfPresent(key, (k, w) -> {
+            w.expireUpTo(windowStart);
+            total[0] = w.total;
+            return w;
+        });
+        return total[0];
+    }
+
     /** 성공한 로그인 등으로 기록을 초기화합니다. */
     public void reset(String key) {
         windows.remove(key);
