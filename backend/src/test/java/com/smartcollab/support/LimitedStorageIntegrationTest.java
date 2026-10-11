@@ -12,6 +12,7 @@ import org.springframework.test.context.TestPropertySource;
         "app.demo.enabled=true",
         "app.demo.password=" + LimitedStorageIntegrationTest.DEMO_PASSWORD,
         "app.demo.quota=32KB",
+        "app.demo.sample-files=false",   // 파일 유형별 표본(약 190KB)은 이 작은 한도에 들어가지 않음 — DemoSampleFilesTest 에서 확인
 })
 public abstract class LimitedStorageIntegrationTest extends IntegrationTest {
 
