@@ -308,4 +308,17 @@ class DocumentToolsTest extends IntegrationTest {
         }
         verify(deepl, times(1)).translate(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq("EN-US"));
     }
+
+    @Test
+    @DisplayName("[SEC-07] AI 키 없이 DeepL 로 번역하는 경로도, 볼 수 없는 파일이면 번역 설정과 상관없이 404 (설정 정보를 먼저 드러내지 않음)")
+    void deeplPathChecksAccessFirst() throws Exception {
+        when(documentAi.enabled()).thenReturn(false);
+        when(deepl.enabled()).thenReturn(false);
+        Api.Session owner = api().signUp("l4owner");
+        Api.Session stranger = api().signUp("l4stranger");
+        long file = owner.uploadText(owner.rootFolderId, "비밀.txt", "비밀");
+
+        stranger.send(MockMvcRequestBuilders.post("/api/files/{id}/translation?target=EN", file)).andExpect(status().isNotFound());
+        verify(deepl, never()).translate(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString());
+    }
 }

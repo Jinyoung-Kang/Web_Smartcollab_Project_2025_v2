@@ -199,14 +199,6 @@ public class FileContentService {
         }
     }
 
-    /** 요약·번역용 텍스트 */
-    public String readUtf8Content(Long fileId, Long userId, long maxBytes) {
-        TextContent text = readText(fileId, userId);
-        if (text.content().getBytes(StandardCharsets.UTF_8).length > maxBytes) {
-            throw new ApiException(ErrorCode.PAYLOAD_TOO_LARGE, "처리할 수 있는 문서 크기를 넘었습니다.");
-        }
-        return text.content();
-    }
 
     private static void requireText(FileEntity file) {
         if (!FileNames.isTextEditable(file.getName())) {

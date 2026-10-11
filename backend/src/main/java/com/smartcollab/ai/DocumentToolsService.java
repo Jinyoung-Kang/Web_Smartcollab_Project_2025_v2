@@ -93,9 +93,20 @@ public class DocumentToolsService {
             if (ref.kind() != DocumentKind.TEXT) {
                 throw new ApiException(ErrorCode.FEATURE_DISABLED, "PDF·Word 번역은 AI API 키(ANTHROPIC_API_KEY)가 설정되어 있어야 합니다.");
             }
+            if (!deepl.enabled()) {
+                throw TranslationService.disabled();
+            }
+            // DeepL 결과도 버전·언어별로 둡니다 — 예전에는 다시 요청할 때마다 DeepL 월 사용량과 하루 글자 한도를 씀 [L-4]
+            String key = ref.versionId() + ":" + lang + ":deepl";
+            TranslationResult cached = translations.get(key);
+            if (cached != null) {
+                return cached;
+            }
             try (DocumentToolSlots.Slot ignored = slots.acquire(userId)) {
-                TranslationService.TranslationResult t = deepl.translate(fileId, userId, lang);
-                return new TranslationResult(t.text(), lang.name(), t.detectedSourceLanguage(), "deepl", null);
+                TranslationService.TranslationResult t = deepl.translate(text(ref, contentService.loadDocument(ref)), userId, lang);
+                TranslationResult result = new TranslationResult(t.text(), lang.name(), t.detectedSourceLanguage(), "deepl", null);
+                translations.put(key, result);
+                return result;
             }
         }
         String key = ref.versionId() + ":" + lang + ":" + ai.model();
