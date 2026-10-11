@@ -282,9 +282,10 @@ class ClaudeDocumentAiTest {
         slow.destroy();
     }
 
-    /** 운영과 같은 재시도 설정의 인스턴스(시간 상한만 짧게) */
+    /** 운영과 같은 재시도 설정의 인스턴스(SDK 재시도 끔 + 앱이 3번까지, 대기만 짧게) */
     private ClaudeDocumentAi productionLike(AiProperties props) {
-        return new ClaudeDocumentAi(props, ClaudeDocumentAi.client(props, server.baseUrl(), 2));
+        return new ClaudeDocumentAi(props, ClaudeDocumentAi.client(props, server.baseUrl(), 0),
+                new ClaudeDocumentAi.Retry(ClaudeDocumentAi.Retry.DEFAULT.attempts(), Duration.ofMillis(10)));
     }
 
     @Test

@@ -32,6 +32,7 @@ import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.io.InterruptedIOException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
@@ -134,10 +135,20 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
     private final AnthropicClient client;
     private final OutputConfig.Effort summaryEffort;
     private final OutputConfig.Effort translationEffort;
+    private final Retry retry;
+
+    /**
+     * 과금 전 실패(429·5xx·연결 실패)를 다시 보내는 횟수와 첫 대기(두 배씩 늘림) [H-2]. SDK 의 재시도는 끕니다 — SDK 는 시간 초과까지
+     * 다시 보내는데, 시간 초과는 서버가 이미 처리해 과금했을 수 있어 다시 보내면 과금이 겹칩니다.
+     */
+    record Retry(int attempts, Duration firstDelay) {
+        static final Retry DEFAULT = new Retry(3, Duration.ofMillis(500));
+        static final Retry NONE = new Retry(1, Duration.ZERO);
+    }
 
     @Autowired
     public ClaudeDocumentAi(AiProperties props) {
-        this(props, props.enabled() ? client(props, null, 2) : null);
+        this(props, props.enabled() ? client(props, null, 0) : null, Retry.DEFAULT);
     }
 
     /**
@@ -160,8 +171,13 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
     }
 
     ClaudeDocumentAi(AiProperties props, AnthropicClient client) {
+        this(props, client, Retry.NONE);
+    }
+
+    ClaudeDocumentAi(AiProperties props, AnthropicClient client, Retry retry) {
         this.props = props;
         this.client = client;
+        this.retry = retry;
         this.summaryEffort = effort(props.summaryEffort());
         this.translationEffort = effort(props.translationEffort());
     }
@@ -212,7 +228,7 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
                 .outputConfig(summaryOutput())
                 .addUserMessageOfBlockParams(blocks(document, summaryInstruction(), true))
                 .build();
-        Message message = call(() -> requireClient().messages().create(params));
+        Message message = call(() -> requireClient().messages().create(params), true);
         String json = answerText(message);
         try {
             SummaryJson parsed = JSON.readValue(json, SummaryJson.class);
@@ -252,9 +268,16 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
                         started[0] = true;
                         accumulator.accumulate(event);
                     });
+                } catch (AnthropicException e) {
+                    if (started[0]) {
+                        // 응답을 받기 시작한 뒤 끊김 — 이미 과금됐지만 얼마인지 모름. 다시 보내지 않음
+                        log.warn("Claude translation stream broke after it started: {}", e.getClass().getSimpleName());
+                        throw new BilledFailure(ErrorCode.UPSTREAM_ERROR, "AI 의 번역 응답이 중간에 끊겼습니다. 다시 시도하세요.", null);
+                    }
+                    throw e;
                 }
                 return accumulator.message();
-            });
+            }, true);
         } catch (ApiException e) {
             if (started[0]) {
                 // 응답을 받기 시작한 뒤 끊김 — 이미 과금됐지만 얼마인지 모름
@@ -377,7 +400,7 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
     }
 
     private long count(MessageCountTokensParams.Builder params) {
-        return call(() -> requireClient().messages().countTokens(params.build())).inputTokens();
+        return call(() -> requireClient().messages().countTokens(params.build()), false).inputTokens();
     }
 
     /** 답(텍스트)만 읽습니다. 응답은 생각 블록으로 시작할 수 있어 순서가 아니라 종류로 고릅니다 */
@@ -411,29 +434,68 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
 
     /**
      * SDK 오류를 화면에 보일 오류로 바꿉니다 [AI-04]. 요청 한도·과부하·5xx 는 잠시 뒤 다시 시도하면 되는 503, 읽을 수 없는 문서(400·422)는
-     * 400, 그 밖의 API 오류(인증 실패 등)는 502 입니다. SDK 가 429·5xx 를 이미 두 번까지 다시 시도한 뒤입니다.
+     * 400, 그 밖의 API 오류(인증 실패 등)는 502 입니다. 과금 전 실패(429·5xx·연결 실패)만 {@link Retry} 만큼 다시 보냅니다.
+     * 시간 초과는 서버가 처리(과금)했는지 알 수 없어 다시 보내지 않고, 과금되는 요청이면 사용량을 모르는 {@link BilledFailure} 로 알립니다 [H-2].
+     *
+     * @param billable 과금되는 요청(요약·번역). 토큰 세기는 무료라 시간 초과도 그냥 503
      */
-    private static <T> T call(Supplier<T> action) {
+    private <T> T call(Supplier<T> action, boolean billable) {
+        for (int attempt = 1; ; attempt++) {
+            boolean last = attempt >= retry.attempts();
+            try {
+                return action.get();
+            } catch (AnthropicServiceException e) {
+                int status = e.statusCode();
+                if (status == 429 || status >= 500) {
+                    if (!last) {
+                        backOff(attempt);
+                        continue;
+                    }
+                    log.warn("Claude unavailable: status={} type={}", status, e.errorType().map(Object::toString).orElse("-"));
+                    throw new ApiException(ErrorCode.SERVICE_UNAVAILABLE, "AI 서비스가 바빠 지금은 처리할 수 없습니다. 잠시 후 다시 시도하세요.");
+                }
+                if (status == 400 || status == 422) {
+                    log.warn("Claude rejected the document: status={} type={}", status, e.errorType().map(Object::toString).orElse("-"));
+                    throw ApiException.badRequest("AI 가 이 문서를 읽지 못했습니다. 손상되었거나 암호가 걸린 파일인지 확인하세요.");
+                }
+                log.error("Claude call failed: status={} type={}", status, e.errorType().map(Object::toString).orElse("-"));
+                throw new ApiException(ErrorCode.UPSTREAM_ERROR, "AI 서비스 호출에 실패했습니다.");
+            } catch (AnthropicIoException e) {
+                if (timedOut(e)) {
+                    log.warn("Claude call timed out (billable={}); not retrying", billable);
+                    String message = "AI 응답이 늦어 중단했습니다. 잠시 후 다시 시도하세요.";
+                    throw billable ? new BilledFailure(ErrorCode.SERVICE_UNAVAILABLE, message, null)
+                            : new ApiException(ErrorCode.SERVICE_UNAVAILABLE, message);
+                }
+                if (!last) {
+                    backOff(attempt);
+                    continue;
+                }
+                log.warn("Claude connection failed: {}", e.getMessage());
+                throw new ApiException(ErrorCode.UPSTREAM_ERROR, "AI 서비스에 연결하지 못했습니다. 잠시 후 다시 시도하세요.");
+            } catch (AnthropicException e) {
+                log.warn("Claude response could not be read: {}", e.getClass().getSimpleName());
+                throw new ApiException(ErrorCode.UPSTREAM_ERROR, "AI 서비스의 응답을 읽지 못했습니다. 다시 시도하세요.");
+            }
+        }
+    }
+
+    /** OkHttp 의 읽기·호출 시간 초과는 InterruptedIOException(SocketTimeoutException 포함)으로 옵니다 */
+    private static boolean timedOut(Throwable e) {
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            if (t instanceof InterruptedIOException) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void backOff(int attempt) {
         try {
-            return action.get();
-        } catch (AnthropicServiceException e) {
-            int status = e.statusCode();
-            if (status == 429 || status >= 500) {
-                log.warn("Claude unavailable: status={} type={}", status, e.errorType().map(Object::toString).orElse("-"));
-                throw new ApiException(ErrorCode.SERVICE_UNAVAILABLE, "AI 서비스가 바빠 지금은 처리할 수 없습니다. 잠시 후 다시 시도하세요.");
-            }
-            if (status == 400 || status == 422) {
-                log.warn("Claude rejected the document: status={} type={}", status, e.errorType().map(Object::toString).orElse("-"));
-                throw ApiException.badRequest("AI 가 이 문서를 읽지 못했습니다. 손상되었거나 암호가 걸린 파일인지 확인하세요.");
-            }
-            log.error("Claude call failed: status={} type={}", status, e.errorType().map(Object::toString).orElse("-"));
-            throw new ApiException(ErrorCode.UPSTREAM_ERROR, "AI 서비스 호출에 실패했습니다.");
-        } catch (AnthropicIoException e) {
-            log.warn("Claude connection failed: {}", e.getMessage());
-            throw new ApiException(ErrorCode.UPSTREAM_ERROR, "AI 서비스에 연결하지 못했습니다. 잠시 후 다시 시도하세요.");
-        } catch (AnthropicException e) {
-            log.warn("Claude response could not be read: {}", e.getClass().getSimpleName());
-            throw new ApiException(ErrorCode.UPSTREAM_ERROR, "AI 서비스의 응답을 읽지 못했습니다. 다시 시도하세요.");
+            Thread.sleep(retry.firstDelay().multipliedBy(1L << (attempt - 1)));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new ApiException(ErrorCode.SERVICE_UNAVAILABLE, "AI 서비스가 바빠 지금은 처리할 수 없습니다. 잠시 후 다시 시도하세요.");
         }
     }
 
