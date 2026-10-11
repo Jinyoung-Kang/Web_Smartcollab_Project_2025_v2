@@ -2,16 +2,16 @@
 
 | 층 | 도구 | 개수 | 실행 |
 |---|---|---:|---|
-| 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 266 | `cd backend && ./gradlew test` |
-| 프론트엔드 단위·컴포넌트 | Vitest · Testing Library · jsdom | 94 | `cd frontend && npm test` |
+| 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 290 | `cd backend && ./gradlew test` |
+| 프론트엔드 단위·컴포넌트 | Vitest · Testing Library · jsdom | 102 | `cd frontend && npm test` |
 | E2E (전체 스택) | Playwright · Docker Compose · axe-core | 13 (시나리오 10 + 접근성 2·탭 제목 1) | `docker compose up -d --wait && cd e2e && npx playwright test` |
 
-백엔드 라인 커버리지 **92.1%**, 분기 커버리지 **80.7%** (JaCoCo, `backend/build/reports/jacoco/test/html`).
+백엔드 라인 커버리지 **92.0%**, 분기 커버리지 **80.5%** (JaCoCo, `backend/build/reports/jacoco/test/html`).
 
 ## 원칙
 
 - **H2 대신 실제 MySQL** 로 통합 테스트합니다. 재귀 CTE·`ON DELETE SET NULL`·조건부 UPDATE 처럼 DB 동작에 기대는 로직이 많아, 운영과 다른 DB 로 테스트하면 통과해도 믿을 수 없기 때문입니다.
-- 테스트마다 무작위 사용자 이름을 써서 데이터를 분리하고, 컨테이너와 Spring 컨텍스트는 한 번만 띄웁니다(전체 266건, `./gradlew test` 약 2분 30초). 테스트 JVM 은 운영 컨테이너·CI 와 같은 UTC 로 실행합니다.
+- 테스트마다 무작위 사용자 이름을 써서 데이터를 분리하고, 컨테이너와 Spring 컨텍스트는 한 번만 띄웁니다(전체 290건, `./gradlew test` 약 2분 30초). 테스트 JVM 은 운영 컨테이너·CI 와 같은 UTC 로 실행합니다.
 - v1 에서 찾은 결함마다 이름에 `[v1 …]` 을, 2026-09 코드 리뷰 항목에는 `[SEC-01]`·`[BUG-02]` 처럼 항목 ID 를 붙인 회귀 테스트가 있습니다 → [REFACTORING_REPORT.md](REFACTORING_REPORT.md), [REVIEW_2026-09.md](REVIEW_2026-09.md)
 - 인증은 실제 브라우저처럼 HttpOnly 쿠키 + CSRF 토큰으로 요청합니다(`support/Api`). CSRF 는 Spring Security 의 `csrf()` 도우미 대신 같은 토큰을 쿠키·헤더로 보내는 `Api.xsrf()` 를 씁니다 — `csrf()` 는 공유 CSRF 필터의 저장소를 바꿔, 같은 컨텍스트의 실제 HTTP 시험이 실행 순서에 따라 실패했습니다.
 
@@ -45,6 +45,7 @@
 | `NotificationQueryPlanTest` | 알림 최신순 조회가 정렬 없이 인덱스 순서로 읽히는지 실행 계획으로 확인 (PERF-04) |
 | `ArchitectureTest` · `ModuleBoundaryTest` | 계층·의존 방향 규칙 7개 — 컨트롤러→리포지토리 금지, 서비스의 서블릿·웹 타입·컨트롤러 의존 금지(A-05), 엔티티 응답 금지, global·storage·event 의 도메인 의존 금지 (ARC-05·A-03) / 모듈 사이 양방향 의존·순환·다른 모듈 리포지토리 사용이 기준선([ADR-0010](adr/0010-module-boundaries-and-events.md))과 같은지 (A-08) |
 | `PermissionRulesTest` | AccessPolicy 로 모은 권한 규칙 — 팀 휴지통은 삭제 권한, 서명은 소유자·팀장, 채팅에는 그 팀의 휴지통이 아닌 파일만 (A-06) |
+| `ClaudeDocumentAiTest` · `DocumentToolsTest` · `DocxTextTest` | Claude 요청 형식을 가짜 Anthropic 서버(`FakeAnthropicServer`)로 — 모델·effort low·번역 스트리밍·요약 구조화 출력·document 블록(텍스트·PDF)·시스템 프롬프트의 "신뢰하지 않는 문서", 거절 422·출력 잘림 413·429→503·401→502, 실측에서 나온 결과 정리(번역을 감싼 문서 표기·코드 울타리 벗기기, 요약의 원문에 없는 연도 떼기, 번역 notes → translation 구조화 출력·작업별 effort, 번역에 파일 이름 안 보냄) (AI-06~10) / AI 를 가짜로 바꾼 통합 시험 — 키가 있으면 생성형·없으면 추출 요약·DeepL, 권한이 먼저(볼 수 없으면 404 이고 AI 를 부르지 않음), 텍스트·PDF·Word 만, 입력 토큰 상한 413, 하루 토큰 한도 예약·정산·실패 시 반환, 버전별 결과 캐시 / Word 본문 추출·XXE 거절·압축 폭탄 상한 (AI-01~05) |
 | `AzureBlobStorageTest` | Azure 구현을 에뮬레이터(Azurite)로 검증 — 업로드·서버 측 복사·SAS URL·삭제 |
 | `SlidingWindowRateLimiterTest` 외 단위 테스트 | 요청 제한(동시성·키별 창으로 정리·분량 반환), 트리 구성(깊이 5,000), 요약 알고리즘, grant 서명, 파일명 검증(방향 제어 문자, S-12), DeepL 호출 형식 |
 | E2E `smoke.spec.ts` | 모든 화면의 CSP 위반 감시(`fixtures.ts`, 하나라도 있으면 실패), CSP 헤더, 문서 편집·버전, 업로드·이름 변경·휴지통 복원, **두 사용자 실시간 채팅·폴더 반영**, 비로그인 공유 다운로드, 검색 화면 새로고침, 로그아웃·비밀번호 오류 뒤 로그인 (BUG-09), 폴더를 휴지통에 넣고 복원 (UX-06), 팀 채팅에 올린 파일 미리보기(이미지가 실제로 그려지는지) |
@@ -64,6 +65,7 @@
 | 프론트 `FileTable.test` · `RowMenu.test` · `DrivePage.test`(구조 정리 전 동작 고정 6개 포함) | 큰 폴더를 200개씩 그리기·더 보기, 전체 선택은 받은 항목 전부, 키보드로 다음 묶음 이동, 정렬 시 처음부터 (PERF-02), 받은 순서대로 그리고 정렬·다음 묶음은 서버에 요청 (IMP-02), Delete·F2 는 키를 누른 행 기준 (FB-01), 행 안 버튼의 Enter·Space 한 번만 (FB-09) / 다시 그려도 메뉴 초점 유지 (FB-10) / 하위 폴더로 옮겨도 팀 패널 유지 (FB-07)·옮긴 뒤 끝난 삭제는 지운 폴더를 갱신·좁은 화면의 보는 중 표시 (FB-06) |
 | 프론트 `ShareDialog.test` · `VersionHistoryDialog.test` · `MoveCopyDialog.test` | 다른 파일로 열면 입력이 남지 않음 (FB-03), 닫은 뒤 끝난 요청도 그 파일의 캐시 갱신·링크 해제 실패 안내 (FB-11), 다시 열면 이전 대상 폴더가 남지 않음 (FB-04) |
 | 프론트 순수 함수 `chatMessages.test` · `teamEvents.test` · `validateUpload.test` · `keepDraft.test` | 메시지 묶기·검사, 팀 이벤트·알림의 캐시 반영(React 없이), 업로드 전 검사, 편집본 파일 이름 (5단계) |
+| 프론트 `EditorPage.test` · `PreviewDialog.test` (요약·번역) | AI 요약(요약 문단·핵심 항목·모델·Anthropic 전송 안내)·번역 언어 선택, 키가 없으면 핵심 문장·번역 꺼짐 / 미리보기의 PDF 요약·Word 번역, 이미지에는 도구 없음, AI 키가 없을 때 PDF 는 꺼지고 이유 안내, DeepL 만 있으면 텍스트 번역 (AI-01·02) |
 | 프론트 `AuthProvider.test` | 실제 App·데이터 라우터로 로그아웃·세션 만료(401)·탈퇴 뒤 로그인 화면에 머무는지, 이전 사용자 캐시 삭제, 편집 중 세션 만료 시 확인, 비밀번호 오류 뒤 로그인 (BUG-09), 세션 만료 안내 (UX-03) |
 
 `.env` 의 `APP_PORT` 를 바꿨다면 E2E 에 주소를 알려 주세요: `E2E_BASE_URL=http://localhost:8081 npx playwright test`.
@@ -78,6 +80,7 @@ CI 와 별도로, QA 스택(`docker compose -f docker-compose.yml -f qa/compose.
 - 백엔드·API: 인가 행렬·인증·CSRF·입력 퍼징·파일 처리·경계값·동시 요청
 - 신뢰성: 장애 주입(Toxiproxy)·정합성 검사·백업 복원
 - 성능: 부하(k6)·Lighthouse
+- AI 요약·번역 실측(실제 Claude 호출, 과금): 임시 스택 `sc-ai` 에 `qa/scripts/ai-live.mjs`(표본 5개, 확인 7개)·`ai-translate-repeat.mjs`·`ai-summary-dates.mjs`(반복) → [qa/results/ai](../qa/results/ai/README.md). 이 실측과 화면 확인에서 결함 5건(AI-06~10)을 찾아 시험을 먼저 더하고 고쳤습니다. QA 스택은 키를 비워 Claude 를 부르지 않습니다
 - 화면: 화면 크롤·접근성 확장 점검(`e2e/qa`, `npx playwright test -c playwright.qa.config.ts`)
 
 방법과 결과는 [QA_2026-10-03](QA_2026-10-03.md) 에 있습니다.

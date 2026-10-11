@@ -13,8 +13,9 @@
 | **백엔드** | Java 21 · Spring Boot 4.1 · Spring Security (쿠키 JWT·CSRF) · JPA/Hibernate 7 · Flyway · STOMP WebSocket |
 | **프론트엔드** | React 19 · TypeScript · Vite · TanStack Query · Tailwind CSS 4 |
 | **데이터·저장소** | MySQL 8 · Azure Blob Storage(또는 로컬 디스크) |
+| **AI** | Claude Haiku 5.5(Anthropic 공식 Java SDK) — 문서 요약·번역, 사용자별 토큰 한도. 키가 없으면 추출 요약·DeepL |
 | **배포 구성** | Azure App Service(Docker 이미지 또는 jar) · Azure Database for MySQL · Azure Blob Storage — 절차는 [DEPLOYMENT](docs/DEPLOYMENT.md) |
-| **CI·테스트** | GitHub Actions · JUnit 6 + Testcontainers(MySQL·Azurite) 266건 · Vitest 94건 · Playwright E2E 13건(접근성 자동 검사 포함) · ArchUnit 구조 규칙 |
+| **CI·테스트** | GitHub Actions · JUnit 6 + Testcontainers(MySQL·Azurite) 290건 · Vitest 102건 · Playwright E2E 13건(접근성 자동 검사 포함) · ArchUnit 구조 규칙 |
 
 ---
 
@@ -35,13 +36,14 @@
 ## 주요 기능
 
 - **드라이브**: 개인·팀 스토리지, 폴더 트리, 여러 파일 업로드(드래그 앤 드롭·진행률·취소), 이동·복사(폴더는 하위까지), 이름 검색(경로 표시), 휴지통(파일·폴더, 30일 뒤 자동 삭제, 폴더는 안의 파일과 함께 복원), 저장 공간 한도(개인 1GB·팀 5GB, 옛 버전·휴지통 포함, 사이드바에 사용량 표시)
-- **미리보기·편집**: 이미지·PDF·텍스트 미리보기, Office 문서(Azure 저장소일 때), 텍스트 편집기(저장 충돌 감지), 핵심 문장 추출 요약, DeepL 번역(키 설정 시)
+- **미리보기·편집**: 이미지·PDF·텍스트 미리보기, Office 문서(Azure 저장소일 때), 텍스트 편집기(저장 충돌 감지)
+- **AI 요약·번역**: 텍스트·PDF·Word(docx) 문서를 편집기와 미리보기에서 Claude(Haiku 5.5)로 요약(요약 문단 + 핵심 항목)하고 영어·한국어·일본어·중국어로 번역. 사용자별 하루 토큰 한도, 같은 버전은 다시 과금하지 않음. 키가 없으면 핵심 문장 추출 요약·DeepL 번역([ADR-0011](docs/adr/0011-claude-document-tools.md))
 - **버전·서명**: 저장할 때마다 버전과 SHA-256 기록, 되돌리기, 팀장·소유자 서명(내용이 바뀌면 자동 무효 표시)
 - **팀 협업**: 초대·수락, 멤버별 편집·삭제·초대 권한, 팀장 위임, 실시간 채팅(파일 공유·미리보기), 접속 중 표시, 다른 사람의 변경 즉시 반영
 - **외부 공유**: 비밀번호·유효 기간·다운로드 횟수 제한 링크, 링크 목록·해제, 로그인 없는 다운로드 페이지
 - **알림**: 초대·권한 변경·팀장 위임 등을 WebSocket 으로 즉시 전달
 
-| 버전 기록·서명 | 편집기·핵심 문장 요약 |
+| 버전 기록·서명 | 편집기·AI 요약(Claude Haiku 5.5) |
 |---|---|
 | ![버전 기록](docs/images/version-history.png) | ![편집기](docs/images/editor-summary.png) |
 | **공유 링크 관리** | **모바일** |
@@ -74,6 +76,7 @@ flowchart LR
 ```bash
 cp .env.example .env
 # .env 에서 JWT_SECRET 을 32자 이상 무작위 값으로, 체험 데이터가 필요하면 DEMO_ENABLED=true · DEMO_PASSWORD=원하는값(영문+숫자 8자 이상)
+# AI 요약·번역을 쓰려면 ANTHROPIC_API_KEY 를 넣으세요(문서 내용이 Anthropic 으로 전송됩니다. 없으면 추출 요약·DeepL)
 docker compose up -d --build --wait
 ```
 
@@ -93,12 +96,12 @@ API 문서: <http://localhost:8080/swagger-ui.html> · 전체 목록 [docs/API.m
 ## 테스트
 
 ```bash
-cd backend && ./gradlew test          # 266건 (MySQL·Azurite 컨테이너 자동 실행), 커버리지 리포트 포함
-cd frontend && npm test               # 94건
+cd backend && ./gradlew test          # 290건 (MySQL·Azurite 컨테이너 자동 실행), 커버리지 리포트 포함
+cd frontend && npm test               # 102건
 docker compose up -d --wait && cd e2e && npm ci && npx playwright test   # E2E 13건 (접근성 자동 검사 포함)
 ```
 
-백엔드 라인 커버리지 92.1%(분기 80.7%). 첫 완성본(v1)에서 찾은 결함마다 회귀 테스트가 있습니다 → [docs/TESTING.md](docs/TESTING.md)
+백엔드 라인 커버리지 92.0%(분기 80.5%). 첫 완성본(v1)에서 찾은 결함마다 회귀 테스트가 있습니다 → [docs/TESTING.md](docs/TESTING.md)
 GitHub Actions 가 PR 과 main 푸시마다 백엔드·프론트엔드·E2E(Docker 이미지)·비밀값 검사(gitleaks)를 실행합니다.
 E2E 를 1분 안에 여러 번 돌리면 로그인 요청 제한에 걸리므로, 반복 실행 방법은 [TESTING](docs/TESTING.md) 을 참고하세요.
 
@@ -113,7 +116,7 @@ E2E 를 1분 안에 여러 번 돌리면 로그인 요청 제한에 걸리므로
 | [API](docs/API.md) | 엔드포인트, 오류 코드, WebSocket |
 | [TESTING](docs/TESTING.md) | 테스트 전략과 목록 |
 | [DEPLOYMENT](docs/DEPLOYMENT.md) | 환경 변수, Azure 배포 구성(App Service·Database for MySQL·Blob Storage), CI |
-| [ADR](docs/adr/README.md) | 주요 설계 결정 10건 |
+| [ADR](docs/adr/README.md) | 주요 설계 결정 11건 |
 | [REVIEW_2026-09](docs/REVIEW_2026-09.md) | 코드 리뷰 (1차) — 발견 28건(해결 21 · 보류 7)의 재현·원인·수정·검증 기록 |
 | [REVIEW_2026-09-28](docs/REVIEW_2026-09-28.md) | 2차 점검 — 아키텍처·성능·보안(OWASP)·UI/UX 기준 재점검, 측정값과 변경 기록 |
 | [REVIEW_2026-10-03](docs/REVIEW_2026-10-03.md) | 3차 점검 — 아키텍처·신뢰성·보안·프런트엔드 구조, 발견 43건의 처리 결과 |
