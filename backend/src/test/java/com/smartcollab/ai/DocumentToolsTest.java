@@ -343,4 +343,17 @@ class DocumentToolsTest extends IntegrationTest {
         stranger.send(MockMvcRequestBuilders.post("/api/files/{id}/translation?target=EN", file)).andExpect(status().isNotFound());
         verify(deepl, never()).translate(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString());
     }
+
+    @Test
+    @DisplayName("[H-2] 호출 중 Error(메모리 부족 등)가 나도 예약을 돌려준다 — 예전에는 RuntimeException 만 돌려줘 하루 한도에 예약분이 남음(독립 검토에서 발견)")
+    void releasesReservationOnError() throws Exception {
+        Api.Session s = api().signUp("h2err");
+        long file = s.uploadText(s.rootFolderId, "메모.txt", "회의 결과");
+        when(documentAi.summarize(any())).thenThrow(new StackOverflowError("시험"));
+        s.send(MockMvcRequestBuilders.post("/api/files/{id}/summary", file)).andExpect(status().is5xxServerError());
+
+        reset(documentAi);
+        enableAi();
+        s.send(MockMvcRequestBuilders.post("/api/files/{id}/summary", file)).andExpect(status().isOk());   // 이전: 예약 8,100 이 남아 한도 12,000 을 넘어 429
+    }
 }

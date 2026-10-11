@@ -317,4 +317,24 @@ class ClaudeDocumentAiTest {
         assertThat(server.requests).hasSize(2);
         retrying.destroy();
     }
+
+    @Test
+    @DisplayName("[H-2] 연결 단계의 시간 초과는 요청이 서버에 닿지 않았으므로 과금 실패로 보지 않는다(다시 시도·예약 반환), 응답을 기다리다 난 시간 초과만 과금됐을 수 있음 — 독립 검토에서 발견")
+    void connectTimeoutIsNotBillable() {
+        assertThat(ClaudeDocumentAi.mayHaveBeenProcessed(new RuntimeException(new java.net.SocketTimeoutException("Connect timed out")))).isFalse();
+        assertThat(ClaudeDocumentAi.mayHaveBeenProcessed(new RuntimeException(new java.net.SocketTimeoutException("Read timed out")))).isTrue();
+        assertThat(ClaudeDocumentAi.mayHaveBeenProcessed(new RuntimeException(new java.io.InterruptedIOException("timeout")))).isTrue();
+        assertThat(ClaudeDocumentAi.mayHaveBeenProcessed(new RuntimeException(new java.net.ConnectException("Connection refused")))).isFalse();
+    }
+
+    @Test
+    @DisplayName("[H-2] 번역 스트림이 시작된 뒤 끝 표시(message_stop) 없이 닫혀도 과금된 실패로 본다 — 예전에는 500 이 나고 예약을 전부 돌려줌(독립 검토에서 발견)")
+    void streamClosedWithoutStopIsBilled() {
+        String full = FakeAnthropicServer.stream("end_turn", 100, 50, translationChunks("Hello"));
+        String truncated = full.substring(0, full.indexOf("event: message_delta"));
+        server.reply(Reply.sse(truncated));
+
+        assertThatThrownBy(() -> ai.translate(AiDocument.text("a.txt", "안녕"), TargetLanguage.EN, 64_000))
+                .isInstanceOfSatisfying(DocumentAi.BilledFailure.class, e -> assertThat(e.totalTokens()).isNull());
+    }
 }

@@ -461,7 +461,7 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
                 log.error("Claude call failed: status={} type={}", status, e.errorType().map(Object::toString).orElse("-"));
                 throw new ApiException(ErrorCode.UPSTREAM_ERROR, "AI 서비스 호출에 실패했습니다.");
             } catch (AnthropicIoException e) {
-                if (timedOut(e)) {
+                if (mayHaveBeenProcessed(e)) {
                     log.warn("Claude call timed out (billable={}); not retrying", billable);
                     String message = "AI 응답이 늦어 중단했습니다. 잠시 후 다시 시도하세요.";
                     throw billable ? new BilledFailure(ErrorCode.SERVICE_UNAVAILABLE, message, null)
@@ -480,8 +480,8 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
         }
     }
 
-    /** OkHttp 의 읽기·호출 시간 초과는 InterruptedIOException(SocketTimeoutException 포함)으로 옵니다 */
-    private static boolean timedOut(Throwable e) {
+    /** 서버가 요청을 처리(과금)했을 수 있는 시간 초과. OkHttp 의 읽기·호출 시간 초과는 InterruptedIOException(SocketTimeoutException 포함)으로 옵니다 */
+    static boolean mayHaveBeenProcessed(Throwable e) {
         for (Throwable t = e; t != null; t = t.getCause()) {
             if (t instanceof InterruptedIOException) {
                 return true;
