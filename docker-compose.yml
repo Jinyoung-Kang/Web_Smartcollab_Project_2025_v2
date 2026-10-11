@@ -49,6 +49,7 @@ services:
       QUOTA_PERSONAL: ${QUOTA_PERSONAL:-1GB}
       QUOTA_TEAM: ${QUOTA_TEAM:-5GB}
       DEMO_QUOTA: ${DEMO_QUOTA:-50MB}
+      DEMO_SAMPLE_FILES:
       COOKIE_SECURE: "false"
       # 그 밖의 설정은 .env(또는 셸)에 있을 때만 그대로 넘깁니다 — 없으면 앱 기본값(application.yml). 예전에는 여기 없는 설정을
       # .env 에 넣어도 앱에 닿지 않았습니다 [L-6]. 설명은 docs/DEPLOYMENT.md §2. PORT 는 컨테이너 안에서 8080 고정이라 넘기지 않습니다.

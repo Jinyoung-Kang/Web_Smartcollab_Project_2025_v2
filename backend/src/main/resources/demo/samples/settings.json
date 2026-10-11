@@ -1,0 +1,13 @@
+{
+  "app": "SmartCollab",
+  "features": {
+    "share": true,
+    "versions": true,
+    "chat": true
+  },
+  "limits": {
+    "uploadMb": 200,
+    "trashDays": 30
+  },
+  "locale": "ko-KR"
+}
