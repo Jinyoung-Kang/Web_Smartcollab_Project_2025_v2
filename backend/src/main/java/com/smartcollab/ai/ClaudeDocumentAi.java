@@ -117,6 +117,9 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
     /** 날짜 앞에 붙은 연도("2024년 9월") — 원문에 없는 연도를 지어 붙이는 일이 실측 10번 중 4번이었습니다 [AI-08] */
     private static final Pattern YEAR_BEFORE_MONTH = Pattern.compile("(?<!\\d)((?:19|20)\\d{2})년\\s*(?=\\d{1,2}월)");
 
+    /** 한글 바로 뒤의 "の" — 조사 "의" 자리에 일본어를 쓰는 일이 PDF 요약 10번 중 4~5번이었습니다 [AI-11] */
+    private static final Pattern KANA_PARTICLE_AFTER_HANGUL = Pattern.compile("(?<=[가-힣])の");
+
     /** API 가 document 블록을 모델에게 보여 주는 표기. 번역이 이 표기째로 오는 일이 실측에서 있었습니다 [AI-06] */
     private static final Pattern DOCUMENT_MARKUP = Pattern.compile(
             "\\A\\s*<document\\b[^>]*>.*?<document_content>(.*)</document_content>\\s*</document>\\s*\\z", Pattern.DOTALL);
@@ -202,8 +205,8 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
             String source = document.text();
             List<String> points = parsed.keyPoints() == null ? List.of()
                     : parsed.keyPoints().stream().filter(p -> p != null && !p.isBlank())
-                    .map(p -> dropInventedYears(p.strip(), source)).toList();
-            return new Output<>(new Summary(dropInventedYears(parsed.summary().strip(), source), points),
+                    .map(p -> fixKanaParticle(dropInventedYears(p.strip(), source))).toList();
+            return new Output<>(new Summary(fixKanaParticle(dropInventedYears(parsed.summary().strip(), source)), points),
                     message.usage().inputTokens(), message.usage().outputTokens());
         } catch (JacksonException e) {
             log.warn("Claude summary was not valid JSON ({} chars)", json.length());
@@ -236,9 +239,12 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
             throw new ApiException(ErrorCode.UPSTREAM_ERROR, "AI 의 번역 형식이 올바르지 않습니다. 다시 시도하세요.");
         }
         if (parsed.translation() == null || parsed.translation().isBlank()) {
+            log.warn("Claude translation field was empty: jsonChars={} notesChars={}", json.length(),
+                    parsed.notes() == null ? -1 : parsed.notes().length());
             throw new ApiException(ErrorCode.UPSTREAM_ERROR, "AI 가 빈 결과를 돌려주었습니다. 다시 시도하세요.");
         }
-        return new Output<>(unwrapTranslation(parsed.translation(), document),
+        String translation = unwrapTranslation(parsed.translation(), document);
+        return new Output<>(target == TargetLanguage.KO ? fixKanaParticle(translation) : translation,
                 message.usage().inputTokens(), message.usage().outputTokens());
     }
 
@@ -263,6 +269,19 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
             log.info("Dropped {} year(s) not in the document from a Claude summary", dropped);
         }
         return out.toString();
+    }
+
+    /**
+     * 한국어 결과에서 한글 바로 뒤에 붙은 "の"를 "의"로 고칩니다 [AI-11]. 한국어 문장에서 한글 뒤에 히라가나가 올 일은 없고,
+     * 일본어 글 속의 "の"(한자·가나 뒤)는 건드리지 않습니다. 프롬프트·effort 로는 0 이 되지 않았습니다.
+     */
+    static String fixKanaParticle(String text) {
+        Matcher m = KANA_PARTICLE_AFTER_HANGUL.matcher(text);
+        if (!m.find()) {
+            return text;
+        }
+        log.info("Fixed a Japanese particle after Hangul in a Claude result");
+        return m.replaceAll("의");
     }
 
     /**
@@ -344,6 +363,9 @@ public class ClaudeDocumentAi implements DocumentAi, DisposableBean {
                 .map(TextBlock::text)
                 .collect(Collectors.joining());
         if (text.isBlank()) {
+            log.warn("Claude returned no text: blocks={} stop={} outputTokens={}",
+                    message.content().stream().map(b -> b.isText() ? "text" : b.isThinking() ? "thinking" : "other").toList(),
+                    reason, message.usage().outputTokens());
             throw new ApiException(ErrorCode.UPSTREAM_ERROR, "AI 가 빈 결과를 돌려주었습니다. 다시 시도하세요.");
         }
         return text;

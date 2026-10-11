@@ -224,4 +224,19 @@ class ClaudeDocumentAiTest {
         assertThatThrownBy(() -> ai.translate(AiDocument.text("a.txt", "본문"), TargetLanguage.EN))
                 .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.UPSTREAM_ERROR));
     }
+
+    @Test
+    @DisplayName("[AI-11] 한국어 결과에서 한글 바로 뒤에 섞인 \"の\"는 \"의\"로 고친다 — 실측에서 PDF 요약 10번 중 4~5번 \"증가분の\", 다른 일본어 글은 그대로")
+    void fixesKanaParticleAfterHangul() {
+        server.reply(Reply.json(FakeAnthropicServer.message("end_turn",
+                "{\"summary\":\"증가분の 대부분은 옛 버전입니다.\",\"keyPoints\":[\"팀별 사용량の 차이\",\"東京の 지사\"]}", 100, 50, null)));
+        DocumentAi.Summary summary = ai.summarize(AiDocument.pdf("보고서.pdf", new byte[]{1})).value();
+        assertThat(summary.summary()).isEqualTo("증가분의 대부분은 옛 버전입니다.");
+        assertThat(summary.keyPoints()).containsExactly("팀별 사용량의 차이", "東京の 지사");
+
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 100, 50, translationChunks("팀の 저장 공간"))));
+        assertThat(ai.translate(AiDocument.text("a.txt", "Team storage"), TargetLanguage.KO).value()).isEqualTo("팀의 저장 공간");
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 100, 50, translationChunks("チームの容量"))));
+        assertThat(ai.translate(AiDocument.text("a.txt", "Team storage"), TargetLanguage.JA).value()).isEqualTo("チームの容量");
+    }
 }
