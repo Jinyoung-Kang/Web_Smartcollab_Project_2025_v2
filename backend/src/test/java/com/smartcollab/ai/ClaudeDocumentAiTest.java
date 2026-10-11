@@ -173,4 +173,18 @@ class ClaudeDocumentAiTest {
         assertThat(summary.path("system").toString()).contains("exactly as the document writes them").doesNotContain("year");
         mediumAi.destroy();
     }
+
+    @Test
+    @DisplayName("[AI-08] 요약이 원문에 없는 연도를 날짜 앞에 붙이면 뗀다(원문에 있는 연도는 두고, 원문 글자를 모르는 PDF 는 그대로) — 실측 10번 중 4번, 프롬프트로 줄지 않음")
+    void dropsInventedYears() {
+        server.reply(Reply.json(FakeAnthropicServer.message("end_turn",
+                "{\"summary\":\"2024년 9월 24일 열린 회의입니다. 2026년 1월 출시 예정입니다.\",\"keyPoints\":[\"2024년 9월 30일까지 공지\",\"인덱스 추가\"]}",
+                100, 50, null)));
+        DocumentAi.Summary summary = ai.summarize(AiDocument.text("회의록.md", "일시: 9월 24일\n출시는 2026년 1월\n공지는 9월 30일까지")).value();
+        assertThat(summary.summary()).isEqualTo("9월 24일 열린 회의입니다. 2026년 1월 출시 예정입니다.");
+        assertThat(summary.keyPoints()).containsExactly("9월 30일까지 공지", "인덱스 추가");
+
+        server.reply(Reply.json(FakeAnthropicServer.message("end_turn", "{\"summary\":\"2024년 9월 보고서\",\"keyPoints\":[]}", 100, 50, null)));
+        assertThat(ai.summarize(AiDocument.pdf("보고서.pdf", new byte[]{1, 2, 3})).value().summary()).isEqualTo("2024년 9월 보고서");
+    }
 }
