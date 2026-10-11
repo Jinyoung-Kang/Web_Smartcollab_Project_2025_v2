@@ -11,12 +11,13 @@ import java.time.Duration;
  *
  * @param apiKey              ANTHROPIC_API_KEY. 비어 있으면 생성형 요약·Claude 번역을 쓰지 않습니다
  * @param model               모델 ID (기본 claude-haiku-5-5)
+ * @param effort              생각의 양(low·medium·high·xhigh·max) [AI-07]
  * @param tokensPerUserPerDay 한 사용자가 24시간 동안 쓸 수 있는 토큰(입력+출력) [AI-03]
  * @param maxDocumentSize     PDF·Word 문서 크기 상한 [AI-02]
  * @param timeout             요청 하나의 시간 상한
  */
 @ConfigurationProperties(prefix = "app.ai")
-public record AiProperties(String apiKey, String model, long tokensPerUserPerDay, DataSize maxDocumentSize, Duration timeout) {
+public record AiProperties(String apiKey, String model, String effort, long tokensPerUserPerDay, DataSize maxDocumentSize, Duration timeout) {
 
     public boolean enabled() {
         return StringUtils.hasText(apiKey);

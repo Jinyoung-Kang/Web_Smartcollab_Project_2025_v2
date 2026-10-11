@@ -133,6 +133,7 @@ app:
   ai:
     api-key: ${ANTHROPIC_API_KEY:}
     model: ${AI_MODEL:claude-haiku-5-5}
+    effort: ${AI_EFFORT:low}
     # 한 사용자가 24시간 동안 쓸 수 있는 토큰(입력+출력) [AI-03]
     tokens-per-user-per-day: ${AI_TOKENS_PER_USER_PER_DAY:300000}
     # PDF·Word 문서 크기 상한(텍스트 문서는 편집기 한도를 따름) [AI-02]

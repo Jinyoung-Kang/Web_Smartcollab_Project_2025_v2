@@ -35,7 +35,7 @@ class ClaudeDocumentAiTest {
     @BeforeEach
     void setUp() throws Exception {
         server = new FakeAnthropicServer();
-        AiProperties props = new AiProperties("test-key", "claude-haiku-5-5", 300_000, DataSize.ofMegabytes(10), Duration.ofSeconds(10));
+        AiProperties props = new AiProperties("test-key", "claude-haiku-5-5", "low", 300_000, DataSize.ofMegabytes(10), Duration.ofSeconds(10));
         ai = new ClaudeDocumentAi(props, AnthropicOkHttpClient.builder()
                 .apiKey("test-key").baseUrl(server.baseUrl()).maxRetries(0).build());
     }
@@ -150,5 +150,26 @@ class ClaudeDocumentAiTest {
         String markup = "<document><document_content>표기 예시</document_content></document>";
         server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 100, 50, markup)));
         assertThat(ai.translate(AiDocument.text("markup.txt", markup), TargetLanguage.KO).value()).isEqualTo(markup);
+    }
+
+    @Test
+    @DisplayName("[AI-07] effort 는 설정(AI_EFFORT)을 따르고, 프롬프트에 최종 번역만(고쳐 쓴 흔적 금지)·문서에 없는 사실(연도 등) 금지를 적는다 — 실측에서 발견")
+    void effortFromConfigAndStricterPrompts() {
+        AiProperties medium = new AiProperties("test-key", "claude-haiku-5-5", "medium", 300_000, DataSize.ofMegabytes(10), Duration.ofSeconds(10));
+        ClaudeDocumentAi mediumAi = new ClaudeDocumentAi(medium, AnthropicOkHttpClient.builder()
+                .apiKey("test-key").baseUrl(server.baseUrl()).maxRetries(0).build());
+
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 10, 5, "Hi")));
+        mediumAi.translate(AiDocument.text("a.txt", "안녕"), TargetLanguage.EN);
+        JsonNode translation = lastRequest();
+        assertThat(translation.path("output_config").path("effort").asString()).isEqualTo("medium");
+        assertThat(translation.path("system").toString()).contains("final translation").contains("draft");
+
+        server.reply(Reply.json(FakeAnthropicServer.message("end_turn", "{\"summary\":\"요약\",\"keyPoints\":[]}", 10, 5, null)));
+        mediumAi.summarize(AiDocument.text("a.txt", "본문"));
+        JsonNode summary = lastRequest();
+        assertThat(summary.path("output_config").path("effort").asString()).isEqualTo("medium");
+        assertThat(summary.path("system").toString()).contains("year");
+        mediumAi.destroy();
     }
 }
