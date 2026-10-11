@@ -45,6 +45,13 @@ class ClaudeDocumentAiTest {
         server.close();
     }
 
+    /** 번역 응답(구조화 출력 {notes, translation})을 스트리밍 조각으로 — 조각 경계가 JSON 중간에 와도 SDK 가 이어 붙임 */
+    private String[] translationChunks(String translation) {
+        String body = json.writeValueAsString(java.util.Map.of("notes", "", "translation", translation));
+        int half = body.length() / 2;
+        return new String[]{body.substring(0, half), body.substring(half)};
+    }
+
     private JsonNode lastRequest() {
         return json.readTree(server.requests.getLast().body());
     }
@@ -52,7 +59,7 @@ class ClaudeDocumentAiTest {
     @Test
     @DisplayName("[AI-01] 번역은 Haiku 5.5 를 effort low·스트리밍으로 부르고, 문서는 document 블록, 지시는 시스템 프롬프트에만 둔다")
     void translationRequestShape() {
-        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 120, 42, "Hello ", "world")));
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 120, 42, translationChunks("Hello world"))));
 
         DocumentAi.Output<String> out = ai.translate(AiDocument.text("회의록.md", "안녕 세상\n둘째 줄"), TargetLanguage.JA);
 
@@ -66,6 +73,9 @@ class ClaudeDocumentAiTest {
         assertThat(req.path("stream").asBoolean()).isTrue();
         assertThat(req.path("max_tokens").asLong()).isEqualTo(64_000);
         assertThat(req.path("output_config").path("effort").asString()).isEqualTo("low");
+        // 어려운 낱말을 notes 에서 먼저 정하고 translation 에 번역만 — 결과에 "Wait, …"가 섞이던 일 [AI-07]
+        assertThat(req.path("output_config").path("format").path("type").asString()).isEqualTo("json_schema");
+        assertThat(req.path("output_config").path("format").path("schema").path("required").toString()).contains("notes").contains("translation");
         assertThat(req.has("temperature")).as("Haiku 5.5 는 기본값이 아닌 sampling 값을 거절").isFalse();
         assertThat(req.path("system").toString()).contains("Japanese").contains("untrusted");
         JsonNode doc = req.path("messages").get(0).path("content").get(0);
@@ -140,15 +150,15 @@ class ClaudeDocumentAiTest {
     @Test
     @DisplayName("[AI-06] 번역이 API 의 문서 표기(<document>…<document_content>)째로 오면 내용만 돌려준다 — 실측에서 발견, 원문이 그 표기면 그대로")
     void unwrapsEchoedDocumentMarkup() {
-        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 100, 50,
-                "<document index=\"1\" media_type=\"text/plain\"><source>README.txt</source><document_content>",
-                "안녕하세요\n둘째 줄\n", "</document_content></document>")));
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 100, 50, translationChunks(
+                "<document index=\"1\" media_type=\"text/plain\"><source>README.txt</source><document_content>"
+                        + "안녕하세요\n둘째 줄\n</document_content></document>"))));
         assertThat(ai.translate(AiDocument.text("README.txt", "Hello\nsecond line\n"), TargetLanguage.KO).value())
                 .isEqualTo("안녕하세요\n둘째 줄\n");
         assertThat(lastRequest().path("system").toString()).contains("tags");
 
         String markup = "<document><document_content>표기 예시</document_content></document>";
-        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 100, 50, markup)));
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 100, 50, translationChunks(markup))));
         assertThat(ai.translate(AiDocument.text("markup.txt", markup), TargetLanguage.KO).value()).isEqualTo(markup);
     }
 
@@ -159,7 +169,7 @@ class ClaudeDocumentAiTest {
         ClaudeDocumentAi mediumAi = new ClaudeDocumentAi(medium, AnthropicOkHttpClient.builder()
                 .apiKey("test-key").baseUrl(server.baseUrl()).maxRetries(0).build());
 
-        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 10, 5, "Hi")));
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 10, 5, translationChunks("Hi"))));
         mediumAi.translate(AiDocument.text("a.txt", "안녕"), TargetLanguage.EN);
         JsonNode translation = lastRequest();
         assertThat(translation.path("output_config").path("effort").asString()).isEqualTo("medium");
@@ -193,12 +203,24 @@ class ClaudeDocumentAiTest {
     @Test
     @DisplayName("[AI-09] 번역 전체가 마크다운 코드 울타리(```)에 싸여 오면 벗긴다 — 실측에서 CSV 번역에 두 줄이 더해짐, 원문이 코드 블록이면 그대로")
     void unwrapsCodeFence() {
-        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 100, 50, "```csv\n項目,担当\n", "A,B\n```")));
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 100, 50, translationChunks("```csv\n項目,担当\nA,B\n```"))));
         assertThat(ai.translate(AiDocument.text("할일.csv", "항목,담당\nA,B\n"), TargetLanguage.JA).value()).isEqualTo("項目,担当\nA,B");
         assertThat(lastRequest().path("system").toString()).contains("code fences");
 
         String fenced = "```\necho hi\n```";
-        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 100, 50, fenced)));
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 100, 50, translationChunks(fenced))));
         assertThat(ai.translate(AiDocument.text("명령.md", fenced), TargetLanguage.EN).value()).isEqualTo(fenced);
+    }
+
+    @Test
+    @DisplayName("[AI-07] 번역 응답이 약속한 형식(JSON)이 아니거나 번역이 비어 있으면 502")
+    void malformedTranslationIs502() {
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 100, 50, "그냥 글")));
+        assertThatThrownBy(() -> ai.translate(AiDocument.text("a.txt", "본문"), TargetLanguage.EN))
+                .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.UPSTREAM_ERROR));
+
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 100, 50, translationChunks(" "))));
+        assertThatThrownBy(() -> ai.translate(AiDocument.text("a.txt", "본문"), TargetLanguage.EN))
+                .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.UPSTREAM_ERROR));
     }
 }
