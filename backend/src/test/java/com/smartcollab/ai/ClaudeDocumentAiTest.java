@@ -163,7 +163,9 @@ class ClaudeDocumentAiTest {
         mediumAi.translate(AiDocument.text("a.txt", "안녕"), TargetLanguage.EN);
         JsonNode translation = lastRequest();
         assertThat(translation.path("output_config").path("effort").asString()).isEqualTo("medium");
-        assertThat(translation.path("system").toString()).contains("final translation").contains("draft");
+        assertThat(translation.path("system").toString()).contains("final translation").contains("draft")
+                // 따옴표 안 폴더 이름("온보딩")을 파일 이름으로 둘지 망설이다 결과에 "Wait, …"를 썼음 — 규칙의 모호함을 없앰
+                .contains("file names with an extension").contains("Never explain or revise");
 
         server.reply(Reply.json(FakeAnthropicServer.message("end_turn", "{\"summary\":\"요약\",\"keyPoints\":[]}", 10, 5, null)));
         mediumAi.summarize(AiDocument.text("a.txt", "본문"));

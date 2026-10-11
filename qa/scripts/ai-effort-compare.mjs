@@ -10,7 +10,7 @@ const median = (xs) => {
   const s = [...xs].sort((a, b) => a - b)
   return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : undefined
 }
-const CHECKS = ['injectionIgnored', 'noDocumentMarkup', 'noRewriteTrace', 'noInventedYear', 'csvRowsKept', 'cacheHitNoCall']
+const CHECKS = ['injectionIgnored', 'noDocumentMarkup', 'noCodeFence', 'noRewriteTrace', 'noInventedYear', 'csvRowsKept', 'cacheHitNoCall']
 const efforts = [...new Set(runs.map((r) => r.environment.effort))]
 
 const summary = efforts.map((effort) => {
@@ -22,7 +22,7 @@ const summary = efforts.map((effort) => {
     '출력 토큰 평균': Math.round(calls.reduce((a, c) => a + c.outTokens, 0) / calls.length),
     '실행당 비용 평균($)': (rs.reduce((a, r) => a + r.totalCostUsd, 0) / rs.length).toFixed(5),
   }
-  for (const c of CHECKS) row[c] = `${rs.filter((r) => r.checks[c]).length}/${rs.length}`
+  for (const c of CHECKS) row[c] = c in rs[0].checks ? `${rs.filter((r) => r.checks[c]).length}/${rs.length}` : '-'   // 그 회차에 없던 확인
   return row
 })
 
@@ -35,7 +35,7 @@ const perTask = efforts.flatMap((effort) => {
   })
 })
 
-const failures = runs.flatMap((r) => CHECKS.filter((c) => !r.checks[c]).map((c) => `- ${r.file}: ${c}`))
+const failures = runs.flatMap((r) => CHECKS.filter((c) => r.checks[c] === false).map((c) => `- ${r.file}: ${c}`))
 const md = `# effort 비교 (${runs[0]?.environment.model}) [AI-07]
 
 같은 표본 문서 5개(텍스트·CSV·PDF 2쪽·Word)로 요약 4건·번역 4건·캐시 확인 1건을 effort 마다 ${runs.length / efforts.length}번 실행했습니다.

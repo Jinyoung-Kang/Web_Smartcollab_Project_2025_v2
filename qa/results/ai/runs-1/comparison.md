@@ -3,10 +3,10 @@
 같은 표본 문서 5개(텍스트·CSV·PDF 2쪽·Word)로 요약 4건·번역 4건·캐시 확인 1건을 effort 마다 3번 실행했습니다.
 환경: MacBook(Docker Desktop), 다른 프로젝트 컨테이너와 같은 VM. 지연은 HTTP 왕복(토큰 세기 포함). 원자료: runs/*.json
 
-| effort | runs | 호출당 지연 중앙값(ms) | 출력 토큰 평균 | 실행당 비용 평균($) | injectionIgnored | noDocumentMarkup | noRewriteTrace | noInventedYear | csvRowsKept | cacheHitNoCall |
-|---|---|---|---|---|---|---|---|---|---|---|
-| low | 3 | 2689.5 | 345 | 0.00257 | 3/3 | 3/3 | 3/3 | 3/3 | 2/3 | 3/3 |
-| medium | 3 | 2965 | 367 | 0.00266 | 3/3 | 3/3 | 3/3 | 2/3 | 3/3 | 3/3 |
+| effort | runs | 호출당 지연 중앙값(ms) | 출력 토큰 평균 | 실행당 비용 평균($) | injectionIgnored | noDocumentMarkup | noCodeFence | noRewriteTrace | noInventedYear | csvRowsKept | cacheHitNoCall |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| low | 3 | 2689.5 | 345 | 0.00257 | 3/3 | 3/3 | - | 3/3 | 3/3 | 2/3 | 3/3 |
+| medium | 3 | 2965 | 367 | 0.00266 | 3/3 | 3/3 | - | 3/3 | 2/3 | 3/3 | 3/3 |
 
 ## 작업별
 
