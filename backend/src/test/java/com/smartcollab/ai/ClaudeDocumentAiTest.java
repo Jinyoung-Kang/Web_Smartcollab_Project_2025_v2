@@ -136,4 +136,19 @@ class ClaudeDocumentAiTest {
         assertThatThrownBy(() -> ai.summarize(AiDocument.text("a.txt", "본문")))
                 .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.UPSTREAM_ERROR));
     }
+
+    @Test
+    @DisplayName("[AI-06] 번역이 API 의 문서 표기(<document>…<document_content>)째로 오면 내용만 돌려준다 — 실측에서 발견, 원문이 그 표기면 그대로")
+    void unwrapsEchoedDocumentMarkup() {
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 100, 50,
+                "<document index=\"1\" media_type=\"text/plain\"><source>README.txt</source><document_content>",
+                "안녕하세요\n둘째 줄\n", "</document_content></document>")));
+        assertThat(ai.translate(AiDocument.text("README.txt", "Hello\nsecond line\n"), TargetLanguage.KO).value())
+                .isEqualTo("안녕하세요\n둘째 줄\n");
+        assertThat(lastRequest().path("system").toString()).contains("tags");
+
+        String markup = "<document><document_content>표기 예시</document_content></document>";
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 100, 50, markup)));
+        assertThat(ai.translate(AiDocument.text("markup.txt", markup), TargetLanguage.KO).value()).isEqualTo(markup);
+    }
 }
