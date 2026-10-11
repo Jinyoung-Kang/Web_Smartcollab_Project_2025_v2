@@ -1,0 +1,15 @@
+mode=docx-bomb xmx=64MB rejected=PAYLOAD_TOO_LARGE ms=179 heapPeakMB=58
+mode=docx-bomb xmx=128MB rejected=PAYLOAD_TOO_LARGE ms=96 heapPeakMB=52
+mode=docx-bomb xmx=256MB rejected=PAYLOAD_TOO_LARGE ms=62 heapPeakMB=52
+mode=docx-bomb xmx=512MB rejected=PAYLOAD_TOO_LARGE ms=73 heapPeakMB=52
+mode=docx-bomb xmx=1536MB rejected=PAYLOAD_TOO_LARGE ms=81 heapPeakMB=51
+mode=text-2mb xmx=64MB OOM ms=808 heapPeakMB=93
+mode=text-2mb xmx=128MB chars=2097151 sentences=299593 ms=555 heapPeakMB=128
+mode=text-2mb xmx=256MB chars=2097151 sentences=299593 ms=648 heapPeakMB=201
+mode=text-2mb xmx=512MB chars=2097151 sentences=299593 ms=519 heapPeakMB=246
+mode=text-2mb xmx=1536MB chars=2097151 sentences=299593 ms=524 heapPeakMB=319
+mode=docx-front-bomb xmx=64MB rejected=PAYLOAD_TOO_LARGE ms=45 heapPeakMB=2
+mode=docx-front-bomb xmx=128MB rejected=PAYLOAD_TOO_LARGE ms=46 heapPeakMB=2
+mode=docx-front-bomb xmx=256MB rejected=PAYLOAD_TOO_LARGE ms=51 heapPeakMB=2
+mode=docx-front-bomb xmx=512MB rejected=PAYLOAD_TOO_LARGE ms=43 heapPeakMB=2
+mode=docx-front-bomb xmx=1536MB rejected=PAYLOAD_TOO_LARGE ms=81 heapPeakMB=2

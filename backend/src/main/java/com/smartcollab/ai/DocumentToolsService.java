@@ -3,6 +3,7 @@ package com.smartcollab.ai;
 import com.smartcollab.file.DocumentKind;
 import com.smartcollab.file.FileContentService;
 import com.smartcollab.file.FileContentService.DocumentRef;
+import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.error.ErrorCode;
 import com.smartcollab.global.security.SlidingWindowRateLimiter;
@@ -51,6 +52,7 @@ public class DocumentToolsService {
     private final TranslationService deepl;
     private final SlidingWindowRateLimiter rateLimiter;
     private final AiProperties props;
+    private final AppProperties appProps;
     private final Map<String, SummaryResult> summaries = lru(200);
     private final Map<String, TranslationResult> translations = lru(50);
 
@@ -116,8 +118,14 @@ public class DocumentToolsService {
         return AiDocument.text(ref.name(), text);
     }
 
-    private static String text(DocumentRef ref, byte[] bytes) {
-        return ref.kind() == DocumentKind.DOCX ? DocxText.extract(bytes, Integer.MAX_VALUE) : new String(bytes, StandardCharsets.UTF_8);
+    /**
+     * 문서 본문. 텍스트 문서는 편집기 한도(바이트)로 이미 막히고, Word 는 뽑은 본문에 같은 값을 글자 수 상한으로 둡니다 —
+     * 상한이 없어 추출 요약이 2,100만 자를 받던 일이 있었습니다 [H-1].
+     */
+    private String text(DocumentRef ref, byte[] bytes) {
+        return ref.kind() == DocumentKind.DOCX
+                ? DocxText.extract(bytes, (int) Math.min(Integer.MAX_VALUE, appProps.files().textEditMaxBytes()))
+                : new String(bytes, StandardCharsets.UTF_8);
     }
 
     private static void requireWithinCap(long inputTokens, long cap, String task) {

@@ -4,7 +4,9 @@
 set -euo pipefail
 OUT=$(mktemp -d)
 # ApiException·ErrorCode 가 쓰는 Spring 클래스(HttpStatus 등)만 Gradle 캐시에서 찾아 붙입니다
-jar() { find ~/.gradle/caches/modules-2 -name "$1-[0-9]*.jar" ! -name "*sources*" | sort | tail -1; }
+# 버전은 백엔드가 실제로 쓰는 것(Gradle 이 고른 것)으로 고정합니다 — 캐시에 다른 프로젝트의 버전이 함께 있음
+SPRING=$(cd backend && ./gradlew -q dependencyInsight --dependency spring-web --configuration runtimeClasspath | head -1 | sed -E 's/.*spring-web:([^ ]+).*/\1/')
+jar() { find ~/.gradle/caches/modules-2 -name "$1-$SPRING.jar" | head -1; }
 CP="backend/build/classes/java/main:$(jar spring-web):$(jar spring-core):$(jar spring-context)"
 javac -d "$OUT" -cp "$CP" qa/scripts/probes/DocumentMemoryProbe.java
 for mode in docx-bomb text-2mb docx-front-bomb; do

@@ -21,13 +21,24 @@ public class DocumentMemoryProbe {
 
     public static void main(String[] args) throws Exception {
         String mode = args[0];
+        // 입력은 재기 전에 만듭니다(1GB 를 압축하는 데만 수 초가 걸려 측정을 가림)
+        byte[] docx = switch (mode) {
+            case "docx-bomb" -> bodyBomb();
+            case "docx-front-bomb" -> frontBomb();
+            default -> null;
+        };
+        String plain = mode.equals("text-2mb") ? "ab cd. ".repeat(2 * 1024 * 1024 / 7) : null;
+        System.gc();
+        for (MemoryPoolMXBean p : ManagementFactory.getMemoryPoolMXBeans()) {
+            if (p.getType() == MemoryType.HEAP) p.resetPeakUsage();
+        }
         long t0 = System.nanoTime();
         String outcome;
         try {
             outcome = switch (mode) {
-                case "docx-bomb" -> summarize(DocxText.extract(bodyBomb(), TEXT_LIMIT));
-                case "docx-front-bomb" -> "chars=" + DocxText.extract(frontBomb(), TEXT_LIMIT).length();
-                case "text-2mb" -> summarize("ab cd. ".repeat(2 * 1024 * 1024 / 7));
+                case "docx-bomb" -> summarize(DocxText.extract(docx, TEXT_LIMIT));
+                case "docx-front-bomb" -> "chars=" + DocxText.extract(docx, TEXT_LIMIT).length();
+                case "text-2mb" -> summarize(plain);
                 default -> throw new IllegalArgumentException(mode);
             };
         } catch (ApiException e) {

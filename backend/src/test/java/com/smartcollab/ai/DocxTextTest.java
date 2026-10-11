@@ -67,7 +67,7 @@ class DocxTextTest {
 
         assertThatThrownBy(() -> DocxText.extract(file, 1_000_000))
                 .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.PAYLOAD_TOO_LARGE));
-        assertThat(DocxText.extract(file, 1_500_000)).hasSize(1_400_000);
+        assertThat(DocxText.extract(file, 1_500_000)).hasSize(1_400_000 - 1);   // 끝 공백은 strip
     }
 
     @Test
