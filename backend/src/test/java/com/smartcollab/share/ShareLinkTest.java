@@ -30,6 +30,9 @@ class ShareLinkTest extends IntegrationTest {
     @Autowired
     SlidingWindowRateLimiter rateLimiter;
 
+    @Autowired
+    com.smartcollab.storage.BlobStorage storage;
+
     private String createLink(Api.Session s, long fileId, Map<String, Object> options) throws Exception {
         return Api.read(s.postJson("/api/files/{id}/share-links", options, fileId), "$.token");
     }
@@ -179,5 +182,21 @@ class ShareLinkTest extends IntegrationTest {
         long membersFile = member.uploadText(team[1], "내가 올림.txt", "x");
         member.postJson("/api/files/{id}/share-links", Map.of(), membersFile).andExpect(status().isCreated());
         leader.postJson("/api/files/{id}/share-links", Map.of(), membersFile).andExpect(status().isCreated());
+    }
+
+    @Test
+    @DisplayName("[L-2] 저장소에서 파일을 열지 못하면 다운로드 횟수를 쓰지 않는다 — 예전에는 차감을 먼저 커밋해 1회용 링크가 내려받지 못한 채 소진됨")
+    void storageFailureDoesNotConsumeDownload() throws Exception {
+        Api.Session s = api().signUp("l2share");
+        long file = s.uploadText(s.rootFolderId, "보고서.txt", "내용");
+        String token = createLink(s, file, Map.of("downloadLimit", 1));
+        String storedPath = jdbc.queryForObject(
+                "SELECT v.stored_path FROM files f JOIN file_versions v ON v.version_id = f.active_version_id WHERE f.file_id = ?",
+                String.class, file);
+        storage.delete(storedPath);   // 저장소 장애·유실을 흉내
+
+        api().perform(MockMvcRequestBuilders.get("/api/public/shares/{t}/download", token)).andExpect(status().isNotFound());
+
+        api().perform(MockMvcRequestBuilders.get("/api/public/shares/{t}", token)).andExpect(status().isOk());   // 아직 1회 남음
     }
 }
