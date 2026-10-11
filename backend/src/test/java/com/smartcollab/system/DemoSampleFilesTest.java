@@ -48,6 +48,7 @@ class DemoSampleFilesTest extends IntegrationTest {
     @Test
     @DisplayName("체험 계정 셋 모두 내 드라이브에 파일 유형별 표본이 있고, 초기화한 뒤에도 다시 생긴다")
     void everyDemoAccountHasSampleFiles() throws Exception {
+        seeder.reset();   // 체험 데이터는 DB 에 하나뿐 — 다른 설정의 시험 문맥이 만든 것이 남아 있을 수 있어 이 설정으로 다시 만듦
         assertSamples();
         seeder.reset();
         assertSamples();
