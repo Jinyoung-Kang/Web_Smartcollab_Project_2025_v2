@@ -20,24 +20,32 @@ final class FakeAnthropicServer implements AutoCloseable {
     record Recorded(String path, String apiKey, String body) {
     }
 
-    /** @param gapMillis 0 보다 크면 SSE 이벤트 사이마다 이만큼 쉬며 나눠 보냄(느린 스트림) */
-    record Reply(int status, String contentType, String body, long gapMillis) {
+    /**
+     * @param gapMillis   0 보다 크면 SSE 이벤트 사이마다 이만큼 쉬며 나눠 보냄(느린 스트림)
+     * @param delayMillis 응답 헤더를 보내기 전에 쉬는 시간(처리가 오래 걸리는 요청)
+     */
+    record Reply(int status, String contentType, String body, long gapMillis, long delayMillis) {
         static Reply json(String body) {
-            return new Reply(200, "application/json", body, 0);
+            return new Reply(200, "application/json", body, 0, 0);
         }
 
         static Reply sse(String body) {
-            return new Reply(200, "text/event-stream", body, 0);
+            return new Reply(200, "text/event-stream", body, 0, 0);
         }
 
         /** 이벤트마다 gapMillis 쉬며 보내는 스트림 — 오래 걸리지만 살아 있는 응답, 또는 멈춘 응답 */
         static Reply slowSse(String body, long gapMillis) {
-            return new Reply(200, "text/event-stream", body, gapMillis);
+            return new Reply(200, "text/event-stream", body, gapMillis, 0);
+        }
+
+        /** delayMillis 동안 아무것도 보내지 않다가 응답 — 서버는 처리(과금)했지만 클라이언트가 먼저 시간 초과로 끊는 경우 */
+        static Reply delayedJson(String body, long delayMillis) {
+            return new Reply(200, "application/json", body, 0, delayMillis);
         }
 
         static Reply error(int status, String type, String message) {
             return new Reply(status, "application/json",
-                    "{\"type\":\"error\",\"error\":{\"type\":\"" + type + "\",\"message\":\"" + message + "\"}}", 0);
+                    "{\"type\":\"error\",\"error\":{\"type\":\"" + type + "\",\"message\":\"" + message + "\"}}", 0, 0);
         }
     }
 
@@ -55,6 +63,14 @@ final class FakeAnthropicServer implements AutoCloseable {
                 reply = replies.isEmpty() ? Reply.error(500, "api_error", "no reply queued") : replies.poll();
             }
             byte[] bytes = reply.body().getBytes(StandardCharsets.UTF_8);
+            if (reply.delayMillis() > 0) {
+                try {
+                    Thread.sleep(reply.delayMillis());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+            }
             exchange.getResponseHeaders().add("Content-Type", reply.contentType());
             exchange.getResponseHeaders().add("request-id", "req_test");
             if (reply.gapMillis() <= 0) {

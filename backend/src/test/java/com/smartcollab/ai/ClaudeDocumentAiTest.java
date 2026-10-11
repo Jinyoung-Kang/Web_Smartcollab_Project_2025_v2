@@ -281,4 +281,39 @@ class ClaudeDocumentAiTest {
                 .isInstanceOfSatisfying(DocumentAi.BilledFailure.class, e -> assertThat(e.totalTokens()).isNull());
         slow.destroy();
     }
+
+    /** 운영과 같은 재시도 설정의 인스턴스(시간 상한만 짧게) */
+    private ClaudeDocumentAi productionLike(AiProperties props) {
+        return new ClaudeDocumentAi(props, ClaudeDocumentAi.client(props, server.baseUrl(), 2));
+    }
+
+    @Test
+    @DisplayName("[H-2] 요약 응답이 시간 상한을 넘으면 다시 보내지 않고, 과금됐을 수 있는 실패로 본다 — 예전에는 시간 초과도 두 번 더 보내(최대 3번 과금) 예약을 전부 돌려줌")
+    void summaryTimeoutIsNotRetriedAndCountsAsBilled() {
+        AiProperties shortTimeout = new AiProperties("test-key", "claude-haiku-5-5", "low", "low", 300_000, DataSize.ofMegabytes(10),
+                Duration.ofSeconds(1), Duration.ofSeconds(30), 8);
+        ClaudeDocumentAi slow = productionLike(shortTimeout);
+        String reply = FakeAnthropicServer.message("end_turn", "{\"summary\":\"요약\",\"keyPoints\":[]}", 100, 50, null);
+        for (int i = 0; i < 3; i++) {
+            server.reply(Reply.delayedJson(reply, 2_000));
+        }
+
+        assertThatThrownBy(() -> slow.summarize(AiDocument.text("a.txt", "본문")))
+                .isInstanceOfSatisfying(DocumentAi.BilledFailure.class, e -> assertThat(e.totalTokens()).isNull());
+        assertThat(server.requests).hasSize(1);
+        slow.destroy();
+    }
+
+    @Test
+    @DisplayName("[H-2] 과금 전 실패(요청 한도 429)는 다시 보내 성공할 수 있다 — 재시도를 앱이 맡아도 그대로(동작 고정)")
+    void retriesRateLimitBeforeBilling() {
+        ClaudeDocumentAi retrying = productionLike(new AiProperties("test-key", "claude-haiku-5-5", "low", "low", 300_000,
+                DataSize.ofMegabytes(10), Duration.ofSeconds(10), Duration.ofSeconds(30), 8));
+        server.reply(Reply.error(429, "rate_limit_error", "slow down"));
+        server.reply(Reply.json(FakeAnthropicServer.message("end_turn", "{\"summary\":\"요약\",\"keyPoints\":[]}", 100, 50, null)));
+
+        assertThat(retrying.summarize(AiDocument.text("a.txt", "본문")).value().summary()).isEqualTo("요약");
+        assertThat(server.requests).hasSize(2);
+        retrying.destroy();
+    }
 }
