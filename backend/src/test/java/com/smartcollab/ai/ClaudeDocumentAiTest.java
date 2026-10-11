@@ -35,7 +35,7 @@ class ClaudeDocumentAiTest {
     @BeforeEach
     void setUp() throws Exception {
         server = new FakeAnthropicServer();
-        AiProperties props = new AiProperties("test-key", "claude-haiku-5-5", "low", 300_000, DataSize.ofMegabytes(10), Duration.ofSeconds(10));
+        AiProperties props = new AiProperties("test-key", "claude-haiku-5-5", "low", "low", 300_000, DataSize.ofMegabytes(10), Duration.ofSeconds(10));
         ai = new ClaudeDocumentAi(props, AnthropicOkHttpClient.builder()
                 .apiKey("test-key").baseUrl(server.baseUrl()).maxRetries(0).build());
     }
@@ -153,9 +153,9 @@ class ClaudeDocumentAiTest {
     }
 
     @Test
-    @DisplayName("[AI-07] effort 는 설정(AI_EFFORT)을 따르고, 프롬프트에 최종 번역만(고쳐 쓴 흔적 금지)·문서에 없는 사실(연도 등) 금지를 적는다 — 실측에서 발견")
+    @DisplayName("[AI-07] effort 는 작업마다 설정을 따르고, 프롬프트에 최종 번역만(고쳐 쓴 흔적 금지)·날짜·숫자·이름은 문서 그대로를 적는다 — 실측에서 발견")
     void effortFromConfigAndStricterPrompts() {
-        AiProperties medium = new AiProperties("test-key", "claude-haiku-5-5", "medium", 300_000, DataSize.ofMegabytes(10), Duration.ofSeconds(10));
+        AiProperties medium = new AiProperties("test-key", "claude-haiku-5-5", "high", "medium", 300_000, DataSize.ofMegabytes(10), Duration.ofSeconds(10));
         ClaudeDocumentAi mediumAi = new ClaudeDocumentAi(medium, AnthropicOkHttpClient.builder()
                 .apiKey("test-key").baseUrl(server.baseUrl()).maxRetries(0).build());
 
@@ -168,8 +168,9 @@ class ClaudeDocumentAiTest {
         server.reply(Reply.json(FakeAnthropicServer.message("end_turn", "{\"summary\":\"요약\",\"keyPoints\":[]}", 10, 5, null)));
         mediumAi.summarize(AiDocument.text("a.txt", "본문"));
         JsonNode summary = lastRequest();
-        assertThat(summary.path("output_config").path("effort").asString()).isEqualTo("medium");
-        assertThat(summary.path("system").toString()).contains("year");
+        assertThat(summary.path("output_config").path("effort").asString()).isEqualTo("high");
+        // "연도를 붙이지 말라"고 적으면 오히려 연도를 꺼냈음(실측) — 그 낱말 없이 "문서 그대로"만 적음
+        assertThat(summary.path("system").toString()).contains("exactly as the document writes them").doesNotContain("year");
         mediumAi.destroy();
     }
 }

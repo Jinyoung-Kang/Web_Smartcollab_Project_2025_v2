@@ -6,23 +6,27 @@ import java.util.Locale;
 
 /**
  * 번역 대상 언어. Claude 에는 언어 이름을, DeepL 에는 DeepL 의 언어 코드를 넘깁니다 [AI-01].
+ * Claude 에는 그 언어로 쓴 이름도 함께 줍니다 — 한국어 CSV 를 일본어로 옮기다 중국어 간체로 시작해 고쳐 쓰는 일이 실측에서 있었습니다 [AI-07].
  */
 public enum TargetLanguage {
-    EN("English", "EN-US"),
-    KO("Korean", "KO"),
-    JA("Japanese", "JA"),
-    ZH("Simplified Chinese", "ZH-HANS");
+    EN("English", "English", "EN-US"),
+    KO("Korean", "한국어", "KO"),
+    JA("Japanese", "日本語", "JA"),
+    ZH("Simplified Chinese", "简体中文", "ZH-HANS");
 
     private final String englishName;
+    private final String nativeName;
     private final String deeplCode;
 
-    TargetLanguage(String englishName, String deeplCode) {
+    TargetLanguage(String englishName, String nativeName, String deeplCode) {
         this.englishName = englishName;
+        this.nativeName = nativeName;
         this.deeplCode = deeplCode;
     }
 
-    public String englishName() {
-        return englishName;
+    /** 프롬프트에 쓰는 이름 — 영어 이름과 그 언어로 쓴 이름 (예: Japanese (日本語)) */
+    public String promptName() {
+        return englishName.equals(nativeName) ? englishName : englishName + " (" + nativeName + ")";
     }
 
     public String deeplCode() {
