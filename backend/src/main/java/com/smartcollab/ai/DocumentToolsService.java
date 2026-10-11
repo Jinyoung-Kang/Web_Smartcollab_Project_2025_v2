@@ -117,7 +117,7 @@ public class DocumentToolsService {
     }
 
     private static String text(DocumentRef ref, byte[] bytes) {
-        return ref.kind() == DocumentKind.DOCX ? DocxText.extract(bytes) : new String(bytes, StandardCharsets.UTF_8);
+        return ref.kind() == DocumentKind.DOCX ? DocxText.extract(bytes, Integer.MAX_VALUE) : new String(bytes, StandardCharsets.UTF_8);
     }
 
     private static void requireWithinCap(long inputTokens, long cap, String task) {

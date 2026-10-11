@@ -30,11 +30,12 @@ final class DocxText {
     private DocxText() {
     }
 
-    static String extract(byte[] docx) {
-        return extract(docx, MAX_XML_BYTES);
+    /** @param maxChars 뽑은 본문 글자 수 상한 */
+    static String extract(byte[] docx, int maxChars) {
+        return extract(docx, MAX_XML_BYTES, maxChars);
     }
 
-    static String extract(byte[] docx, long maxXmlBytes) {
+    static String extract(byte[] docx, long maxXmlBytes, int maxChars) {
         return parse(body(docx, maxXmlBytes));
     }
 

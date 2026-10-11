@@ -1,0 +1,15 @@
+mode=docx-bomb xmx=64MB OOM ms=1092 heapPeakMB=68
+mode=docx-bomb xmx=128MB OOM ms=1821 heapPeakMB=156
+mode=docx-bomb xmx=256MB OOM ms=3841 heapPeakMB=322
+mode=docx-bomb xmx=512MB OOM ms=5511 heapPeakMB=712
+mode=docx-bomb xmx=1536MB chars=20970949 sentences=2995850 ms=4085 heapPeakMB=1151
+mode=text-2mb xmx=64MB OOM ms=667 heapPeakMB=99
+mode=text-2mb xmx=128MB chars=2097151 sentences=299593 ms=474 heapPeakMB=212
+mode=text-2mb xmx=256MB chars=2097151 sentences=299593 ms=532 heapPeakMB=241
+mode=text-2mb xmx=512MB chars=2097151 sentences=299593 ms=488 heapPeakMB=240
+mode=text-2mb xmx=1536MB chars=2097151 sentences=299593 ms=451 heapPeakMB=241
+mode=docx-front-bomb xmx=64MB chars=2 ms=5844 heapPeakMB=9
+mode=docx-front-bomb xmx=128MB chars=2 ms=5909 heapPeakMB=9
+mode=docx-front-bomb xmx=256MB chars=2 ms=6659 heapPeakMB=9
+mode=docx-front-bomb xmx=512MB chars=2 ms=5800 heapPeakMB=9
+mode=docx-front-bomb xmx=1536MB chars=2 ms=5844 heapPeakMB=9

@@ -231,4 +231,22 @@ class DocumentToolsTest extends IntegrationTest {
                 .andExpect(jsonPath("$.aiEnabled").value(false))
                 .andExpect(jsonPath("$.translationEnabled").value(false));
     }
+
+    @Test
+    @DisplayName("[H-1] Word 본문이 편집기 한도(2MB)보다 길면 키가 있든 없든 413 — 추출 요약이 2,100만 자를 받아 힙을 다 쓰던 문제")
+    void wordBodyOverTextLimitIs413() throws Exception {
+        Api.Session s = api().signUp("h1docx");
+        byte[] bomb = docx(paragraph("ab cd. ".repeat(320_000)));   // 224만 자, 압축하면 수 KB
+        long file = Api.id(s.upload(s.rootFolderId, "폭탄.docx", bomb));
+
+        s.send(MockMvcRequestBuilders.post("/api/files/{id}/summary", file))
+                .andExpect(status().is(413))
+                .andExpect(jsonPath("$.code").value("PAYLOAD_TOO_LARGE"));
+        verify(documentAi, never()).countSummaryTokens(any());
+
+        when(documentAi.enabled()).thenReturn(false);
+        s.send(MockMvcRequestBuilders.post("/api/files/{id}/summary", file))
+                .andExpect(status().is(413))
+                .andExpect(jsonPath("$.code").value("PAYLOAD_TOO_LARGE"));
+    }
 }
