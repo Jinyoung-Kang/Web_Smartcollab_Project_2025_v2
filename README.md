@@ -15,7 +15,7 @@
 | **데이터·저장소** | MySQL 8 · Azure Blob Storage(또는 로컬 디스크) |
 | **AI** | Claude Haiku 5.5(Anthropic 공식 Java SDK) — 문서 요약·번역, 사용자별 토큰 한도. 키가 없으면 추출 요약·DeepL |
 | **배포 구성** | Azure App Service(Docker 이미지 또는 jar) · Azure Database for MySQL · Azure Blob Storage — 절차는 [DEPLOYMENT](docs/DEPLOYMENT.md) |
-| **CI·테스트** | GitHub Actions · JUnit 6 + Testcontainers(MySQL·Azurite) 328건 · Vitest 139건 · Playwright E2E 14건(접근성 자동 검사 포함) · ArchUnit 구조 규칙 |
+| **CI·테스트** | GitHub Actions · JUnit 6 + Testcontainers(MySQL·Azurite) 351건 · Vitest 140건 · Playwright E2E 14건(접근성 자동 검사 포함) · ArchUnit 구조 규칙 |
 
 ---
 
@@ -65,7 +65,7 @@ flowchart LR
     V --> ST[("Blob 저장소<br/>Azure · 로컬")]
 ```
 
-배포 구성은 Azure App Service(Docker 이미지 또는 jar) + Azure Database for MySQL + Azure Blob Storage 입니다. 운영 프로필(`prod`)이 Azure 저장소·보안 쿠키를 켜고, 스키마는 기동 시 Flyway 가 만듭니다 → [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+배포 구성은 Azure App Service(Docker 이미지 또는 jar) + Azure Database for MySQL + Azure Blob Storage 입니다. 운영 프로필(`prod`)이 Azure 저장소·보안 쿠키를 켜고, 스키마는 기동 시 Flyway 가 만듭니다. 공개 데모는 로그인 앞에 접근 코드 잠금을 둘 수 있습니다([ADR-0013](docs/adr/0013-access-code-gate.md)) → [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 
 자세한 설계(데이터 모델, 권한 모델, 업로드·편집·실시간 흐름, 한계와 확장 방안)는 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
@@ -96,12 +96,12 @@ API 문서: <http://localhost:8080/swagger-ui.html> · 전체 목록 [docs/API.m
 ## 테스트
 
 ```bash
-cd backend && ./gradlew test          # 328건 (MySQL·Azurite 컨테이너 자동 실행), 커버리지 리포트 포함
-cd frontend && npm test               # 139건
+cd backend && ./gradlew test          # 351건 (MySQL·Azurite 컨테이너 자동 실행), 커버리지 리포트 포함
+cd frontend && npm test               # 140건
 docker compose up -d --wait && cd e2e && npm ci && npx playwright test   # E2E 14건 (접근성 자동 검사 포함)
 ```
 
-백엔드 라인 커버리지 92.5%(분기 80.8%). 첫 완성본(v1)에서 찾은 결함마다 회귀 테스트가 있습니다 → [docs/TESTING.md](docs/TESTING.md)
+백엔드 라인 커버리지 92.5%(분기 80.5%). 첫 완성본(v1)에서 찾은 결함마다 회귀 테스트가 있습니다 → [docs/TESTING.md](docs/TESTING.md)
 GitHub Actions 가 PR 과 main 푸시마다 백엔드·프론트엔드·E2E(Docker 이미지)·비밀값 검사(gitleaks)를 실행합니다.
 E2E 를 1분 안에 여러 번 돌리면 로그인 요청 제한에 걸리므로, 반복 실행 방법은 [TESTING](docs/TESTING.md) 을 참고하세요.
 

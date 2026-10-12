@@ -1,5 +1,5 @@
 import { CLIENT_ID } from './clientId'
-import { ApiError, csrfHeader, ensureCsrf, notifyUnauthorized, toApiError } from './http'
+import { ApiError, csrfHeader, ensureCsrf, notifyUnauthorized, redirectIfGateLocked, toApiError } from './http'
 import type { Item } from './types'
 
 const aborted = () => new ApiError(0, 'ABORTED', '업로드를 취소했습니다.')
@@ -25,7 +25,7 @@ export async function uploadFile(
       await ensureCsrf(true)
       return uploadFile(folderId, file, onProgress, signal, true)
     }
-    if (e instanceof ApiError && e.status === 401) notifyUnauthorized()
+    if (e instanceof ApiError && !redirectIfGateLocked(e) && e.status === 401) notifyUnauthorized()
     throw e
   }
 }

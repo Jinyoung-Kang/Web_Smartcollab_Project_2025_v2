@@ -22,6 +22,7 @@
 |---|---|---|
 | `INVALID_REQUEST` | 400 | 입력 검증 실패 (`errors` 에 필드별 메시지), 해석할 수 없는 업로드 본문(끝 경계 없음·쓸 수 없는 파일 이름) |
 | `UNAUTHORIZED` / `INVALID_CREDENTIALS` | 401 | 로그인 필요 / 아이디·비밀번호 불일치 |
+| `GATE_LOCKED` | 401 | 접근 코드 잠금을 켠 배포에서 잠금을 풀지 않음 — 로그인보다 먼저 막힘. 화면은 `/__gate/` 로 이동 (아래 "접근 코드 잠금") |
 | `FORBIDDEN` / `CSRF_INVALID` | 403 | 권한 부족 / CSRF 토큰 없음·만료 (클라이언트는 토큰을 새로 받아 1회 재시도) |
 | `NOT_FOUND` | 404 | 대상 없음 또는 접근 불가 |
 | `CONFLICT` / `EDIT_CONFLICT` | 409 | 상태 충돌 / 다른 사람이 먼저 저장함 |
@@ -164,6 +165,17 @@
 |---|---|---|
 | GET | `/api/public/config` | 기능 사용 가능 여부(`aiEnabled`·`aiModel`·`translationEnabled`·`officePreviewEnabled`)·업로드 한도·데모 계정(데모 모드일 때) |
 | GET | `/actuator/health` | 헬스 체크 (liveness/readiness 포함) |
+
+### 접근 코드 잠금 (`GATE_CODES` 를 설정한 배포만, ADR-0013)
+
+잠금을 풀지 않은 요청은 `/actuator/health/**` 를 빼고 모두 막힙니다. 화면 이동(GET·HEAD, `Accept: text/html`)은 잠금화면(401 HTML), 그 밖(API·WebSocket·정적 파일)은 401 `GATE_LOCKED`.
+
+| Method | Path | 설명 |
+|---|---|---|
+| GET | `/__gate/?next=/경로` | 잠금화면. 이미 풀었으면 `/` 로 303 |
+| POST | `/__gate/unlock` | 폼(`code`, `next`, 2KB 까지). 맞으면 `__Host-sc_gate` 쿠키(12시간)와 함께 `next` 로 303, 틀리면 401 화면, 시도 초과면 429 화면(`Retry-After`). 다른 출처의 요청은 403 |
+| GET | `/__gate/lock` | 쿠키를 지우고 잠금화면으로 303 |
+| GET | `/__gate/gate.css` | 잠금화면 스타일 |
 
 ## WebSocket (STOMP)
 

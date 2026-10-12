@@ -63,6 +63,9 @@ open http://localhost:8080
 | `DEEPL_API_KEY` / `DEEPL_API_URL` | | – / `https://api-free.deepl.com` | AI 키가 없을 때의 텍스트 번역 (둘 다 없으면 번역 버튼 비활성) / 유료 요금제면 `https://api.deepl.com` |
 | `TRANSLATION_CHARS_PER_USER_PER_DAY` | | `100000` | 사용자별 24시간 번역 글자 수. DeepL 요금제의 월 한도에 맞춰 조정하세요 |
 | `DEMO_ENABLED` / `DEMO_PASSWORD` | | `false` | 체험 계정·데이터 생성. 비밀번호가 공개 설정 API 로 안내되므로 체험 전용 배포에서만 켜세요 |
+| `GATE_CODES` | | – (끔) | 접근 코드 잠금. `이름:scrypt해시,이름:scrypt해시` — 있으면 코드를 맞힌 브라우저만 화면·API 에 닿습니다(헬스 체크 제외). 해시 만드는 법은 §3.2 (ADR-0013) |
+| `GATE_SECRET` | 잠금 시 ✔ | – | 잠금 해제 쿠키 서명 키(32바이트 이상). 바꾸면 모두 다시 코드를 입력합니다 |
+| `GATE_HOURS` / `GATE_COOKIE_TTL` | | – / `12h` | 잠금화면에 적을 운영 시간(비우면 줄을 감춤) / 잠금을 푼 뒤 다시 묻기까지의 시간 |
 | `SWAGGER_ENABLED` | | `false` (`prod`) | 운영에서 API 문서 노출 여부 |
 | `SQL_LOG_LEVEL` | | `warn` | 실행한 SQL 로그(`debug` 면 모두 출력). 문제를 볼 때만 잠깐 |
 | `PORT` | | `8080` | 앱이 듣는 포트(App Service 등). Docker Compose 에서는 컨테이너 안 8080 고정이고 밖의 포트는 `APP_PORT` |
@@ -99,6 +102,18 @@ az webapp config appsettings set -g <리소스그룹> -n <앱이름> --settings 
 az webapp deploy -g <리소스그룹> -n <앱이름> --src-path backend/build/libs/smartcollab.jar --type jar
 ```
 
+- 공개 데모라면 접근 코드 잠금을 켜세요(ADR-0013). 코드 원문은 서버에 두지 않고 scrypt 해시만 넣습니다. 포트폴리오의 다른 서비스 잠금(gate)과
+  형식이 같아 그쪽 `gate.py hash` 출력도 그대로 쓸 수 있습니다. 코드를 여러 개(예: 회사별) 두면 로그(`security-event gate-unlocked code=이름`)로
+  누가 열었는지 알 수 있고, 목록에서 지우면 그 코드로 받은 쿠키도 바로 무효가 됩니다.
+
+  ```bash
+  # 코드를 입력(화면에 보이지 않음)하면 해시를 출력 → GATE_CODES=이름:<해시>
+  read -rs code && printf '%s' "$code" | python3 -I -c 'import sys,os,hashlib,base64
+  e=lambda b: base64.urlsafe_b64encode(b).rstrip(b"=").decode(); c=sys.stdin.read().encode(); s=os.urandom(16)
+  print("scrypt.16384.8.1."+e(s)+"."+e(hashlib.scrypt(c,salt=s,n=16384,r=8,p=1,dklen=32)))'
+  az webapp config appsettings set -g <리소스그룹> -n <앱이름> -o none --settings \
+    GATE_CODES="recruit:<해시>" GATE_SECRET="$(openssl rand -base64 48)" GATE_HOURS="상시"
+  ```
 - 헬스 체크 경로: `/actuator/health/readiness` — DB 에 닿지 않으면 503 이 되어 트래픽을 받지 않습니다(liveness 는 그대로 200 이라 재시작되지 않음) [IMP-04]
 - 메모리: App Service 플랜의 메모리가 곧 한도입니다. 컨테이너 이미지는 그 75% 를 힙으로 씁니다(`JAVA_TOOL_OPTIONS` 의 `MaxRAMPercentage`). jar 배포라면 `JAVA_OPTS` 에 `-XX:MaxRAMPercentage=75` 를 더하세요.
 - HTTPS 전용으로 설정하세요(`COOKIE_SECURE=true` 가 `prod` 프로필 기본값이므로 HTTP 로는 로그인 쿠키가 전송되지 않습니다).
