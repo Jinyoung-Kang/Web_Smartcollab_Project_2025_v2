@@ -9,6 +9,7 @@
 | `vt-compare-summary.txt` | 위 결과의 회차별 짝 비교(처리량·p95·실패율)와 짝 비율 중앙값 |
 | `vt-true-repeat-6rounds.txt` | 4회차 켬에서 본 멈춤을 다시 보려고 켬으로만 6회 더 잰 결과(다시 나오지 않음) |
 | `upload-burst-before.json` · `upload-burst-after.json` | M-9: 파일 100개를 한 번에 올리는 동안 화면이 보낸 다시 받기 요청(GET) 수 — 200건 → 14건. 도구 `qa/scripts/upload-burst-requests.mjs` |
+| `prod-after-deploy.txt` | 배포 뒤 운영 점검 — 기동 로그의 CPU 수·가상 스레드, 30MB 내려받기와 그동안의 헬스 체크 지연, 잠금 필터의 상태 확인 예외 |
 | `blob-unresponsive-after.txt` | M-3: 연결은 받고 응답하지 않는 저장소에 대한 업로드가 끝나기까지 걸린 시간(기본 설정). 수정 전 측정은 `../deploy-2026-10-12/blob-unresponsive.txt`(284.3초) |
 
 측정 환경: MacBook(Apple Silicon) · Docker Desktop VM 4 CPU. 같은 맥에서 다른 프로그램(앱 화면 렌더러 약 200% CPU)이 돌아 k6 처리량이 회차마다
