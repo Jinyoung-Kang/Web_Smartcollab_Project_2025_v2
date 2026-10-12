@@ -1,5 +1,6 @@
 package com.smartcollab.storage;
 
+import com.azure.core.util.Context;
 import com.azure.core.util.polling.LongRunningOperationStatus;
 import com.azure.core.util.polling.PollResponse;
 import com.azure.storage.blob.BlobClient;
@@ -7,6 +8,8 @@ import com.azure.storage.blob.BlobContainerClient;
 import com.azure.storage.blob.models.BlobCopyInfo;
 import com.azure.storage.blob.models.BlobStorageException;
 import com.azure.storage.blob.models.ListBlobsOptions;
+import com.azure.storage.blob.models.ParallelTransferOptions;
+import com.azure.storage.blob.options.BlobParallelUploadOptions;
 import com.azure.storage.blob.sas.BlobSasPermission;
 import com.azure.storage.blob.sas.BlobServiceSasSignatureValues;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +28,10 @@ import java.util.function.Consumer;
 public class AzureBlobStorage implements BlobStorage {
 
     private static final Duration COPY_TIMEOUT = Duration.ofMinutes(5);
+    private static final long BLOCK_SIZE = 4L * 1024 * 1024;
+    /** 4MB 블록, 한 번에 2블록 — 4MB 이하 파일은 한 번에 올림 */
+    static final ParallelTransferOptions UPLOAD_TRANSFER = new ParallelTransferOptions()
+            .setBlockSizeLong(BLOCK_SIZE).setMaxSingleUploadSizeLong(BLOCK_SIZE).setMaxConcurrency(2);
 
     private final BlobContainerClient container;
 
@@ -34,10 +41,16 @@ public class AzureBlobStorage implements BlobStorage {
         log.info("Azure blob storage: {}", container.getBlobContainerUrl());
     }
 
+    /**
+     * 블록 단위로 올립니다 [H-1]. SDK 기본값(단일 업로드 상한 256MB)은 그 크기까지 내용을 모두 힙에 모은 뒤 한 번에 보내, 업로드 상한(200MB)
+     * 파일 몇 개가 동시에 오면 운영 힙(1GB)을 넘을 수 있었습니다. 이제 업로드 한 건이 쓰는 메모리는 블록 크기 × 동시 블록 수 정도입니다.
+     * 덮어쓰기 조건을 두지 않으므로 같은 키면 덮어씁니다(키는 늘 새로 만듦).
+     */
     @Override
     public StoredBlob put(String key, InputStream content, long size) {
         HashingInputStream hashing = new HashingInputStream(content);
-        container.getBlobClient(key).upload(hashing, size, true);
+        container.getBlobClient(key).uploadWithResponse(
+                new BlobParallelUploadOptions(hashing, size).setParallelTransferOptions(UPLOAD_TRANSFER), null, Context.NONE);
         return new StoredBlob(key, hashing.count(), hashing.sha256Hex());
     }
 
