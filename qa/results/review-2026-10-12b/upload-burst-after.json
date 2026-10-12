@@ -1,0 +1,9 @@
+{
+  "files": 100,
+  "seconds": 3.894,
+  "getRequests": 14,
+  "byPath": {
+    "/api/folders/{id}": 7,
+    "/api/files/usage": 7
+  }
+}
