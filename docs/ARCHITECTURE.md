@@ -65,7 +65,7 @@ com.smartcollab
 **모듈 사이 의존** (`ModuleBoundaryTest`, 3차 점검 A-01~A-08 → [ADR-0010](adr/0010-module-boundaries-and-events.md)):
 - 회원 탈퇴·팀 삭제·파일 영구 삭제의 연쇄 정리는 지우는 쪽이 `DeletionEvents` 를 발행하고, 데이터를 가진 모듈이 같은 트랜잭션 안에서
   듣고 정리합니다(외래 키 순서는 `DeletionEvents.Order`). 다른 모듈의 리포지토리로 지우거나 넘기지 않습니다.
-- 양방향 의존 17쌍 → 5쌍, 순환에 묶인 패키지 10개 → 4개. 남은 순환(access·file·folder·team)은 엔티티 연관과 `AccessPolicy` 가
+- 양방향 의존 17쌍 → 5쌍 → 4쌍(5차, 팀의 최상위 폴더를 `TeamRootFolders` 로 뒤집음), 순환에 묶인 패키지 10개 → 4개. 남은 순환(access·file·folder·team)은 엔티티 연관과 `AccessPolicy` 가
   엔티티를 받는 데서 생기며, 기준선으로 고정해 새 순환·새 양방향 의존·다른 모듈 리포지토리의 새 사용을 테스트가 막습니다.
 
 **요청이 거치는 필터 순서**: `RequestTraceFilter`(추적 ID·접근 기록) → `RequestBodyLimitFilter`(본문 6MB) →
