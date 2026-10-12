@@ -49,13 +49,14 @@ public class AzureBlobStorage implements BlobStorage {
     /**
      * 블록 단위로 올립니다 [H-1]. SDK 기본값(단일 업로드 상한 256MB)은 그 크기까지 내용을 모두 힙에 모은 뒤 한 번에 보내, 업로드 상한(200MB)
      * 파일 몇 개가 동시에 오면 운영 힙(1GB)을 넘을 수 있었습니다. 이제 업로드 한 건이 쓰는 메모리는 블록 크기 × 동시 블록 수 정도입니다.
-     * 덮어쓰기 조건을 두지 않으므로 같은 키면 덮어씁니다(키는 늘 새로 만듦).
+     * 덮어쓰기 조건을 두지 않으므로 같은 키면 덮어씁니다(키는 늘 새로 만듦). 길이는 SDK 에 넘기지 않습니다(길이를 받는 생성자는 폐기 예정 —
+     * SDK 가 블록 크기만큼 읽어 가며 나눠 올림).
      */
     @Override
     public StoredBlob put(String key, InputStream content, long size) {
         HashingInputStream hashing = new HashingInputStream(content);
         call(() -> container.getBlobClient(key).uploadWithResponse(
-                new BlobParallelUploadOptions(hashing, size).setParallelTransferOptions(UPLOAD_TRANSFER), null, Context.NONE));
+                new BlobParallelUploadOptions(hashing).setParallelTransferOptions(UPLOAD_TRANSFER), null, Context.NONE));
         return new StoredBlob(key, hashing.count(), hashing.sha256Hex());
     }
 
