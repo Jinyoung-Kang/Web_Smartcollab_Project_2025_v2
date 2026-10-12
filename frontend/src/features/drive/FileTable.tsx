@@ -1,19 +1,12 @@
-import { useEffect, useEffectEvent, useRef, useState, type KeyboardEvent } from 'react'
+import type { KeyboardEvent } from 'react'
 import { ArrowDown, ArrowUp, MoreHorizontal } from 'lucide-react'
 import type { FolderSort, FolderSortKey, Item } from '@/api/types'
 import { Avatar } from '@/components/ui/misc'
 import { ItemIcon } from '@/lib/fileIcons'
 import { formatBytes, formatRelative, formatDateTime } from '@/lib/format'
 import { cn } from '@/lib/cn'
-
-export const itemKey = (item: Pick<Item, 'type' | 'id'>) => `${item.type}-${item.id}`
-
-/**
- * 한 번에 그리는 행 수 [PERF-02]. 항목이 5,000개인 폴더는 전부 그리면 첫 표시 1.45초, 정렬·전체 선택이 0.2초씩 걸렸습니다(측정).
- * 앞에서부터 이만큼씩 그리고 목록 끝이 보이면 이어서 그립니다. 받은 항목을 다 그렸고 서버에 더 있으면 다음 묶음을 불러옵니다 [IMP-02].
- * 정렬은 서버가 하고(받은 순서 그대로 그림), 모두 선택은 받은 항목 전부입니다.
- */
-export const RENDER_BATCH = 200
+import { deleteTargets, itemKey, selectAll, toggleSelection } from './driveSelection'
+import { useProgressiveRows } from './useProgressiveRows'
 
 interface FileTableProps {
   /** 서버가 정렬한 순서 */
@@ -44,49 +37,18 @@ const COLUMNS: { key: FolderSortKey; label: string; className: string }[] = [
 ]
 
 /**
- * Delete 키의 대상 [FB-01]. 키를 누른 행이 선택에 들어 있으면 선택한 항목 모두(화면 순서), 아니면 그 행만입니다.
- * 이전에는 선택을 바꾸자마자 콜백을 불러, 콜백이 쥔 이전 렌더링의 선택 목록(다른 항목)을 지웠습니다.
+ * 파일 목록 표. 긴 목록은 묶음 단위로 나눠 그리고(useProgressiveRows), 선택 규칙은 driveSelection 의 순수 함수가 맡습니다.
+ * 정렬은 서버가 하고(받은 순서 그대로 그림), 모두 선택은 받은 항목 전부입니다.
  */
-export function deleteTargets(pressed: Item, selected: ReadonlySet<string>, ordered: Item[]): Item[] {
-  return selected.has(itemKey(pressed)) ? ordered.filter((i) => selected.has(itemKey(i))) : [pressed]
-}
-
 export function FileTable({
   items, sort, onSortChange, totalCount, hasMore = false, onLoadMore,
   selected, onSelectionChange, onOpen, onContextAction, onDeleteKey, onRenameKey,
 }: FileTableProps) {
   const sorted = items
   const allSelected = sorted.length > 0 && sorted.every((i) => selected.has(itemKey(i)))
-  const [renderLimit, setRenderLimit] = useState(RENDER_BATCH)
-  const visible = sorted.length > renderLimit ? sorted.slice(0, renderLimit) : sorted
-  const remaining = Math.max(totalCount ?? sorted.length, sorted.length) - visible.length
-  const showMore = () => {
-    setRenderLimit((n) => n + RENDER_BATCH)
-    // 다음에 그릴 만큼 받아 두지 않았으면 서버에서 다음 묶음을 불러옵니다
-    if (hasMore && renderLimit + RENDER_BATCH >= sorted.length) onLoadMore?.()
-  }
-  const moreRef = useRef<HTMLTableRowElement>(null)
-  // 관찰기는 그린 수·남은 수가 바뀔 때만 다시 만들고, 호출할 때는 최신 상태(받은 수·더 있음)로 이어 그립니다
-  const onEndVisible = useEffectEvent(showMore)
+  const { visible, remaining, showMore, reset, moreRef } = useProgressiveRows(sorted, { totalCount, hasMore, onLoadMore })
 
-  // 목록 끝(더 보기 줄)이 화면에 들어오면 다음 묶음을 그립니다. 버튼도 있어 키보드·보조기기로도 이어 볼 수 있습니다.
-  useEffect(() => {
-    const el = moreRef.current
-    if (!el || remaining === 0 || typeof IntersectionObserver === 'undefined') return
-    const observer = new IntersectionObserver((entries) => {
-      if (entries.some((e) => e.isIntersecting)) onEndVisible()
-    })
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [remaining, visible.length])
-
-  const toggle = (item: Item, additive: boolean) => {
-    const key = itemKey(item)
-    const next = new Set(additive ? selected : [])
-    if (additive && selected.has(key)) next.delete(key)
-    else next.add(key)
-    onSelectionChange(next)
-  }
+  const toggle = (item: Item, additive: boolean) => onSelectionChange(toggleSelection(selected, item, additive))
 
   const onRowKey = (e: KeyboardEvent<HTMLTableRowElement>, item: Item, index: number) => {
     const tbody = e.currentTarget.parentElement
@@ -119,7 +81,7 @@ export function FileTable({
       onSelectionChange(new Set())
     } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'a') {
       e.preventDefault()
-      onSelectionChange(new Set(sorted.map(itemKey)))
+      onSelectionChange(selectAll(sorted))
     }
   }
 
@@ -133,7 +95,7 @@ export function FileTable({
               aria-label="모두 선택"
               className="size-4 rounded accent-brand-600"
               checked={allSelected}
-              onChange={() => onSelectionChange(allSelected ? new Set() : new Set(sorted.map(itemKey)))}
+              onChange={() => onSelectionChange(allSelected ? new Set() : selectAll(sorted))}
             />
           </th>
           {COLUMNS.map((col) => {
@@ -148,7 +110,7 @@ export function FileTable({
                   className={cn('inline-flex items-center gap-1 hover:text-slate-900', active && 'text-slate-900')}
                   onClick={() => {
                     onSortChange({ key: col.key, dir: sort.key === col.key && sort.dir === 'asc' ? 'desc' : 'asc' })
-                    setRenderLimit(RENDER_BATCH)
+                    reset()
                   }}
                 >
                   {col.label}
