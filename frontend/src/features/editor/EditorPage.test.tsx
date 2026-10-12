@@ -15,13 +15,14 @@ const doc: TextContent = {
 
 let client: QueryClient
 
-function renderEditor(config: Partial<PublicConfig> = {}) {
-  vi.spyOn(fileApi, 'content').mockResolvedValue(doc)
+function renderEditor(config: Partial<PublicConfig> = {}, content: TextContent = doc) {
+  vi.spyOn(fileApi, 'content').mockResolvedValue(content)
   vi.spyOn(configApi, 'get').mockResolvedValue({ translationEnabled: false, ...config } as PublicConfig)
   const router = createMemoryRouter(
     [
       { path: '/files/:fileId/edit', element: <EditorPage /> },
       { path: '/drive/*', element: <p>드라이브 화면</p> },
+      { path: '/teams/:teamId/folders/:folderId', element: <p>팀 폴더 화면</p> },
     ],
     { initialEntries: ['/files/1/edit'] },
   )
@@ -231,5 +232,21 @@ describe('EditorPage — 창으로 돌아올 때', () => {
 
     expect(fileApi.content).toHaveBeenCalledTimes(1)
     focusManager.setFocused(undefined)
+  })
+})
+
+describe('EditorPage — 닫기 (리팩터링 전 동작 고정)', () => {
+  it('닫으면 문서가 있는 폴더 화면으로 돌아간다 — 내 드라이브·팀 스토리지', async () => {
+    const user = userEvent.setup()
+    const personal = renderEditor()
+    await user.click(await screen.findByRole('button', { name: '편집기 닫기' }))
+    expect(personal.state.location.pathname).toBe('/drive/5')
+  })
+
+  it('팀 문서는 팀 폴더 주소로 돌아간다', async () => {
+    const user = userEvent.setup()
+    const team = renderEditor({}, { ...doc, teamId: 3 })
+    await user.click(await screen.findByRole('button', { name: '편집기 닫기' }))
+    expect(team.state.location.pathname).toBe('/teams/3/folders/5')
   })
 })
