@@ -3,7 +3,10 @@ import { useRouteError } from 'react-router'
 import { buttonStyles } from '@/components/ui/Button'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
 
-/** 새 배포로 이전 화면 조각(JS 파일)이 사라져 불러오지 못한 경우 (브라우저마다 문구가 다름) */
+/**
+ * 화면 조각(JS 파일)을 불러오지 못한 경우 (브라우저마다 문구가 다름). 새 배포로 옛 조각이 사라졌거나, 접근 코드 확인 시간이 지나
+ * 조각 대신 잠금화면(401)이 온 경우입니다 — 두 경우 모두 새로고침이 해결합니다.
+ */
 export function isChunkLoadError(error: unknown): boolean {
   return error instanceof Error
     && /dynamically imported module|Importing a module script failed/i.test(error.message)
@@ -27,11 +30,11 @@ export function AppErrorPage() {
     <main className="flex min-h-dvh items-center justify-center bg-slate-50 px-5">
       <div className="card w-full max-w-md p-7 text-center">
         <h1 className="text-lg font-semibold text-slate-900">
-          {outdated ? '새 버전이 배포되었습니다' : '화면을 표시하지 못했습니다'}
+          {outdated ? '화면을 새로 불러와야 합니다' : '화면을 표시하지 못했습니다'}
         </h1>
         <p className="mt-2 text-sm text-slate-600">
           {outdated
-            ? '새로고침하면 최신 화면을 불러옵니다.'
+            ? '새 버전이 배포되었거나 접근 코드 확인 시간이 지나 화면 일부를 받지 못했습니다. 새로고침하면 최신 화면(또는 접근 코드 입력)으로 이어집니다.'
             : '일시적인 문제일 수 있습니다. 새로고침해도 계속되면 잠시 후 다시 시도해 주세요.'}
         </p>
         <div className="mt-6 flex justify-center gap-2">
