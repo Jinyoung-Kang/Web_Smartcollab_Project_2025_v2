@@ -6,18 +6,21 @@ import type { AppNotification, ChatMessage } from '@/api/types'
 
 /** 팀 토픽(/topic/teams/{id}/events)으로 오는 변경 알림. 데이터 대신 "무엇이 바뀌었는지"만 옵니다. */
 export type TeamEvent =
-  | { type: 'FOLDER_CHANGED'; folderId: number; origin?: string }
+  | { type: 'FOLDER_CHANGED'; folderId: number; origin?: string; originUserId?: number }
   | { type: 'MEMBERS_CHANGED' | 'TEAM_DELETED' | 'CHAT_CLEARED'; teamId: number }
 
 /**
  * 팀 변경 알림을 캐시에 반영합니다. React 없이 테스트할 수 있도록 화면 이동은 하지 않고, 팀이 지워졌으면
  * 'team-deleted' 를 돌려줘 호출하는 쪽이 보고 있던 화면에서 나가게 합니다.
+ *
+ * @param myUserId 로그인한 사용자 ID — 이 탭이 일으킨 변경인지 가릴 때 탭 ID 와 함께 봅니다
  */
-export function applyTeamEvent(qc: QueryClient, teamId: number, event: TeamEvent): 'team-deleted' | undefined {
+export function applyTeamEvent(qc: QueryClient, teamId: number, event: TeamEvent, myUserId?: number): 'team-deleted' | undefined {
   switch (event.type) {
     case 'FOLDER_CHANGED':
-      // 이 탭이 일으킨 변경이면 변경 요청의 응답이 이미 다시 불러왔으므로 건너뜁니다(같은 목록을 두 번 받던 문제) [IMP-03]
-      if (event.origin === CLIENT_ID) return undefined
+      // 이 탭이 일으킨 변경이면 변경 요청의 응답이 이미 다시 불러왔으므로 건너뜁니다(같은 목록을 두 번 받던 문제) [IMP-03].
+      // 탭 ID 는 요청자가 정하는 값이라 사용자도 같아야 건너뜁니다 — 남의 탭 ID 로 갱신을 막지 못하게 [L-3]
+      if (event.origin === CLIENT_ID && myUserId !== undefined && event.originUserId === myUserId) return undefined
       scheduleDriveChange(qc, { folderIds: [event.folderId], scope: teamId })
       return undefined
     case 'MEMBERS_CHANGED':

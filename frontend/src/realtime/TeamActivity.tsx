@@ -65,14 +65,14 @@ export function TeamActivityProvider({ children }: { children: ReactNode }) {
         }
       }),
       subscribe(`/topic/teams/${teamId}/events`, (payload) => {
-        if (applyTeamEvent(qc, teamId, payload as TeamEvent) === 'team-deleted' && isTeamPath(pathRef.current, teamId)) {
+        if (applyTeamEvent(qc, teamId, payload as TeamEvent, me.id) === 'team-deleted' && isTeamPath(pathRef.current, teamId)) {
           toast.info('보고 있던 팀이 삭제되었습니다.')
           navigate('/drive', { replace: true })
         }
       }),
     ])
     return () => unsubs.forEach((u) => u())
-  }, [teamIds, subscribe, qc, me.username, toast, navigate])
+  }, [teamIds, subscribe, qc, me.username, me.id, toast, navigate])
 
   useOnReconnect(connected, () => applyReconnect(qc))
 
