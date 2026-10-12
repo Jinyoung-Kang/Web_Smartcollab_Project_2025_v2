@@ -29,6 +29,7 @@ export function ChatTab({ teamId, team, active = true }: { teamId: number; team:
     canLoadOlder: chat.hasNextPage && !chat.isFetchingNextPage,
     loadOlder: () => void chat.fetchNextPage(),
     visible: active,
+    loadFailed: chat.isFetchNextPageError,
   })
   const shared = useSharedFilePreview()
   const rows = useMemo(() => groupChatMessages(messages, me.username), [messages, me.username])

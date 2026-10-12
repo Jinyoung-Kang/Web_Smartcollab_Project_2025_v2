@@ -7,7 +7,7 @@ function Chat({ loadOlder }: { loadOlder: () => void }) {
 }
 
 function Paged({ canLoadOlder, loadFailed, loadOlder }: { canLoadOlder: boolean; loadFailed: boolean; loadOlder: () => void }) {
-  const { scroller, onScroll } = useChatScroll({ lastId: 30, pageCount: 1, canLoadOlder, loadOlder, loadFailed } as Parameters<typeof useChatScroll>[0])
+  const { scroller, onScroll } = useChatScroll({ lastId: 30, pageCount: 1, canLoadOlder, loadOlder, loadFailed })
   return <div ref={scroller} onScroll={onScroll} />
 }
 
