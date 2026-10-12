@@ -77,6 +77,9 @@ export function NotificationBell() {
             {data?.items.length === 0 && <EmptyState icon={BellOff} title="새 알림이 없습니다" className="py-10" />}
             {data?.items.map((n) => {
               const pendingInvite = n.type === 'TEAM_INVITE' && n.invitationId && n.invitationStatus === 'PENDING'
+              // 답하는 중인 초대만 진행 중으로 보이고 두 단추를 함께 막습니다 — 모든 초대의 수락이 진행 중으로 보였고,
+              // 수락하는 동안 거절을 눌러 두 요청이 겹칠 수 있었습니다 [L-5]
+              const responding = respond.isPending && respond.variables?.n.id === n.id
               return (
                 <li key={n.id} className={cn('group flex gap-3 border-b border-slate-50 px-3 py-3', !n.read && 'bg-brand-50/50')}>
                   <span className={cn('mt-1.5 size-2 shrink-0 rounded-full', n.read ? 'bg-transparent' : 'bg-brand-500')} />
@@ -85,9 +88,10 @@ export function NotificationBell() {
                     <p className="mt-1 text-xs text-slate-500">{formatRelative(n.createdAt)}</p>
                     {pendingInvite && (
                       <div className="mt-2 flex gap-2">
-                        <Button size="sm" variant="primary" loading={respond.isPending}
-                          onClick={() => respond.mutate({ n, accept: true }, { onSuccess: close })}>수락</Button>
-                        <Button size="sm" onClick={() => respond.mutate({ n, accept: false })}>거절</Button>
+                        <Button size="sm" variant="primary" loading={responding && respond.variables?.accept}
+                          disabled={responding} onClick={() => respond.mutate({ n, accept: true }, { onSuccess: close })}>수락</Button>
+                        <Button size="sm" loading={responding && !respond.variables?.accept} disabled={responding}
+                          onClick={() => respond.mutate({ n, accept: false })}>거절</Button>
                       </div>
                     )}
                     {n.type === 'TEAM_INVITE' && n.invitationStatus && n.invitationStatus !== 'PENDING' && (
