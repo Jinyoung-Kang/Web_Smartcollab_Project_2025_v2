@@ -76,6 +76,21 @@ describe('EditorPage — 저장하지 않은 변경 보호', () => {
   })
 })
 
+describe('EditorPage — 저장 단축키 [M-5]', () => {
+  it('바꾼 것이 없으면 Ctrl/⌘+S 로 저장하지 않는다 — 같은 내용의 새 버전이 생기면 기존 서명이 무효가 됨', async () => {
+    const save = vi.spyOn(fileApi, 'save').mockResolvedValue({ versionId: 2, updatedAt: '2026-09-27T00:01:00Z' } as never)
+    renderEditor()
+    await screen.findByDisplayValue('처음 내용')
+
+    await userEvent.keyboard('{Control>}s{/Control}')
+    expect(save).not.toHaveBeenCalled()
+
+    await userEvent.type(screen.getByDisplayValue('처음 내용'), ' 추가')
+    await userEvent.keyboard('{Control>}s{/Control}')
+    expect(save).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('EditorPage — 다시 불러오기 실패 [FB-02]', () => {
   it('창으로 돌아올 때 하는 새로고침이 실패해도 편집 화면과 저장하지 않은 내용을 그대로 둔다', async () => {
     const user = userEvent.setup()
