@@ -9,20 +9,27 @@ function client() {
   return { qc, invalidate: vi.spyOn(qc, 'invalidateQueries'), remove: vi.spyOn(qc, 'removeQueries'), reset: vi.spyOn(qc, 'resetQueries') }
 }
 
+afterEach(() => vi.useRealTimers())
+
 describe('applyTeamEvent', () => {
-  it('폴더가 바뀌면 그 폴더와 그 팀 스토리지의 트리·사용량·휴지통을 다시 불러온다', () => {
+  it('폴더가 바뀌면 (잠시 모았다가) 그 폴더와 그 팀 스토리지의 트리·사용량·휴지통을 다시 불러온다', () => {
+    vi.useFakeTimers()
     const { qc, invalidate } = client()
     expect(applyTeamEvent(qc, 3, { type: 'FOLDER_CHANGED', folderId: 11 })).toBeUndefined()
+    vi.advanceTimersByTime(1000)
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.folder.of(11) })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.tree.of(3) })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.trash.of(3) })
   })
 
   it('[IMP-03] 이 탭이 일으킨 폴더 변경이면 다시 불러오지 않는다 (변경 요청의 응답이 이미 갱신함), 다른 탭·사람이면 불러온다', () => {
+    vi.useFakeTimers()
     const { qc, invalidate } = client()
     applyTeamEvent(qc, 3, { type: 'FOLDER_CHANGED', folderId: 11, origin: CLIENT_ID })
+    vi.advanceTimersByTime(1000)
     expect(invalidate).not.toHaveBeenCalled()
     applyTeamEvent(qc, 3, { type: 'FOLDER_CHANGED', folderId: 11, origin: 'other-tab-1234' })
+    vi.advanceTimersByTime(1000)
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.folder.of(11) })
   })
 

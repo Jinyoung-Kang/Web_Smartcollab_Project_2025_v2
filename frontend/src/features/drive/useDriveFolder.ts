@@ -17,8 +17,8 @@ export const FOLDER_PAGE_SIZE = 500
 export function useDriveFolder(folderId: number, routeTeamId: number | undefined, sort: FolderSort) {
   const contents = useInfiniteQuery({
     queryKey: queryKeys.folder.sorted(folderId, sort),
-    queryFn: ({ pageParam }) =>
-      folderApi.contents(folderId, { sort: sort.key, order: sort.dir, cursor: pageParam, limit: FOLDER_PAGE_SIZE }),
+    queryFn: ({ pageParam, signal }) =>
+      folderApi.contents(folderId, { sort: sort.key, order: sort.dir, cursor: pageParam, limit: FOLDER_PAGE_SIZE }, signal),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
     // 같은 폴더에서 정렬만 바꾸면 새 정렬을 받는 동안 이전 목록을 보여 줍니다(다른 폴더의 내용은 보여 주지 않음)

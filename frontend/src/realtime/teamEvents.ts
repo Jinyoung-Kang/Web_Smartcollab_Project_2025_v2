@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { CLIENT_ID } from '@/api/clientId'
-import { invalidateDriveChange } from '@/api/driveCache'
+import { scheduleDriveChange } from '@/api/driveCache'
 import { queryKeys } from '@/api/queryKeys'
 import type { AppNotification, ChatMessage } from '@/api/types'
 
@@ -18,7 +18,7 @@ export function applyTeamEvent(qc: QueryClient, teamId: number, event: TeamEvent
     case 'FOLDER_CHANGED':
       // 이 탭이 일으킨 변경이면 변경 요청의 응답이 이미 다시 불러왔으므로 건너뜁니다(같은 목록을 두 번 받던 문제) [IMP-03]
       if (event.origin === CLIENT_ID) return undefined
-      invalidateDriveChange(qc, { folderIds: [event.folderId], scope: teamId })
+      scheduleDriveChange(qc, { folderIds: [event.folderId], scope: teamId })
       return undefined
     case 'MEMBERS_CHANGED':
       void qc.invalidateQueries({ queryKey: queryKeys.team(teamId) })
