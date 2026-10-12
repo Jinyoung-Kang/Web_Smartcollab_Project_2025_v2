@@ -43,6 +43,23 @@ describe('applyReconnect', () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.chat.all })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.notifications })
   })
+
+  it('[M-8] 끊긴 동안 놓친 폴더 변경·권한 변경도 다시 받는다 (서버 재시작·프록시 끊김에는 브라우저 online 이벤트가 없음)', () => {
+    const { qc, invalidate } = client()
+    applyReconnect(qc)
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.folder.all })
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.tree.all })
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['team'] })
+  })
+})
+
+describe('applyTeamEvent — 멤버 변경 [M-8]', () => {
+  it('내 권한이 바뀌었을 수 있으므로 폴더 응답(권한을 담음)도 다시 받는다 — 드라이브 단추와 채팅 권한이 어긋나지 않게', () => {
+    const { qc, invalidate } = client()
+    applyTeamEvent(qc, 3, { type: 'MEMBERS_CHANGED', teamId: 3 })
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.team(3) })
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.folder.all })
+  })
 })
 
 describe('shouldMarkUnread', () => {
