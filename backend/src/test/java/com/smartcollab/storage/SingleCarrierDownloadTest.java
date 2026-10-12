@@ -5,6 +5,7 @@ import com.github.dockerjava.api.model.PortBinding;
 import com.github.dockerjava.api.model.Ports;
 import com.smartcollab.support.IntegrationTest;
 import org.junit.jupiter.api.DisplayName;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -108,6 +109,9 @@ class SingleCarrierDownloadTest extends IntegrationTest {
     @LocalServerPort
     int port;
 
+    @Autowired
+    BlobStorage storage;
+
     private final CookieManager cookies = new CookieManager();
     private final HttpClient http = HttpClient.newBuilder().cookieHandler(cookies).connectTimeout(Duration.ofSeconds(5)).build();
 
@@ -130,6 +134,34 @@ class SingleCarrierDownloadTest extends IntegrationTest {
         assertThat(health.statusCode()).isEqualTo(200);
         assertThat(res.statusCode()).isEqualTo(200);
         assertThat(res.body()).isEqualTo(content);
+    }
+
+    @Test
+    @DisplayName("[C-1] CPU 1개에서도 영구 삭제 뒤 저장소 파일이 지워진다 (커밋 뒤 삭제는 별도 가상 스레드 [P-02])")
+    void deleteAfterCommitCompletes() throws Exception {
+        byte[] content = new byte[5 * 1024 * 1024];
+        new Random(7).nextBytes(content);
+        long fileId = signUpAndUpload(content);
+        int before = countBlobs();
+
+        assertThat(http.send(delete("/api/files/" + fileId), HttpResponse.BodyHandlers.discarding()).statusCode()).isEqualTo(204);
+        assertThat(http.send(delete("/api/trash/" + fileId), HttpResponse.BodyHandlers.discarding()).statusCode()).isEqualTo(204);
+
+        long deadline = System.nanoTime() + Duration.ofSeconds(30).toNanos();
+        while (countBlobs() >= before && System.nanoTime() < deadline) {
+            Thread.sleep(200);
+        }
+        assertThat(countBlobs()).isEqualTo(before - 1);
+    }
+
+    private int countBlobs() {
+        int[] n = {0};
+        storage.list("files/", b -> n[0]++);
+        return n[0];
+    }
+
+    private HttpRequest delete(String path) {
+        return HttpRequest.newBuilder(URI.create("http://localhost:" + port + path)).header("X-XSRF-TOKEN", xsrf()).DELETE().build();
     }
 
     private long signUpAndUpload(byte[] content) throws Exception {

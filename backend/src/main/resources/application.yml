@@ -4,7 +4,10 @@ spring:
     name: smartcollab
   threads:
     virtual:
-      enabled: true
+      # 끔 [C-1, ADR-0014] — Java 21 가상 스레드는 synchronized 안에서 기다리면 캐리어 스레드에 묶이는데, Azure SDK 의 Blob 읽기·쓰기가
+      # 그 안에서 응답을 기다리고 응답 처리(TLS)도 가상 스레드에서 돕니다. CPU 가 1개(App Service B1)면 큰 파일 한 건으로 서버 전체가 멈췄습니다.
+      # Java 24(JEP 491) 이상에서만 다시 켜는 것을 검토합니다.
+      enabled: false
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3306/smartcollab?characterEncoding=UTF-8&serverTimezone=UTC}
     username: ${DB_USERNAME:smartcollab}
