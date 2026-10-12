@@ -157,6 +157,15 @@ app:
     # 체험 데이터 초기화 시각 [SEC-06]
     reset-cron: ${DEMO_RESET_CRON:0 0 5 * * *}
     reset-zone: ${DEMO_RESET_ZONE:Asia/Seoul}
+  # 접근 코드 잠금 — 코드를 받은 사람만 화면·API 에 닿게 함(포트폴리오 데모). GATE_CODES 가 비어 있으면 끔 [GATE-01, ADR-0013]
+  gate:
+    # "이름:scrypt해시,이름:scrypt해시" — 해시 만드는 법은 docs/DEPLOYMENT.md §3.2
+    codes: ${GATE_CODES:}
+    # 잠금 해제 쿠키 서명 키 (32바이트 이상, 잠금을 쓸 때 필수)
+    secret: ${GATE_SECRET:}
+    # 잠금화면에 적을 운영 시간 (비우면 줄을 감춤)
+    hours: ${GATE_HOURS:}
+    cookie-ttl: ${GATE_COOKIE_TTL:12h}
   http:
     # 파일 업로드를 뺀 요청 본문(JSON 등)의 최대 크기 [SEC-10]. 텍스트 편집 저장(TEXT_EDIT_MAX_BYTES, 2MB)이
     # JSON 으로 이스케이프되면 커질 수 있으므로 그 2배 이상으로 둡니다.

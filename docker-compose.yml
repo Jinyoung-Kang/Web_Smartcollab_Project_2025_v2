@@ -65,6 +65,10 @@ services:
       DEEPL_API_URL:
       DEMO_RESET_CRON:
       DEMO_RESET_ZONE:
+      GATE_CODES:
+      GATE_COOKIE_TTL:
+      GATE_HOURS:
+      GATE_SECRET:
       JWT_TTL:
       MAX_COPY_FOLDERS:
       MAX_FOLDER_DEPTH:

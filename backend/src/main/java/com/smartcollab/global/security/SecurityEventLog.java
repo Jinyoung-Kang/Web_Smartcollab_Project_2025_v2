@@ -32,4 +32,13 @@ public final class SecurityEventLog {
     public static void sharePasswordFailed(Long linkId, String clientIp) {
         LOG.warn("security-event share-password-failed link={} ip={}", linkId, clientIp);
     }
+
+    /** @param codeName 맞힌 접근 코드의 이름(코드 원문이 아님) — 누가 열었는지 알 수 있게 [GATE-01] */
+    public static void gateUnlocked(String codeName, String clientIp) {
+        LOG.info("security-event gate-unlocked code={} ip={}", codeName, clientIp);
+    }
+
+    public static void gateUnlockFailed(String clientIp) {
+        LOG.warn("security-event gate-unlock-failed ip={}", clientIp);
+    }
 }

@@ -1,11 +1,15 @@
 package com.smartcollab.global.web;
 
 import com.smartcollab.global.config.AppProperties;
+import com.smartcollab.global.gate.AccessGateFilter;
+import com.smartcollab.global.gate.GateProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import tools.jackson.databind.ObjectMapper;
+
+import java.time.Clock;
 
 /**
  * 스프링 시큐리티(order -100)보다 먼저 실행되는 요청 필터들.
@@ -36,6 +40,15 @@ public class WebFilterConfig {
     FilterRegistrationBean<RequestOriginFilter> requestOriginFilter() {
         FilterRegistrationBean<RequestOriginFilter> registration = new FilterRegistrationBean<>(new RequestOriginFilter());
         registration.setOrder(TRACE_ORDER + 1);
+        return registration;
+    }
+
+    /** 접근 코드 잠금 — 추적 ID 를 정한 직후, 본문 제한·보안 필터보다 먼저. GATE_CODES 가 없으면 아무것도 하지 않습니다 [GATE-01] */
+    @Bean
+    FilterRegistrationBean<AccessGateFilter> accessGateFilter(GateProperties gate, AppProperties props, ObjectMapper mapper) {
+        FilterRegistrationBean<AccessGateFilter> registration = new FilterRegistrationBean<>(
+                new AccessGateFilter(gate, props.cookie().secure(), props.demo().enabled(), mapper, Clock.systemUTC()));
+        registration.setOrder(TRACE_ORDER + 2);
         return registration;
     }
 
