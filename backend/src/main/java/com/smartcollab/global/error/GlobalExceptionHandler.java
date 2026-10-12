@@ -127,9 +127,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .body(body(ErrorCode.SERVICE_UNAVAILABLE, ErrorCode.SERVICE_UNAVAILABLE.defaultMessage()));
     }
 
-    /** 바깥 의존성의 일시적 장애 — 아직 따로 처리하지 않음 [M-3] */
+    /** 바깥 의존성(파일 저장소)의 일시적 장애 — DB 장애와 같이 503 과 Retry-After, 원인 한 줄만 남깁니다 [M-3] */
+    @ExceptionHandler(DependencyUnavailableException.class)
     ResponseEntity<ProblemDetail> handleDependencyUnavailable(DependencyUnavailableException e) {
-        return handleUnexpected(e);
+        log.warn("{} {}: {}", e.getMessage(), deepestCause(e).getClass().getSimpleName(), deepestCause(e).getMessage());
+        return ResponseEntity.status(ErrorCode.SERVICE_UNAVAILABLE.status())
+                .header(HttpHeaders.RETRY_AFTER, "5")
+                .body(body(ErrorCode.SERVICE_UNAVAILABLE, ErrorCode.SERVICE_UNAVAILABLE.defaultMessage()));
     }
 
     @ExceptionHandler(Exception.class)

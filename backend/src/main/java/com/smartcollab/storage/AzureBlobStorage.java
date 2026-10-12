@@ -14,12 +14,17 @@ import com.azure.storage.blob.sas.BlobSasPermission;
 import com.azure.storage.blob.sas.BlobServiceSasSignatureValues;
 import lombok.extern.slf4j.Slf4j;
 
+import com.smartcollab.global.error.DependencyUnavailableException;
+
+import java.io.IOException;
 import java.io.InputStream;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Optional;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Azure Blob Storage 저장소 (운영).
@@ -37,7 +42,7 @@ public class AzureBlobStorage implements BlobStorage {
 
     public AzureBlobStorage(BlobContainerClient container) {
         this.container = container;
-        container.createIfNotExists();
+        call(container::createIfNotExists);
         log.info("Azure blob storage: {}", container.getBlobContainerUrl());
     }
 
@@ -49,8 +54,8 @@ public class AzureBlobStorage implements BlobStorage {
     @Override
     public StoredBlob put(String key, InputStream content, long size) {
         HashingInputStream hashing = new HashingInputStream(content);
-        container.getBlobClient(key).uploadWithResponse(
-                new BlobParallelUploadOptions(hashing, size).setParallelTransferOptions(UPLOAD_TRANSFER), null, Context.NONE);
+        call(() -> container.getBlobClient(key).uploadWithResponse(
+                new BlobParallelUploadOptions(hashing, size).setParallelTransferOptions(UPLOAD_TRANSFER), null, Context.NONE));
         return new StoredBlob(key, hashing.count(), hashing.sha256Hex());
     }
 
@@ -62,7 +67,9 @@ public class AzureBlobStorage implements BlobStorage {
             if (e.getStatusCode() == 404) {
                 throw new BlobNotFoundException(key);
             }
-            throw e;
+            throw transientOrSame(e);
+        } catch (RuntimeException e) {
+            throw transientOrSame(e);
         }
     }
 
@@ -81,7 +88,9 @@ public class AzureBlobStorage implements BlobStorage {
             if (e.getStatusCode() == 404) {
                 throw new BlobNotFoundException(sourceKey);
             }
-            throw e;
+            throw transientOrSame(e);
+        } catch (RuntimeException e) {
+            throw transientOrSame(e);
         }
         if (done.getStatus() != LongRunningOperationStatus.SUCCESSFULLY_COMPLETED) {
             throw new IllegalStateException("Azure blob copy did not complete: " + done.getStatus());
@@ -90,13 +99,16 @@ public class AzureBlobStorage implements BlobStorage {
 
     @Override
     public void delete(String key) {
-        container.getBlobClient(key).deleteIfExists();
+        call(() -> container.getBlobClient(key).deleteIfExists());
     }
 
     @Override
     public void list(String prefix, Consumer<Listed> sink) {
-        container.listBlobs(new ListBlobsOptions().setPrefix(prefix), null).forEach(item ->
-                sink.accept(new Listed(item.getName(), item.getProperties().getLastModified().toInstant())));
+        call(() -> {
+            container.listBlobs(new ListBlobsOptions().setPrefix(prefix), null).forEach(item ->
+                    sink.accept(new Listed(item.getName(), item.getProperties().getLastModified().toInstant())));
+            return null;
+        });
     }
 
     @Override
@@ -108,6 +120,35 @@ public class AzureBlobStorage implements BlobStorage {
     @Override
     public String type() {
         return "azure";
+    }
+
+    private static <T> T call(Supplier<T> action) {
+        try {
+            return action.get();
+        } catch (RuntimeException e) {
+            throw transientOrSame(e);
+        }
+    }
+
+    /**
+     * 저장소가 잠시 응답하지 않는 경우(5xx·408·429, 입출력 오류·시간 초과)는 503 으로 답할 수 있게 바꾸고 [M-3],
+     * 그 밖(권한·형식 오류 등)은 그대로 올립니다.
+     */
+    static RuntimeException transientOrSame(RuntimeException e) {
+        return isTransient(e) ? new DependencyUnavailableException("파일 저장소가 잠시 응답하지 않습니다.", e) : e;
+    }
+
+    private static boolean isTransient(Throwable e) {
+        for (Throwable t = e; t != null; t = t.getCause() == t ? null : t.getCause()) {
+            if (t instanceof BlobStorageException b) {
+                int status = b.getStatusCode();
+                return status >= 500 || status == 408 || status == 429;
+            }
+            if (t instanceof IOException || t instanceof TimeoutException) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String readSas(BlobClient blob, Duration ttl, String contentType) {
