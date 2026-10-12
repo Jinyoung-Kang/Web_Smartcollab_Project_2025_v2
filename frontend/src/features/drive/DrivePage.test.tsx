@@ -102,6 +102,22 @@ describe('DrivePage — 팀 패널', () => {
   })
 })
 
+describe('DrivePage — 다시 받기 실패 [M-6]', () => {
+  it('목록을 받은 뒤의 다시 받기가 실패하면 목록과 팀 패널을 그대로 두고 띠로 알린다 (입력 중이던 채팅 보존)', async () => {
+    renderDrive(true)
+    expect(await screen.findByRole('button', { name: '회의록' })).toBeInTheDocument()
+    expect(panel.mounts).toBe(1)
+
+    vi.mocked(folderApi.contents).mockRejectedValue(new ApiError(0, 'NETWORK', '서버에 연결할 수 없습니다. 네트워크를 확인하세요.'))
+    await act(() => client.invalidateQueries())
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('서버에 연결할 수 없습니다')
+    expect(screen.getByRole('button', { name: '회의록' })).toBeInTheDocument()
+    expect(screen.queryByText('폴더를 불러오지 못했습니다')).not.toBeInTheDocument()
+    expect(panel.mounts).toBe(1)
+  })
+})
+
 describe('DrivePage — 변경 뒤 다시 불러오기', () => {
   it('[5단계] 지운 뒤 휴지통 목록도 바로 다시 불러온다 (이전: 캐시 유효 시간 30초 동안 옛 목록)', async () => {
     vi.spyOn(itemApi, 'remove').mockResolvedValue({ trashedFiles: 0, trashedFolders: 1 })
