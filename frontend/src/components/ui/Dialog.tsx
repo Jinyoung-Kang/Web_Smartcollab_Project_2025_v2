@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { IconButton } from './Button'
+import { useToastHost } from './Toast'
 
 interface DialogProps {
   open: boolean
@@ -25,6 +26,7 @@ export function Dialog({ open, onClose, title, description, children, footer, si
   const pressedOnBackdrop = useRef(false)
   const titleId = useId()
   const descId = useId()
+  useToastHost(ref, open)
 
   useEffect(() => {
     const dialog = ref.current

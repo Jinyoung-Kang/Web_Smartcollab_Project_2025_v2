@@ -1,4 +1,5 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
+import { createPortal } from 'react-dom'
 import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react'
 import { cn } from '@/lib/cn'
 
@@ -19,12 +20,39 @@ interface ToastApi {
 
 const ToastContext = createContext<ToastApi | null>(null)
 
+/** 알림을 띄울 곳. 열린 모달이 자신을 올려 두면 맨 위 모달 안에 띄웁니다 [L-5] */
+interface ToastHosts {
+  register: (host: HTMLElement) => () => void
+}
+
+const HostContext = createContext<ToastHosts | null>(null)
+
 /**
  * 알림 토스트. v1 은 모든 결과를 alert() 로 띄워 작업 흐름을 매번 막았습니다.
+ * 모달(showModal)이 열려 있으면 그 안에 띄웁니다 — 모달은 최상위 층에 그려지고 바깥을 비활성(inert)으로 만들어, 문서 쪽 알림은
+ * 모달 배경 뒤에 가려 닫을 수 없었고 화면 읽기 프로그램도 읽지 않았습니다 [L-5]. 알림을 담는 요소 하나를 맨 위 모달과 문서 사이로
+ * 옮기므로, 모달이 닫혀도 떠 있던 알림을 새로 그리지 않습니다.
  */
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
+  const [hosts, setHosts] = useState<HTMLElement[]>([])
+  const [root] = useState(() => document.createElement('div'))
   const seq = useRef(0)
+
+  useLayoutEffect(() => {
+    ;(hosts.at(-1) ?? document.body).appendChild(root)
+  }, [hosts, root])
+  useEffect(() => () => root.remove(), [root])
+
+  const hostApi = useMemo<ToastHosts>(
+    () => ({
+      register: (host) => {
+        setHosts((list) => [...list, host])
+        return () => setHosts((list) => list.filter((h) => h !== host))
+      },
+    }),
+    [],
+  )
 
   const dismiss = useCallback((id: number) => setToasts((list) => list.filter((t) => t.id !== id)), [])
 
@@ -46,9 +74,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     [push],
   )
 
-  return (
-    <ToastContext.Provider value={api}>
-      {children}
+  const viewport = (
       <div
         aria-live="polite"
         className="pointer-events-none fixed inset-x-0 bottom-5 z-[60] flex flex-col items-center gap-2 px-4"
@@ -89,8 +115,26 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           )
         })}
       </div>
+  )
+
+  return (
+    <ToastContext.Provider value={api}>
+      <HostContext.Provider value={hostApi}>
+        {children}
+        {createPortal(viewport, root)}
+      </HostContext.Provider>
     </ToastContext.Provider>
   )
+}
+
+/** 열린 동안 이 요소(모달) 안에 알림을 띄우게 합니다. 알림 공급자 바깥에서는 아무것도 하지 않습니다. */
+export function useToastHost(ref: RefObject<HTMLElement | null>, open: boolean) {
+  const hosts = useContext(HostContext)
+  useEffect(() => {
+    const host = ref.current
+    if (!hosts || !open || !host) return
+    return hosts.register(host)
+  }, [hosts, open, ref])
 }
 
 export function useToast(): ToastApi {
