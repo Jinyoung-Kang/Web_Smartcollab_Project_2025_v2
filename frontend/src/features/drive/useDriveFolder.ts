@@ -3,6 +3,7 @@ import { useInfiniteQuery } from '@tanstack/react-query'
 import { folderApi } from '@/api/endpoints'
 import { queryKeys } from '@/api/queryKeys'
 import type { FolderSort, Permissions } from '@/api/types'
+import { folderPath } from '@/lib/paths'
 
 const NO_PERMISSIONS: Permissions = { canEdit: false, canDelete: false, canInvite: false, leader: false }
 
@@ -33,7 +34,7 @@ export function useDriveFolder(folderId: number, routeTeamId: number | undefined
   const teamId = data ? data.folder.teamId : routeTeamId
   const permissions = data?.permissions ?? NO_PERMISSIONS
   const redirectTo = data && data.folder.teamId !== routeTeamId
-    ? (data.folder.teamId ? `/teams/${data.folder.teamId}/folders/${folderId}` : `/drive/${folderId}`)
+    ? folderPath(folderId, data.folder.teamId)
     : null
   const loadMore = () => {
     if (contents.hasNextPage && !contents.isFetchingNextPage) void contents.fetchNextPage()

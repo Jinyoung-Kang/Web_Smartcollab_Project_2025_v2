@@ -14,6 +14,7 @@ import { DocumentToolButtons, DocumentToolPanel } from './DocumentTools'
 import { useDocumentTools } from './useDocumentTools'
 import { useTextDocument } from './useTextDocument'
 import { useUnsavedChangesGuard } from './useUnsavedChangesGuard'
+import { folderPath } from '@/lib/paths'
 
 /**
  * 텍스트 편집기.
@@ -52,7 +53,7 @@ function Editor({ fileId, initial }: { fileId: number; initial: TextContent }) {
   const [historyOpen, setHistoryOpen] = useState(false)
   useUnsavedChangesGuard(dirty)
 
-  const backTo = initial.teamId ? `/teams/${initial.teamId}/folders/${initial.folderId}` : `/drive/${initial.folderId}`
+  const backTo = folderPath(initial.folderId, initial.teamId)
   // 저장하지 않은 변경이 있으면 useUnsavedChangesGuard 가 이동 전에 확인을 받습니다.
   const close = () => navigate(backTo)
 

@@ -28,6 +28,7 @@ import { useDriveFolder } from './useDriveFolder'
 import { useDriveMutations } from './useDriveMutations'
 import { useDriveSelection } from './useDriveSelection'
 import { useFileDrop } from './useFileDrop'
+import { folderPath } from '@/lib/paths'
 
 type DialogState =
   | { kind: 'none' }
@@ -46,7 +47,7 @@ export function TeamRootRedirect() {
   const team = useQuery({ queryKey: queryKeys.team(teamId), queryFn: () => teamApi.detail(teamId) })
   if (team.error) return <Navigate to="/drive" replace />
   if (!team.data) return <div className="p-8"><Spinner /></div>
-  return <Navigate to={`/teams/${teamId}/folders/${team.data.rootFolderId}`} replace />
+  return <Navigate to={folderPath(team.data.rootFolderId, teamId)} replace />
 }
 
 export function DrivePage() {
@@ -98,7 +99,7 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
 
   const open = (item: Item) => {
     if (item.type === 'folder') {
-      navigate(teamId ? `/teams/${teamId}/folders/${item.id}` : `/drive/${item.id}`)
+      navigate(folderPath(item.id, teamId))
     } else {
       setDialog({ kind: 'preview', item })
     }

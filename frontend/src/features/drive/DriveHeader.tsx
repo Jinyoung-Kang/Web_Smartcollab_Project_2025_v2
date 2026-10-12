@@ -4,6 +4,7 @@ import { ChevronRight, Copy, Download, FolderInput, FolderPlus, History, PanelRi
 import { fileApi } from '@/api/endpoints'
 import type { Breadcrumb, Item } from '@/api/types'
 import { Button, IconButton, buttonStyles } from '@/components/ui/Button'
+import { folderPath } from '@/lib/paths'
 
 /** 현재 위치(경로). 마지막 조각(현재 폴더)이 화면의 제목(h1)입니다. */
 export function DriveBreadcrumb({ path, teamId }: { path: Breadcrumb[] | undefined; teamId: number | undefined }) {
@@ -11,7 +12,7 @@ export function DriveBreadcrumb({ path, teamId }: { path: Breadcrumb[] | undefin
     <nav aria-label="현재 위치" className="flex min-w-0 items-center gap-1 text-sm text-slate-500">
       {path?.map((crumb, i) => {
         const last = i === path.length - 1
-        const to = teamId ? `/teams/${teamId}/folders/${crumb.id}` : `/drive/${crumb.id}`
+        const to = folderPath(crumb.id, teamId)
         return (
           <div key={crumb.id} className="flex min-w-0 items-center gap-1">
             {i > 0 && <ChevronRight aria-hidden className="size-4 shrink-0 text-slate-300" />}

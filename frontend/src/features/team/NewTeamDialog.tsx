@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { useToast } from '@/components/ui/Toast'
 import { queryKeys } from '@/api/queryKeys'
+import { folderPath } from '@/lib/paths'
 
 export function NewTeamDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [name, setName] = useState('')
@@ -19,7 +20,7 @@ export function NewTeamDialog({ open, onClose }: { open: boolean; onClose: () =>
       toast.success(`'${team.name}' 팀을 만들었습니다.`)
       setName('')
       onClose()
-      navigate(`/teams/${team.id}/folders/${team.rootFolderId}`)
+      navigate(folderPath(team.rootFolderId, team.id))
     },
     onError: (e: Error) => toast.error(e.message),
   })
