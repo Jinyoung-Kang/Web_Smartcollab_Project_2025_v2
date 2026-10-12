@@ -27,7 +27,7 @@ Azure App Service B1(1 vCPU) 배포에서 큰 파일 한 건을 내려받자 서
 
 ## 결과
 - 요청 처리가 Tomcat 의 플랫폼 스레드 풀(기본 최대 200)에서 돕니다. 같은 QA 스택에서 켬/끔을 번갈아 잰 처리량·지연은 아래 "측정"에 있습니다.
-- 운영에는 코드 기본값이 바뀌기 전에 앱 설정 `SPRING_THREADS_VIRTUAL_ENABLED=false` 로 먼저 적용했습니다. 30MB 내려받기 1건·2건 동시가 6.7~8.4초에 정상이고, 그동안 헬스 체크 중앙값은 175ms 였습니다. 코드가 배포되면 이 앱 설정은 지웁니다.
+- 운영에는 코드 기본값이 바뀌기 전에 앱 설정 `SPRING_THREADS_VIRTUAL_ENABLED=false` 로 먼저 적용했습니다. 30MB 내려받기 1건·2건 동시가 6.7~8.4초에 정상이고, 그동안 헬스 체크 중앙값은 175ms 였습니다. 코드를 배포한 뒤 이 앱 설정을 지웠고, 기동 로그에서 `availableProcessors=1, virtualThreads=false` 를 확인했습니다. 그 상태로 30MB 1건 5.6초·2건 동시 6.0~6.6초, 헬스 체크 중앙값 167ms(`qa/results/review-2026-10-12b/prod-after-deploy.txt`).
 
 ## 측정
 QA 스택(Docker 4 CPU, `qa/compose.qa.yml`)에서 같은 이미지로 켬·끔만 바꿔 k6 MIX 50명 60초를 5회 번갈아 쟀습니다(1~2회는 켬→끔, 3~5회는 끔→켬).
