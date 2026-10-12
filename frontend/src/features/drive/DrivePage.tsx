@@ -104,7 +104,9 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
     }
   }
 
-  if (contents.error) {
+  // 처음부터 받지 못했을 때만 전체 안내 — 받아 둔 목록이 있으면 다시 받기 실패(창 복귀·실시간 갱신·다음 묶음)로 목록과
+  // 팀 패널(입력 중이던 채팅)을 지우지 않고 띠로 알립니다 [M-6]
+  if (contents.error && !data) {
     const notFound = contents.error instanceof ApiError && contents.error.status === 404
     return (
       <EmptyState
@@ -154,6 +156,15 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
             />
           )}
         </div>
+
+        {contents.error && data && (
+          <div role="alert" className="flex items-center gap-3 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900 sm:px-6">
+            <span className="min-w-0 flex-1">목록을 새로 고치지 못했습니다. {(contents.error as Error).message}</span>
+            <button type="button" className="shrink-0 font-medium underline" onClick={() => void contents.refetch()}>
+              다시 시도
+            </button>
+          </div>
+        )}
 
         <div className="relative min-h-0 flex-1 overflow-y-auto bg-white">
           {contents.isPending && (
