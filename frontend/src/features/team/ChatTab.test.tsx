@@ -9,7 +9,7 @@ import { ConfirmProvider } from '@/components/ui/Confirm'
 import { ToastProvider } from '@/components/ui/Toast'
 import { queryKeys } from '@/api/queryKeys'
 import { formatBytes } from '@/lib/format'
-import { appendChatMessage } from '@/realtime/TeamActivity'
+import { appendChatMessage } from '@/realtime/teamEvents'
 import { ChatTab } from './ChatTab'
 
 vi.mock('@/auth/AuthProvider', () => ({
@@ -21,10 +21,7 @@ vi.mock('@/api/upload', () => upload)
 const realtime = vi.hoisted(() => ({ publish: vi.fn(() => false) }))
 vi.mock('@/realtime/RealtimeProvider', () => ({ useRealtime: () => realtime }))
 const activity = vi.hoisted(() => ({ setActiveChat: vi.fn() }))
-vi.mock('@/realtime/TeamActivity', async (importOriginal) => ({
-  appendChatMessage: (await importOriginal<typeof import('@/realtime/TeamActivity')>()).appendChatMessage,
-  useTeamActivity: () => activity,
-}))
+vi.mock('@/realtime/TeamActivity', () => ({ useTeamActivity: () => activity }))
 
 const team: TeamDetail = {
   id: 3, name: '데모 팀', ownerUsername: 'demo1', rootFolderId: 10,

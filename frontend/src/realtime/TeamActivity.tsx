@@ -1,14 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { useQuery, useQueryClient, type InfiniteData, type QueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useLocation, useNavigate } from 'react-router'
 import { teamApi } from '@/api/endpoints'
-import type { AppNotification, ChatMessage, ChatPage } from '@/api/types'
+import type { AppNotification, ChatMessage } from '@/api/types'
 import { useMe } from '@/auth/AuthProvider'
 import { useToast } from '@/components/ui/Toast'
 import { useOnReconnect } from '@/lib/useOnReconnect'
 import { useRealtime, useSubscription } from './RealtimeProvider'
 import { queryKeys } from '@/api/queryKeys'
-import { applyNotification, applyReconnect, applyTeamEvent, shouldMarkUnread, type TeamEvent } from './teamEvents'
+import { appendChatMessage, applyNotification, applyReconnect, applyTeamEvent, shouldMarkUnread, type TeamEvent } from './teamEvents'
 
 interface TeamActivityApi {
   unread: ReadonlySet<number>
@@ -21,15 +21,6 @@ const Ctx = createContext<TeamActivityApi | null>(null)
 /** 현재 주소가 그 팀의 화면인지 (/teams/1 은 /teams/12 와 구분) */
 export function isTeamPath(pathname: string, teamId: number): boolean {
   return pathname === `/teams/${teamId}` || pathname.startsWith(`/teams/${teamId}/`)
-}
-
-export function appendChatMessage(qc: QueryClient, teamId: number, msg: ChatMessage) {
-  qc.setQueryData<InfiniteData<ChatPage, number | undefined>>(queryKeys.chat.of(teamId), (data) => {
-    if (!data || data.pages.length === 0) return data
-    const [latest, ...older] = data.pages
-    if (!latest || latest.messages.some((m) => m.id === msg.id)) return data
-    return { ...data, pages: [{ ...latest, messages: [...latest.messages, msg] }, ...older] }
-  })
 }
 
 /**

@@ -1,8 +1,8 @@
-import type { QueryClient } from '@tanstack/react-query'
+import type { InfiniteData, QueryClient } from '@tanstack/react-query'
 import { CLIENT_ID } from '@/api/clientId'
 import { scheduleDriveChange } from '@/api/driveCache'
 import { queryKeys } from '@/api/queryKeys'
-import type { AppNotification, ChatMessage } from '@/api/types'
+import type { AppNotification, ChatMessage, ChatPage } from '@/api/types'
 
 /** 팀 토픽(/topic/teams/{id}/events)으로 오는 변경 알림. 데이터 대신 "무엇이 바뀌었는지"만 옵니다. */
 export type TeamEvent =
@@ -52,6 +52,19 @@ export function applyReconnect(qc: QueryClient) {
   void qc.invalidateQueries({ queryKey: queryKeys.folder.all })
   void qc.invalidateQueries({ queryKey: queryKeys.tree.all })
   void qc.invalidateQueries({ queryKey: ['team'] })
+}
+
+/**
+ * 새 채팅 메시지를 그 팀 채팅 캐시의 최신 묶음 끝에 붙입니다. 아직 불러오지 않았거나 이미 있는 메시지(보낸 응답과 실시간 방송이
+ * 둘 다 옴)면 그대로 둡니다.
+ */
+export function appendChatMessage(qc: QueryClient, teamId: number, msg: ChatMessage) {
+  qc.setQueryData<InfiniteData<ChatPage, number | undefined>>(queryKeys.chat.of(teamId), (data) => {
+    if (!data || data.pages.length === 0) return data
+    const [latest, ...older] = data.pages
+    if (!latest || latest.messages.some((m) => m.id === msg.id)) return data
+    return { ...data, pages: [{ ...latest, messages: [...latest.messages, msg] }, ...older] }
+  })
 }
 
 /** 새 채팅 메시지를 안 읽음으로 표시할지: 남이 보냈고, 그 팀 채팅을 보고 있지 않을 때 */

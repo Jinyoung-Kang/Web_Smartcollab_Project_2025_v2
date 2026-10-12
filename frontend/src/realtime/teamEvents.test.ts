@@ -2,7 +2,7 @@ import { QueryClient } from '@tanstack/react-query'
 import { CLIENT_ID } from '@/api/clientId'
 import { queryKeys } from '@/api/queryKeys'
 import type { AppNotification, ChatMessage } from '@/api/types'
-import { applyNotification, applyReconnect, applyTeamEvent, shouldMarkUnread } from './teamEvents'
+import { appendChatMessage, applyNotification, applyReconnect, applyTeamEvent, shouldMarkUnread } from './teamEvents'
 
 function client() {
   const qc = new QueryClient()
@@ -99,5 +99,23 @@ describe('applyNotification', () => {
     invalidate.mockClear()
     expect(applyNotification(qc, n('TEAM_INVITE', 4))).toEqual({})
     expect(invalidate).toHaveBeenCalledTimes(1)   // 알림 목록만
+  })
+})
+
+describe('appendChatMessage', () => {
+  const msg = (id: number) => ({ id, type: 'CHAT', content: `${id}`, sender: { username: 'a', name: '가' }, createdAt: '2026-10-01T00:00:00Z' }) as ChatMessage
+
+  it('불러온 채팅의 최신 묶음 끝에 붙이고, 이미 있는 메시지(보낸 응답과 방송이 둘 다 옴)는 다시 붙이지 않는다', () => {
+    const qc = new QueryClient()
+    qc.setQueryData(queryKeys.chat.of(3), { pages: [{ messages: [msg(1)], hasMore: false }], pageParams: [undefined] })
+    appendChatMessage(qc, 3, msg(2))
+    appendChatMessage(qc, 3, msg(2))
+    expect(qc.getQueryData<{ pages: { messages: ChatMessage[] }[] }>(queryKeys.chat.of(3))?.pages[0]?.messages.map((m) => m.id)).toEqual([1, 2])
+  })
+
+  it('아직 불러오지 않은 채팅은 만들지 않는다 (열 때 서버에서 받음)', () => {
+    const qc = new QueryClient()
+    appendChatMessage(qc, 3, msg(2))
+    expect(qc.getQueryData(queryKeys.chat.of(3))).toBeUndefined()
   })
 })
