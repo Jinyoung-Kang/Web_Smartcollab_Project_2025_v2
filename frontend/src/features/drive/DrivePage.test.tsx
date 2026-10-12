@@ -116,6 +116,17 @@ describe('DrivePage — 다시 받기 실패 [M-6]', () => {
     expect(screen.queryByText('폴더를 불러오지 못했습니다')).not.toBeInTheDocument()
     expect(panel.mounts).toBe(1)
   })
+
+  it('[M-6 후속] 다시 받기가 404(지워졌거나 권한이 사라짐)면 옛 목록·옛 권한 대신 "찾을 수 없음"을 보인다', async () => {
+    renderDrive(true)
+    expect(await screen.findByRole('button', { name: '회의록' })).toBeInTheDocument()
+
+    vi.mocked(folderApi.contents).mockRejectedValue(new ApiError(404, 'NOT_FOUND', '폴더를 찾을 수 없습니다.'))
+    await act(() => client.invalidateQueries())
+
+    expect(await screen.findByRole('heading', { name: '폴더를 찾을 수 없습니다' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '회의록' })).not.toBeInTheDocument()
+  })
 })
 
 describe('DrivePage — 변경 뒤 다시 불러오기', () => {
