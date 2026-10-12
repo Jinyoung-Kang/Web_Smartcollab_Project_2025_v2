@@ -173,7 +173,7 @@ Azure 에서는 Database for MySQL 의 자동 백업(시점 복원)과 Blob Stor
 
 | 작업 | 내용 |
 |---|---|
-| backend | 단위·통합 테스트(MySQL·Azurite Testcontainers), 커버리지·측정 리포트 업로드 |
+| backend | 단위·통합 테스트(MySQL·Azurite Testcontainers), CPU 1개 JVM 시험(`singleCarrierTest`, C-1), 커버리지·측정 리포트 업로드 |
 | frontend | 타입 검사 · ESLint · Vitest · 빌드 |
 | e2e | Docker 이미지로 전체 스택 실행 → Playwright 사용자 시나리오 |
 | secrets | gitleaks 로 전체 커밋 이력 비밀값 검사 |

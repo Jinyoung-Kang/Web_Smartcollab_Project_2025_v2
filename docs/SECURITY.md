@@ -75,8 +75,8 @@ v1 은 브라우저에서 Babel 이 JSX 를 `eval` 해야 했고 스크립트를
 
 ## 의존성 취약점
 
-- 프론트엔드·E2E: `npm audit` (2026-10-03 기준 0건)
-- 백엔드: 런타임 의존성 좌표를 [OSV](https://osv.dev) 에 조회 (2026-10-03 기준 138개 중 0건)
+- 프론트엔드·E2E: `npm audit` (5차 점검 기준 0건 — 개발 의존성 `source-map-js` 1.2.1 의 높음 1건은 1.2.2 로 올려 해결)
+- 백엔드: 런타임 의존성 좌표를 [OSV](https://osv.dev) 에 조회 (5차 점검 기준 147개 중 0건. 이전: 출시 기준 QA 138개 · 4차 점검 158개, 모두 0건)
 - Spring Boot 4.1.1 이 관리하는 Jackson 3.1.5·2.22.1 에 2026-09-28~10-01 공개된 파서·역직렬화 DoS 공지 7건(HIGH 5)이 있어, `build.gradle.kts` 에 고쳐진 3.1.7·2.22.3 BOM 을 더했습니다. `DependencyVersionTest` 가 Jackson·Tomcat 이 고쳐진 버전 아래로 내려가지 않게 막습니다 [S-01].
 - Spring Boot 4.1.1 이 관리하는 Tomcat 11.0.24 의 CVE-2026-65905·65182·68525 는 Tomcat 자체 인증(DIGEST·FORM)·web.xml 보안 제약에 관한 것이라 이 서비스(Spring Security 필터 사용)에는 직접 해당하지 않지만, Boot 패치 전까지 `build.gradle.kts` 에서 Tomcat 을 11.0.26 으로 고정했습니다.
 
