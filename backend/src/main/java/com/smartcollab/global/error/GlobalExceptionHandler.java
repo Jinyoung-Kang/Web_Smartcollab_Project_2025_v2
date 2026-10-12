@@ -127,6 +127,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .body(body(ErrorCode.SERVICE_UNAVAILABLE, ErrorCode.SERVICE_UNAVAILABLE.defaultMessage()));
     }
 
+    /** 바깥 의존성의 일시적 장애 — 아직 따로 처리하지 않음 [M-3] */
+    ResponseEntity<ProblemDetail> handleDependencyUnavailable(DependencyUnavailableException e) {
+        return handleUnexpected(e);
+    }
+
     @ExceptionHandler(Exception.class)
     ResponseEntity<ProblemDetail> handleUnexpected(Exception e) {
         log.error("Unhandled exception", e);

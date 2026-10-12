@@ -50,6 +50,19 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    @DisplayName("[M-3] 파일 저장소가 잠시 응답하지 않으면 500 이 아니라 503 과 Retry-After, 스택 없이 한 줄")
+    void dependencyUnavailableIs503(CapturedOutput output) {
+        ResponseEntity<ProblemDetail> response = new GlobalExceptionHandler().handleDependencyUnavailable(
+                new DependencyUnavailableException("파일 저장소가 잠시 응답하지 않습니다.",
+                        new java.net.http.HttpTimeoutException("request timed out")));
+
+        assertThat(response.getStatusCode().value()).isEqualTo(503);
+        assertThat(response.getBody().getProperties()).containsEntry("code", "SERVICE_UNAVAILABLE");
+        assertThat(response.getHeaders().getFirst("Retry-After")).isEqualTo("5");
+        assertThat(output).contains("request timed out").doesNotContain("\tat java.");
+    }
+
+    @Test
     @DisplayName("[IMP-08] 쿼리 시간 제한에 걸리면 503 SERVICE_UNAVAILABLE")
     void queryTimeoutIs503() {
         ResponseEntity<ProblemDetail> response = new GlobalExceptionHandler()

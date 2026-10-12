@@ -136,6 +136,50 @@ class AzureBlobStorageTest {
         assertThat(child.exitValue()).isZero();
     }
 
+    /**
+     * [M-3] 저장소가 연결은 받고 응답하지 않으면, SDK 기본값(시도당 상한 없음·4회)으로는 요청 하나가 284.3초 묶였습니다
+     * (qa/results/deploy-2026-10-12/blob-unresponsive.txt). 시도 상한과 횟수를 두면 그 안에서 503 용 예외로 끝납니다.
+     */
+    @Test
+    @DisplayName("[M-3] 응답 없는 저장소는 시도 상한 × 횟수 안에서 '잠시 쓸 수 없음'(503) 예외로 실패한다")
+    void unresponsiveStorageFailsWithinBudget() throws Exception {
+        try (ServerSocket blackHole = new ServerSocket(0)) {
+            Thread.ofPlatform().daemon().start(() -> {
+                while (!blackHole.isClosed()) {
+                    try {
+                        java.net.Socket s = blackHole.accept();
+                        Thread.ofPlatform().daemon().start(() -> {
+                            try (InputStream in = s.getInputStream()) {
+                                in.transferTo(java.io.OutputStream.nullOutputStream());   // 읽기만 하고 답하지 않음
+                            } catch (java.io.IOException ignored) {
+                                // 닫힘
+                            }
+                        });
+                    } catch (java.io.IOException e) {
+                        return;
+                    }
+                }
+            });
+            String cs = "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=" + KEY
+                    + ";BlobEndpoint=http://127.0.0.1:" + blackHole.getLocalPort() + "/devstoreaccount1;";
+            long started = System.nanoTime();
+
+            org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(Duration.ofSeconds(30), () ->
+                    assertThatThrownBy(() -> StorageConfig.azure(cs, "black-hole", Duration.ofSeconds(2), 2))
+                            .isInstanceOf(com.smartcollab.global.error.DependencyUnavailableException.class));
+            assertThat(Duration.ofNanos(System.nanoTime() - started)).isLessThan(Duration.ofSeconds(15));
+        }
+    }
+
+    @Test
+    @DisplayName("[M-3] 기본 재시도 설정의 최악 시간이 App Service 앞단 제한(230초)보다 짧다")
+    void defaultRetryBudgetFitsFrontEndTimeout() {
+        Duration worst = StorageConfig.TRY_TIMEOUT.multipliedBy(StorageConfig.MAX_TRIES)
+                .plus(StorageConfig.MAX_RETRY_DELAY.multipliedBy(StorageConfig.MAX_TRIES - 1L));
+
+        assertThat(worst).isLessThan(Duration.ofSeconds(230));
+    }
+
     @Test
     @DisplayName("[IMP-05] 접두어 아래의 키와 마지막 수정 시각을 나열한다 (고아 파일 정리용)")
     void listsKeysWithLastModified() {
