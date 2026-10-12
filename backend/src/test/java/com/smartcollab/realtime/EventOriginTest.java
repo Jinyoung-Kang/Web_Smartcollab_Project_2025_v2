@@ -69,6 +69,40 @@ class EventOriginTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("[L-3] 이벤트의 탭 ID 는 요청한 사용자와 함께 실린다 — 다른 팀원이 남의 탭 ID 를 보내 그 탭의 갱신을 막지 못하게")
+    void originIsBoundToRequester() throws Exception {
+        Api.Session leader = api().signUp("l3");
+        long[] team = leader.createTeam("출처 묶음 팀");
+        List<String> payloads = new CopyOnWriteArrayList<>();
+        ChannelInterceptor capture = new ChannelInterceptor() {
+            @Override
+            public Message<?> preSend(Message<?> message, MessageChannel channel) {
+                String destination = SimpMessageHeaderAccessor.getDestination(message.getHeaders());
+                if (RealtimePublisher.eventsTopic(team[0]).equals(destination) && message.getPayload() instanceof byte[] bytes) {
+                    payloads.add(new String(bytes, StandardCharsets.UTF_8));
+                }
+                return message;
+            }
+        };
+        brokerChannel.addInterceptor(capture);
+        try {
+            leader.send(MockMvcRequestBuilders.post("/api/folders").header("X-Client-Id", "tab-of-someone-else")
+                            .contentType(MediaType.APPLICATION_JSON).content("{\"parentId\":" + team[1] + ",\"name\":\"출처\"}"))
+                    .andExpect(status().isCreated());
+        } finally {
+            brokerChannel.removeInterceptor(capture);
+        }
+
+        assertThat(payloads).anySatisfy(p -> {
+            Map<String, Object> event = json.readValue(p, new TypeReference<Map<String, Object>>() {
+            });
+            assertThat(event).containsEntry("origin", "tab-of-someone-else");
+            assertThat(event.get("originUserId")).isInstanceOf(Number.class);
+            assertThat(((Number) event.get("originUserId")).longValue()).isEqualTo(leader.userId);
+        });
+    }
+
+    @Test
     @DisplayName("[IMP-03] 탭 ID 가 없거나 형식이 틀리면 이벤트에 싣지 않는다")
     void invalidOriginIsDropped() {
         SimpMessagingTemplate messaging = mock(SimpMessagingTemplate.class);

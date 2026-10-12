@@ -25,12 +25,24 @@ describe('applyTeamEvent', () => {
   it('[IMP-03] 이 탭이 일으킨 폴더 변경이면 다시 불러오지 않는다 (변경 요청의 응답이 이미 갱신함), 다른 탭·사람이면 불러온다', () => {
     vi.useFakeTimers()
     const { qc, invalidate } = client()
-    applyTeamEvent(qc, 3, { type: 'FOLDER_CHANGED', folderId: 11, origin: CLIENT_ID })
+    applyTeamEvent(qc, 3, { type: 'FOLDER_CHANGED', folderId: 11, origin: CLIENT_ID, originUserId: 7 }, 7)
     vi.advanceTimersByTime(1000)
     expect(invalidate).not.toHaveBeenCalled()
-    applyTeamEvent(qc, 3, { type: 'FOLDER_CHANGED', folderId: 11, origin: 'other-tab-1234' })
+    applyTeamEvent(qc, 3, { type: 'FOLDER_CHANGED', folderId: 11, origin: 'other-tab-1234', originUserId: 7 }, 7)
     vi.advanceTimersByTime(1000)
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.folder.of(11) })
+  })
+
+  it('[L-3] 탭 ID 가 같아도 다른 사용자가 일으킨 변경이면 다시 불러온다 (남의 탭 ID 를 보내 갱신을 막지 못하게)', () => {
+    vi.useFakeTimers()
+    const { qc, invalidate } = client()
+    applyTeamEvent(qc, 3, { type: 'FOLDER_CHANGED', folderId: 11, origin: CLIENT_ID, originUserId: 8 }, 7)
+    vi.advanceTimersByTime(1000)
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.folder.of(11) })
+    invalidate.mockClear()
+    applyTeamEvent(qc, 3, { type: 'FOLDER_CHANGED', folderId: 12, origin: CLIENT_ID }, 7)
+    vi.advanceTimersByTime(1000)
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.folder.of(12) })
   })
 
   it('채팅을 비우면 그 팀 채팅을 처음부터, 팀이 지워지면 팀을 캐시에서 빼고 알린다', () => {
