@@ -23,9 +23,11 @@ describe('AppErrorPage [ARC-04]', () => {
     expect(screen.getByRole('link', { name: '내 드라이브로' })).toHaveAttribute('href', '/drive')
   })
 
-  it('새 버전 배포로 화면 조각(JS)을 받지 못하면 새로고침을 안내한다', () => {
+  it('[L-5] 화면 조각(JS)을 받지 못하면 새 배포와 접근 코드 확인 만료를 함께 안내하고 새로고침을 권한다 — 잠금이 다시 걸려도 "새 버전" 이라고만 했음', () => {
     renderWithError(new TypeError('Failed to fetch dynamically imported module: http://localhost/assets/EditorPage-abc.js'))
 
-    expect(screen.getByRole('heading', { level: 1, name: '새 버전이 배포되었습니다' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: '화면을 새로 불러와야 합니다' })).toBeInTheDocument()
+    expect(screen.getByText(/새 버전이 배포되었거나 접근 코드 확인 시간이 지나/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '새로고침' })).toBeInTheDocument()
   })
 })

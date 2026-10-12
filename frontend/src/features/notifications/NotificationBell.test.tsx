@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router'
-import { notificationApi } from '@/api/endpoints'
+import { notificationApi, teamApi } from '@/api/endpoints'
 import { ApiError } from '@/api/http'
 import type { AppNotification } from '@/api/types'
 import { ToastProvider } from '@/components/ui/Toast'
@@ -12,8 +12,13 @@ const notice = { id: 9, type: 'PERMISSION_CHANGED', content: "'데모 팀' 팀 �
 
 afterEach(() => vi.restoreAllMocks())
 
-function renderBell() {
-  vi.spyOn(notificationApi, 'list').mockResolvedValue({ items: [notice], unreadCount: 1 })
+const invite = (id: number, invitationId: number, team: string) => ({
+  id, type: 'TEAM_INVITE', content: `'${team}' 팀에 초대했습니다.`, read: false, createdAt: '2026-10-01T00:00:00Z',
+  invitationId, invitationStatus: 'PENDING', teamId: invitationId,
+}) as AppNotification
+
+function renderBell(items: AppNotification[] = [notice]) {
+  vi.spyOn(notificationApi, 'list').mockResolvedValue({ items, unreadCount: items.length })
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <ToastProvider>
@@ -38,5 +43,24 @@ describe('NotificationBell', () => {
 
     await user.click(screen.getByRole('button', { name: '삭제' }))
     expect(await screen.findByText('알림을 찾을 수 없습니다.')).toBeInTheDocument()
+  })
+
+  it('[L-5] 초대에 답하는 동안 그 초대의 수락·거절을 모두 막고, 다른 초대의 단추는 진행 중으로 보이지 않는다', async () => {
+    const user = userEvent.setup()
+    renderBell([invite(1, 11, '디자인'), invite(2, 12, '개발')])
+    vi.spyOn(teamApi, 'acceptInvitation').mockReturnValue(new Promise(() => {}))
+    const reject = vi.spyOn(teamApi, 'rejectInvitation').mockResolvedValue(undefined)
+
+    await user.click(await screen.findByRole('button', { name: /알림/ }))
+    const [designAccept, devAccept] = await screen.findAllByRole('button', { name: '수락' })
+    const [designReject, devReject] = screen.getAllByRole('button', { name: '거절' })
+    await user.click(designAccept!)
+
+    expect(designAccept).toBeDisabled()
+    expect(designReject).toBeDisabled()
+    expect(devAccept).toBeEnabled()
+    expect(devReject).toBeEnabled()
+    await user.click(designReject!)
+    expect(reject).not.toHaveBeenCalled()
   })
 })
