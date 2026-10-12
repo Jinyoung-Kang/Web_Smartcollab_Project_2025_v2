@@ -60,7 +60,7 @@ public class AzureBlobStorage implements BlobStorage {
     @Override
     public void copy(String sourceKey, String targetKey) {
         BlobClient source = container.getBlobClient(sourceKey);
-        String sourceUrl = source.getBlobUrl() + "?" + readSas(source, Duration.ofMinutes(10));
+        String sourceUrl = source.getBlobUrl() + "?" + readSas(source, Duration.ofMinutes(10), null);
         PollResponse<BlobCopyInfo> done;
         try {
             done = container.getBlobClient(targetKey).beginCopy(sourceUrl, null).waitForCompletion(COPY_TIMEOUT);
@@ -87,9 +87,9 @@ public class AzureBlobStorage implements BlobStorage {
     }
 
     @Override
-    public Optional<String> readOnlyUrl(String key, Duration ttl) {
+    public Optional<String> readOnlyUrl(String key, Duration ttl, String contentType) {
         BlobClient blob = container.getBlobClient(key);
-        return Optional.of(blob.getBlobUrl() + "?" + readSas(blob, ttl));
+        return Optional.of(blob.getBlobUrl() + "?" + readSas(blob, ttl, contentType));
     }
 
     @Override
@@ -97,11 +97,16 @@ public class AzureBlobStorage implements BlobStorage {
         return "azure";
     }
 
-    private static String readSas(BlobClient blob, Duration ttl) {
+    private static String readSas(BlobClient blob, Duration ttl, String contentType) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         BlobServiceSasSignatureValues values = new BlobServiceSasSignatureValues(now.plus(ttl),
                 new BlobSasPermission().setReadPermission(true))
                 .setStartTime(now.minusMinutes(1)); // 서버 간 시계 오차 허용
+        // 응답 형식 덮어쓰기(rsct) — 저장된 Blob 은 확장자 없는 키·application/octet-stream 이라, 형식이 없으면
+        // Office 웹 뷰어가 문서 종류를 몰라 "파일을 찾을 수 없음"으로 끝났습니다 [DEP-03]
+        if (contentType != null) {
+            values.setContentType(contentType);
+        }
         return blob.generateSas(values);
     }
 }

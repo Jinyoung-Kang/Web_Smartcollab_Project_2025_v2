@@ -24,8 +24,12 @@ public interface BlobStorage {
     /** 없는 키는 조용히 무시합니다 (멱등). */
     void delete(String key);
 
-    /** 외부 서비스(Office 온라인 뷰어)가 읽을 수 있는 임시 URL. 지원하지 않는 저장소는 빈 값. */
-    Optional<String> readOnlyUrl(String key, Duration ttl);
+    /**
+     * 외부 서비스(Office 온라인 뷰어)가 읽을 수 있는 임시 URL. 지원하지 않는 저장소는 빈 값.
+     *
+     * @param contentType 그 URL 의 응답에 달 형식(없으면 null)
+     */
+    Optional<String> readOnlyUrl(String key, Duration ttl, String contentType);
 
     String type();
 

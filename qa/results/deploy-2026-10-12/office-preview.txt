@@ -1,0 +1,10 @@
+# [DEP-03] Office 미리보기 "파일을 찾을 수 없음" — 원인 좁히기 (2026-10-12, Korea Central Blob, Office 웹 뷰어 view.officeapps.live.com/op/embed.aspx)
+# 같은 파일(demo/samples/budget.xlsx)을 시험용 컨테이너에 모양을 바꿔 올리고 SAS(읽기) 주소를 뷰어에 넘김. 응답 HTML 에서 표식만 봄.
+# 앱이 만든 주소를 직접 GET 하면 200(application/octet-stream, 확장자 없는 키 files%2F<uuid>) — SAS 자체는 유효.
+[app-current]   확장자 없음 · %2F · octet-stream         → FileNotFound
+[noext-plain]   확장자 없음 · '/' · octet-stream          → FileNotFound
+[withext]       files/withext.xlsx · '/' · octet-stream   → WOPI 뷰어(정상)
+[withext-%2F]   files%2Fwithext.xlsx · octet-stream       → WOPI 뷰어(정상)   — 슬래시 인코딩은 원인 아님
+[noext-mime]    확장자 없음 · Blob 형식 xlsx MIME          → WOPI 뷰어(정상)
+[noext+rsct]    확장자 없음 · SAS rsct=xlsx MIME           → WOPI 뷰어(정상), 응답 Content-Type 이 xlsx MIME
+결론: 뷰어는 경로의 확장자 또는 응답 Content-Type 으로 문서 종류를 정한다 → 미리보기 SAS 에 rsct 를 넣음

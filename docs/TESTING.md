@@ -2,7 +2,7 @@
 
 | 층 | 도구 | 개수 | 실행 |
 |---|---|---:|---|
-| 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 355 | `cd backend && ./gradlew test` |
+| 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 357 | `cd backend && ./gradlew test` |
 | 프론트엔드 단위·컴포넌트 | Vitest · Testing Library · jsdom | 140 | `cd frontend && npm test` |
 | E2E (전체 스택) | Playwright · Docker Compose · axe-core | 14 (시나리오 10 + 접근성 3·탭 제목 1) | `docker compose up -d --wait && cd e2e && npx playwright test` |
 
@@ -11,7 +11,7 @@
 ## 원칙
 
 - **H2 대신 실제 MySQL** 로 통합 테스트합니다. 재귀 CTE·`ON DELETE SET NULL`·조건부 UPDATE 처럼 DB 동작에 기대는 로직이 많아, 운영과 다른 DB 로 테스트하면 통과해도 믿을 수 없기 때문입니다.
-- 테스트마다 무작위 사용자 이름을 써서 데이터를 분리하고, 컨테이너와 Spring 컨텍스트는 한 번만 띄웁니다(전체 355건, `./gradlew test` 약 2분 30초). 테스트 JVM 은 운영 컨테이너·CI 와 같은 UTC 로 실행합니다.
+- 테스트마다 무작위 사용자 이름을 써서 데이터를 분리하고, 컨테이너와 Spring 컨텍스트는 한 번만 띄웁니다(전체 357건, `./gradlew test` 약 2분 30초). 테스트 JVM 은 운영 컨테이너·CI 와 같은 UTC 로 실행합니다.
 - v1 에서 찾은 결함마다 이름에 `[v1 …]` 을, 2026-09 코드 리뷰 항목에는 `[SEC-01]`·`[BUG-02]` 처럼 항목 ID 를 붙인 회귀 테스트가 있습니다 → [REFACTORING_REPORT.md](REFACTORING_REPORT.md), [REVIEW_2026-09.md](REVIEW_2026-09.md)
 - 인증은 실제 브라우저처럼 HttpOnly 쿠키 + CSRF 토큰으로 요청합니다(`support/Api`). CSRF 는 Spring Security 의 `csrf()` 도우미 대신 같은 토큰을 쿠키·헤더로 보내는 `Api.xsrf()` 를 씁니다 — `csrf()` 는 공유 CSRF 필터의 저장소를 바꿔, 같은 컨텍스트의 실제 HTTP 시험이 실행 순서에 따라 실패했습니다.
 
@@ -38,6 +38,7 @@
 | `TrashPurgeScheduleTest` · `CorsProfileTest` · `ProductionSettingsTest` · `GlobalExceptionHandlerTest` | 스케줄 시간대, 프로필별 CORS 출처, 운영 프로필은 DB 환경 변수 없이 기동하지 않음 (S-14), 로그에 입력값을 남기지 않는지 |
 | `DependencyVersionTest` | Jackson·Tomcat 이 공지가 고쳐진 버전 아래로 내려가지 않는지 (S-01) |
 | `DatabaseNetworkFailureTest` | DB 앞 중계기로 네트워크 장애 재현 — 쿼리를 보낸 뒤 연결이 소리 없이 끊기면 쿼리 시간 제한만으로는 풀리지 않음(원인), 앱 설정의 소켓 읽기 상한(트랜잭션 시간 제한보다 길게)과 그 상한에서의 실패 (DEP-01), 기동 때 DB 가 3초 동안 닿지 않아도 Flyway 가 다시 시도 (DEP-02). 원자료 `qa/results/deploy-2026-10-12` |
+| `AzureBlobStorageTest` · `FileNamesTest` | Office 미리보기 URL 의 응답이 문서 형식(Content-Type)을 다는지 — 저장 키에 확장자가 없어 Office 웹 뷰어가 "파일을 찾을 수 없음"을 내던 문제, 확장자별 형식 (DEP-03). 원자료 `qa/results/deploy-2026-10-12/office-preview.txt` |
 | `RequestBodyLimitTest` | 실제 Tomcat 에 한도를 넘는 본문을 보내면 Content-Length·chunked 모두 413, 파일 업로드는 제외 (SEC-10), 업로드 경로가 아닌 multipart 는 읽기 전에 415 (S-18) |
 | `RequestTraceTest` | 추적 ID 가 응답 헤더·오류 본문·로그에서 같은지, 위조된 ID 교체, 쿼리 문자열·입력한 자격 증명·공유 토큰을 로그에 남기지 않는지 (ARC-02·SEC-11·S-07) |
 | `ScryptTest` · `AccessGateFilterTest` · `AccessGateIntegrationTest`, 프론트 `http.test` | 접근 코드 잠금 — 직접 구현한 scrypt 가 RFC 7914 벡터·Python `hashlib.scrypt`(다른 서비스 gate 의 해시)와 같은지, 잠금화면(인라인 스타일 없음)·API 401 `GATE_LOCKED`·헬스 체크 예외, 쿠키(__Host-·HttpOnly·Secure·SameSite) 위조·만료·코드 폐기, IP·전체 시도 제한, 다른 출처 거절·열린 리디렉션 방지, 실제 Tomcat 에서 보안 필터보다 먼저, 잠금이 풀린 화면에서 쿠키가 만료되면 잠금화면으로 (GATE-01) |

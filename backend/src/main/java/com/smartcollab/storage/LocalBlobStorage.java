@@ -101,7 +101,7 @@ public class LocalBlobStorage implements BlobStorage {
     }
 
     @Override
-    public Optional<String> readOnlyUrl(String key, Duration ttl) {
+    public Optional<String> readOnlyUrl(String key, Duration ttl, String contentType) {
         return Optional.empty();
     }
 

@@ -1,4 +1,4 @@
-# Azure 첫 배포 점검 — 기동 중 멈춤·DB 연결 실패 (DEP-01·DEP-02)
+# Azure 첫 배포 점검 — 기동 중 멈춤·DB 연결 실패 (DEP-01·DEP-02), Office 미리보기 (DEP-03)
 
 환경: App Service Linux B1(1코어·1.75GB, Java SE 21 런타임, jar 배포) · Azure Database for MySQL Flexible B1ms(8.4) · Blob Storage(LRS), Korea Central.
 IP·리소스 이름은 가렸습니다(`<ip>`·`<db>`·`<storage>`).
@@ -32,3 +32,10 @@ IP·리소스 이름은 가렸습니다(`<ip>`·`<db>`·`<storage>`).
 - DEP-01: `socketTimeout` 60초(`DB_SOCKET_TIMEOUT_MS`) — 끊긴 연결의 쿼리가 그 시간에 실패합니다.
 - DEP-02: Flyway `connect-retries` 5회(`DB_CONNECT_RETRIES`) — 기동할 때 첫 연결이 실패해도 1·2·4·8·16초 간격으로 다시 시도합니다.
 - `DatabaseNetworkFailureTest`: 수정 전 2건 실패(`tests-before-fix.txt`), 수정 뒤 4건 통과(`tests-after-fix.txt`).
+
+## Office 미리보기 "파일을 찾을 수 없음" (DEP-03, `office-preview.txt`)
+
+Office 웹 뷰어는 주소 경로의 확장자나 응답 형식(Content-Type)으로 문서 종류를 정합니다. 저장 키(`files/<UUID>`)에는 확장자가 없고 Blob 형식은
+`application/octet-stream` 이라 모든 Office 미리보기가 실패했습니다(로컬 Azurite 는 Microsoft 가 닿을 수 없어 배포 전에는 확인할 수 없었음).
+같은 파일을 모양만 바꿔 올려 비교하니 확장자가 있거나 형식이 맞으면 열렸고, 슬래시 인코딩(`%2F`)은 상관없었습니다.
+미리보기 SAS 에 응답 형식 덮어쓰기(`rsct`)를 넣어, 저장된 파일을 바꾸지 않고 고쳤습니다.

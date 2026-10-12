@@ -3,6 +3,8 @@ package com.smartcollab.global.util;
 import com.smartcollab.global.error.ApiException;
 
 import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -15,7 +17,14 @@ public final class FileNames {
 
     private static final Set<String> IMAGE = Set.of("png", "jpg", "jpeg", "gif", "webp", "bmp");
     private static final Set<String> TEXT = Set.of("txt", "md", "log", "csv", "json");
-    private static final Set<String> OFFICE = Set.of("docx", "xlsx", "pptx", "doc", "xls", "ppt");
+    private static final Map<String, String> OFFICE_MEDIA_TYPES = Map.of(
+            "docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "doc", "application/msword",
+            "xls", "application/vnd.ms-excel",
+            "ppt", "application/vnd.ms-powerpoint");
+    private static final Set<String> OFFICE = OFFICE_MEDIA_TYPES.keySet();
 
     /**
      * 글자 방향을 바꾸거나 보이지 않는 문자 [S-12]. "report" + U+202E + "fdp.exe" 가 "reportexe.pdf" 처럼 보이는
@@ -79,6 +88,14 @@ public final class FileNames {
         if (TEXT.contains(ext)) return PreviewKind.TEXT;
         if (OFFICE.contains(ext)) return PreviewKind.OFFICE;
         return PreviewKind.NONE;
+    }
+
+    /**
+     * Office 문서의 형식(MIME) [DEP-03]. Office 웹 뷰어는 주소에 확장자가 없으면 응답 형식으로 문서 종류를 정하는데,
+     * 저장 키(files/UUID)에는 확장자가 없으므로 미리보기 URL 이 이 형식을 응답에 답니다.
+     */
+    public static Optional<String> officeMediaType(String name) {
+        return Optional.ofNullable(OFFICE_MEDIA_TYPES.get(extension(name)));
     }
 
     public static boolean isTextEditable(String name) {
