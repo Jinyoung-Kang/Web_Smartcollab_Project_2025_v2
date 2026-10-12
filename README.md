@@ -3,7 +3,7 @@
 [![CI](https://github.com/Jinyoung-Kang/Web_Smartcollab_Project_2025_v2/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Jinyoung-Kang/Web_Smartcollab_Project_2025_v2/actions/workflows/ci.yml)
 
 팀이 파일을 한 곳에 모으고, **권한을 나눠 관리하고, 수정 이력과 승인(서명)을 남기고, 채팅으로 바로 공유**하는 웹 서비스입니다.
-대학 졸업 작품으로 기획부터 설계·프론트엔드·백엔드·DB·Azure 연동과 배포 구성까지 단독 개발했고, 이 저장소는 **최종 완성본(v2)** 입니다.
+대학 졸업 작품으로 기획부터 설계·프론트엔드·백엔드·DB·Azure 연동과 배포까지 단독 개발했고, 이 저장소는 **최종 완성본(v2)** 입니다.
 첫 완성본([v1](https://github.com/Jinyoung-Kang/Web_Smartcollab_Project_2025))의 모든 코드·메뉴·기능을 검토해 보안 결함과 버그를 고치고 아키텍처·성능·UI/UX 를 개선했으며, 기능을 다 만든 뒤에는 실무 코드 리뷰 기준으로 두 차례 더 점검해 1차 28건 중 21건, 2차 19건을 고쳤습니다.
 
 ![팀 드라이브와 실시간 채팅](docs/images/team-drive.png)
@@ -14,7 +14,7 @@
 | **프론트엔드** | React 19 · TypeScript · Vite · TanStack Query · Tailwind CSS 4 |
 | **데이터·저장소** | MySQL 8 · Azure Blob Storage(또는 로컬 디스크) |
 | **AI** | Claude Haiku 5.5(Anthropic 공식 Java SDK) — 문서 요약·번역, 사용자별 토큰 한도. 키가 없으면 추출 요약·DeepL |
-| **배포 구성** | Azure App Service(Docker 이미지 또는 jar) · Azure Database for MySQL · Azure Blob Storage — 절차는 [DEPLOYMENT](docs/DEPLOYMENT.md) |
+| **배포** | Azure App Service(B1, jar) · Azure Database for MySQL(B1ms) · Azure Blob Storage 에 공개 데모로 배포 — 접근 코드가 있어야 들어갈 수 있음. 절차는 [DEPLOYMENT](docs/DEPLOYMENT.md) |
 | **CI·테스트** | GitHub Actions · JUnit 6 + Testcontainers(MySQL·Azurite) 355건 · Vitest 140건 · Playwright E2E 14건(접근성 자동 검사 포함) · ArchUnit 구조 규칙 |
 
 ---
@@ -65,7 +65,7 @@ flowchart LR
     V --> ST[("Blob 저장소<br/>Azure · 로컬")]
 ```
 
-배포 구성은 Azure App Service(Docker 이미지 또는 jar) + Azure Database for MySQL + Azure Blob Storage 입니다. 운영 프로필(`prod`)이 Azure 저장소·보안 쿠키를 켜고, 스키마는 기동 시 Flyway 가 만듭니다. 공개 데모는 로그인 앞에 접근 코드 잠금을 둘 수 있습니다([ADR-0013](docs/adr/0013-access-code-gate.md)) → [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+Azure App Service(B1, jar) + Azure Database for MySQL(B1ms) + Azure Blob Storage 에 공개 데모로 배포했습니다(Docker 이미지로도 배포 가능). 운영 프로필(`prod`)이 Azure 저장소·보안 쿠키를 켜고, 스키마는 기동 시 Flyway 가 만듭니다. 공개 데모는 로그인 앞에 접근 코드 잠금을 둘 수 있습니다([ADR-0013](docs/adr/0013-access-code-gate.md)) → [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 
 자세한 설계(데이터 모델, 권한 모델, 업로드·편집·실시간 흐름, 한계와 확장 방안)는 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
