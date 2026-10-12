@@ -3,6 +3,7 @@ package com.smartcollab.system;
 import com.smartcollab.support.Api;
 import com.smartcollab.support.LimitedStorageIntegrationTest;
 import com.smartcollab.user.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +35,15 @@ class DemoProtectionTest extends LimitedStorageIntegrationTest {
 
     @Autowired
     com.smartcollab.user.AccountService accountService;
+
+    /**
+     * 체험 데이터는 DB 에 하나뿐이라, 다른 설정(표본 파일·비밀번호)의 시험 문맥이 먼저 만든 체험 데이터가 남아 있을 수 있습니다.
+     * 이 문맥의 설정으로 다시 만들고 시작합니다.
+     */
+    @BeforeEach
+    void freshDemoData() {
+        seeder.reset();
+    }
 
     private Api.Session demo(String username) {
         return api().login(username, DEMO_PASSWORD);

@@ -152,6 +152,8 @@ app:
     password: ${DEMO_PASSWORD:}
     # 체험 계정의 개인 저장소와 체험 계정이 팀장인 팀의 저장 한도 [SEC-06]
     quota: ${DEMO_QUOTA:50MB}
+    # 체험 계정마다 내 드라이브에 '파일 유형별 시험' 폴더(텍스트·PDF·Office·이미지·기타 표본 16개, 약 190KB)를 만듦
+    sample-files: ${DEMO_SAMPLE_FILES:true}
     # 체험 데이터 초기화 시각 [SEC-06]
     reset-cron: ${DEMO_RESET_CRON:0 0 5 * * *}
     reset-zone: ${DEMO_RESET_ZONE:Asia/Seoul}

@@ -2,16 +2,16 @@
 
 | 층 | 도구 | 개수 | 실행 |
 |---|---|---:|---|
-| 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 327 | `cd backend && ./gradlew test` |
+| 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 328 | `cd backend && ./gradlew test` |
 | 프론트엔드 단위·컴포넌트 | Vitest · Testing Library · jsdom | 139 | `cd frontend && npm test` |
 | E2E (전체 스택) | Playwright · Docker Compose · axe-core | 14 (시나리오 10 + 접근성 3·탭 제목 1) | `docker compose up -d --wait && cd e2e && npx playwright test` |
 
-백엔드 라인 커버리지 **92.5%**, 분기 커버리지 **80.7%** (JaCoCo, `backend/build/reports/jacoco/test/html`).
+백엔드 라인 커버리지 **92.5%**, 분기 커버리지 **80.8%** (JaCoCo, `backend/build/reports/jacoco/test/html`).
 
 ## 원칙
 
 - **H2 대신 실제 MySQL** 로 통합 테스트합니다. 재귀 CTE·`ON DELETE SET NULL`·조건부 UPDATE 처럼 DB 동작에 기대는 로직이 많아, 운영과 다른 DB 로 테스트하면 통과해도 믿을 수 없기 때문입니다.
-- 테스트마다 무작위 사용자 이름을 써서 데이터를 분리하고, 컨테이너와 Spring 컨텍스트는 한 번만 띄웁니다(전체 327건, `./gradlew test` 약 2분 30초). 테스트 JVM 은 운영 컨테이너·CI 와 같은 UTC 로 실행합니다.
+- 테스트마다 무작위 사용자 이름을 써서 데이터를 분리하고, 컨테이너와 Spring 컨텍스트는 한 번만 띄웁니다(전체 328건, `./gradlew test` 약 2분 30초). 테스트 JVM 은 운영 컨테이너·CI 와 같은 UTC 로 실행합니다.
 - v1 에서 찾은 결함마다 이름에 `[v1 …]` 을, 2026-09 코드 리뷰 항목에는 `[SEC-01]`·`[BUG-02]` 처럼 항목 ID 를 붙인 회귀 테스트가 있습니다 → [REFACTORING_REPORT.md](REFACTORING_REPORT.md), [REVIEW_2026-09.md](REVIEW_2026-09.md)
 - 인증은 실제 브라우저처럼 HttpOnly 쿠키 + CSRF 토큰으로 요청합니다(`support/Api`). CSRF 는 Spring Security 의 `csrf()` 도우미 대신 같은 토큰을 쿠키·헤더로 보내는 `Api.xsrf()` 를 씁니다 — `csrf()` 는 공유 CSRF 필터의 저장소를 바꿔, 같은 컨텍스트의 실제 HTTP 시험이 실행 순서에 따라 실패했습니다.
 
@@ -72,6 +72,7 @@
 | `CommitOutcomeUnknownTest` · `TransactionRunnerTest` | 커밋은 됐는데 확인 응답을 못 받은 업로드·텍스트 저장·복사가 저장소 파일을 지우지 않음 — 실제 커밋 뒤 예외를 던지는 트랜잭션 관리자로 재현 (H-4) |
 | `DemoProtectionTest` · `PasswordCheckConnectionTest` · `ShareLinkTest` · `AzureBlobStorageTest` | 체험 계정에게 팀장 위임 불가 (H-3), 초기화가 중간에 실패해 일부만 남은 체험 계정도 다음 시드가 정리 (L-3) / 로그인·공유 비밀번호 확인 중 DB 커넥션을 잡지 않음 (M-2) / 공유 다운로드는 저장소를 연 뒤에만 횟수 차감 (L-2) / Azure 복사의 404·실패 상태 (L-1) |
 | `ArchitectureTest`(L-7) | STOMP 컨트롤러도 리포지토리 금지, `List<엔티티>`·`ResponseEntity<엔티티>` 응답 금지, `@Service` 밖 도메인 클래스의 들어오는 HTTP 타입 금지 — 일부러 넣은 위반 3종으로 규칙이 잡는지 확인 |
+| `DemoSampleFilesTest` | 체험 계정 셋 모두 내 드라이브에 파일 유형별 표본 16개(미리보기 종류별)가 있고, 초기화 뒤에도 다시 생김. 체험 데이터는 DB 에 하나뿐이라 체험 계정을 쓰는 시험은 시작할 때 자기 설정으로 다시 만듦 |
 | `BulkDeletionBenchmarkTest` (`BENCH=true` 일 때만) | 파일 5천·2만·5만 개 계정 삭제 시간 (M-6, 결과 `qa/results/review-2026-10-12`) |
 | 프론트 `useTextDocument.test` · `Dialog.test` · `DeleteAccountDialog.test` · `Menu.test` · `SearchPage.test` · `endpoints.test` 외 (L-8) | 응답을 기다리는 사이 입력한 글을 덮지 않음, 저장·덮어쓰기는 한 번에 하나·사용량 캐시도 갱신, 대화상자 안에서 끌다 밖에서 놓아도 닫히지 않음, 탈퇴 창 다시 열면 비밀번호 비움, 메뉴·좁은 화면 패널 Esc·초점 복귀, 검색·공유 링크·버전 기록·폴더 목록 오류 안내, 링크 해제 확인, 복원 중복 막기, 채팅은 새 메시지만 알림, 공유 토큰 인코딩 |
 | 프론트 `AuthProvider.test`(M-3) · `ChatTab.test`(M-4) · `PreviewDialog.test`(M-5) · `Sidebar.test`(M-7) | 로그아웃 실패 시 로그인 상태 유지·안내, 채팅은 HTTP 로 저장 확인 뒤 실패하면 입력 되돌림, 진행 중인 AI 작업 단추 끄기, 안 읽은 표시에 이름 |

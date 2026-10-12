@@ -30,6 +30,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -44,6 +45,9 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.Collections;
 import java.util.Optional;
 import javax.imageio.ImageIO;
 
@@ -186,6 +190,12 @@ public class DemoDataSeeder {
         DriveDtos.ItemResponse old = upload(personalRoot, "지난 초안.txt", "이전 버전의 초안입니다.", leader);
         itemDeletionService.delete(new DriveDtos.DeleteRequest(List.of(new DriveDtos.ItemRef("file", old.id()))), leader.getId());
 
+        if (props.demo().sampleFiles()) {
+            for (User user : List.of(leader, editor, deleter)) {
+                seedSampleFiles(user);
+            }
+        }
+
         // 알림: 다른 팀에서 온 초대(수락/거절 대기)
         TeamDtos.TeamSummary review = teamService.createDemoTeam("디자인 리뷰", editor.getId());
         teamService.invite(review.id(), leader.getUsername(), editor.getId());
@@ -222,6 +232,49 @@ public class DemoDataSeeder {
 
     private DriveDtos.ItemResponse upload(Long folderId, String name, byte[] bytes, User user) {
         return fileService.upload(folderId, UploadSource.of(name, bytes), user.getId());
+    }
+
+    /**
+     * 내 드라이브에 미리보기 종류별 표본 파일을 둡니다 — 텍스트·PDF·Office·이미지·미리보기 없는 형식을 바로 시험해 볼 수 있게.
+     * 파일은 클래스패스 demo/samples/ 에 있고 qa/scripts/demo-sample-files.py 로 만듭니다.
+     */
+    private void seedSampleFiles(User user) {
+        Long folder = folder(rootFolders.personalOf(user).getId(), SAMPLE_FOLDER, user);
+        SAMPLE_FILES.forEach((resource, name) -> upload(folder, name, sample(resource), user));
+    }
+
+    private static byte[] sample(String resource) {
+        try {
+            return new ClassPathResource("demo/samples/" + resource).getContentAsByteArray();
+        } catch (IOException e) {
+            throw new UncheckedIOException("체험 표본 파일을 읽지 못했습니다: " + resource, e);
+        }
+    }
+
+    static final String SAMPLE_FOLDER = "파일 유형별 시험";
+
+    /** 클래스패스 파일 이름 → 드라이브에 보일 이름 (미리보기 종류 순서: 텍스트 · PDF · Office · 이미지 · 기타) */
+    private static final Map<String, String> SAMPLE_FILES = sampleFiles();
+
+    private static Map<String, String> sampleFiles() {
+        Map<String, String> files = new LinkedHashMap<>();
+        files.put("memo.txt", "메모.txt");
+        files.put("meeting.md", "회의록.md");
+        files.put("server-log.txt", "서버.log");   // 저장소의 .gitignore 가 *.log 를 빼므로 다른 이름으로 둠
+        files.put("requirements.csv", "요구사항.csv");
+        files.put("settings.json", "설정.json");
+        files.put("report.pdf", "보고서.pdf");
+        files.put("onboarding.docx", "입사 안내.docx");
+        files.put("budget.xlsx", "예산.xlsx");
+        files.put("slides.pptx", "발표.pptx");
+        files.put("photo.png", "사진.png");
+        files.put("photo.jpg", "사진.jpg");
+        files.put("animation.gif", "애니메이션.gif");
+        files.put("photo.webp", "사진.webp");
+        files.put("photo.bmp", "사진.bmp");
+        files.put("bundle.zip", "묶음.zip");
+        files.put("data.bin", "데이터.bin");
+        return Collections.unmodifiableMap(files);
     }
 
     private Long save(Long fileId, String text, User user) {
