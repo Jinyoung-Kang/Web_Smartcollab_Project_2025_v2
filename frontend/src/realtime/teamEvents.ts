@@ -23,6 +23,8 @@ export function applyTeamEvent(qc: QueryClient, teamId: number, event: TeamEvent
     case 'MEMBERS_CHANGED':
       void qc.invalidateQueries({ queryKey: queryKeys.team(teamId) })
       void qc.invalidateQueries({ queryKey: queryKeys.teams })
+      // 드라이브의 업로드·편집 단추는 폴더 응답의 권한을 씁니다 — 팀 상세만 갱신하면 채팅과 드라이브의 권한이 어긋났습니다 [M-8]
+      void qc.invalidateQueries({ queryKey: queryKeys.folder.all })
       return undefined
     case 'CHAT_CLEARED':
       void qc.resetQueries({ queryKey: queryKeys.chat.of(teamId) })
@@ -37,11 +39,16 @@ export function applyTeamEvent(qc: QueryClient, teamId: number, event: TeamEvent
 /**
  * 다시 연결되면 끊긴 동안 놓쳤을 수 있는 것을 다시 받습니다. 끊긴 동안 팀에서 제외됐을 수 있어 팀 목록을 다시 받아 구독을 맞추고
  * (제외된 팀 토픽을 다시 구독하면 서버가 거절하며 연결을 닫음), 실시간으로만 갱신되는 채팅·알림을 다시 받습니다 [FB-05].
+ * 끊긴 동안 놓친 폴더 변경(FOLDER_CHANGED)·권한 변경(MEMBERS_CHANGED)도 복구되지 않으므로 폴더 내용·트리·팀 상세를 다시 받습니다 [M-8] —
+ * 서버 재시작·프록시 유휴 끊김에는 브라우저 online 이벤트가 없어, 창을 옮기거나 이동하기 전까지 옛 목록·권한이 남았습니다.
  */
 export function applyReconnect(qc: QueryClient) {
   void qc.invalidateQueries({ queryKey: queryKeys.teams })
   void qc.invalidateQueries({ queryKey: queryKeys.chat.all })
   void qc.invalidateQueries({ queryKey: queryKeys.notifications })
+  void qc.invalidateQueries({ queryKey: queryKeys.folder.all })
+  void qc.invalidateQueries({ queryKey: queryKeys.tree.all })
+  void qc.invalidateQueries({ queryKey: ['team'] })
 }
 
 /** 새 채팅 메시지를 안 읽음으로 표시할지: 남이 보냈고, 그 팀 채팅을 보고 있지 않을 때 */
