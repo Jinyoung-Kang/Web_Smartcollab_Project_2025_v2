@@ -34,7 +34,7 @@ export function NewTeamDialog({ open, onClose }: { open: boolean; onClose: () =>
       <form onSubmit={submit} className="grid gap-4">
         <label>
           <span className="label">팀 이름</span>
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} autoFocus />
+          <input className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} data-autofocus />
         </label>
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>취소</Button>

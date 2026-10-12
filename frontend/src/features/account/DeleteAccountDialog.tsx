@@ -47,7 +47,7 @@ function DeleteAccountForm({ onClose }: { onClose: () => void }) {
       <label>
         <span className="label">비밀번호 확인</span>
         <input className="input" type="password" autoComplete="current-password" value={password}
-          onChange={(e) => setPassword(e.target.value)} autoFocus />
+          onChange={(e) => setPassword(e.target.value)} data-autofocus />
       </label>
       {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
       <div className="flex justify-end gap-2">

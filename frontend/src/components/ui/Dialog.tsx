@@ -29,7 +29,12 @@ export function Dialog({ open, onClose, title, description, children, footer, si
   useEffect(() => {
     const dialog = ref.current
     if (!dialog) return
-    if (open && !dialog.open) dialog.showModal()
+    if (open && !dialog.open) {
+      dialog.showModal()
+      // 처음 초점을 받을 입력란(data-autofocus). 자식의 effect·autoFocus 는 이 effect 보다 먼저, 아직 닫힌(보이지 않는) dialog 에서
+      // 실행돼 초점이 들어가지 않았고, showModal() 이 첫 단추(닫기)로 초점을 옮겼습니다 [M-7]
+      dialog.querySelector<HTMLElement>('[data-autofocus]')?.focus()
+    }
     if (!open && dialog.open) dialog.close()
   }, [open])
 
