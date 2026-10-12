@@ -8,7 +8,7 @@ import { IconButton } from '@/components/ui/Button'
 import { formatBytes } from '@/lib/format'
 import { createTaskQueue } from './uploadQueue'
 import { cn } from '@/lib/cn'
-import { invalidateDriveChange } from '@/api/driveCache'
+import { scheduleDriveChange } from '@/api/driveCache'
 import { validateUpload } from './validateUpload'
 
 interface UploadTask {
@@ -50,7 +50,7 @@ export function UploadProvider({ children }: { children: ReactNode }) {
       try {
         await uploadFile(task.folderId, file, (p) => patch(task.id, { progress: p }), task.controller.signal)
         patch(task.id, { status: 'done', progress: 1 })
-        invalidateDriveChange(qc, { folderIds: [task.folderId] })
+        scheduleDriveChange(qc, { folderIds: [task.folderId] })
       } catch (e) {
         if (e instanceof ApiError && e.code === 'ABORTED') patch(task.id, { status: 'canceled' })
         else patch(task.id, { status: 'error', error: e instanceof ApiError ? e.message : '업로드 실패' })

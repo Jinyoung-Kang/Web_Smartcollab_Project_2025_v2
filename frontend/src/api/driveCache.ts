@@ -20,3 +20,8 @@ export function invalidateDriveChange(qc: QueryClient, { folderIds, scope }: { f
   void qc.invalidateQueries({ queryKey: scope === undefined ? queryKeys.trash.all : queryKeys.trash.of(scope) })
   void qc.invalidateQueries({ queryKey: queryKeys.versions.all })
 }
+
+/** 짧은 시간에 몰려 오는 변경(업로드 묶음·다른 사람의 변경 알림)을 위한 자리 — 아직 바로 무효화합니다 [M-9] */
+export function scheduleDriveChange(qc: QueryClient, change: { folderIds?: number[]; scope?: Scope } = {}) {
+  invalidateDriveChange(qc, change)
+}
