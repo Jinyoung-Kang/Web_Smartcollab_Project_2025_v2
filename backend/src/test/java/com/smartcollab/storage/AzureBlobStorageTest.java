@@ -1,6 +1,5 @@
 package com.smartcollab.storage;
 
-import com.azure.storage.blob.BlobContainerClientBuilder;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -18,11 +17,13 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -44,13 +45,14 @@ class AzureBlobStorageTest {
                     new PortBinding(Ports.Binding.bindPort(PORT), new ExposedPort(PORT))));
 
     static AzureBlobStorage storage;
+    static String connectionString;
 
     @BeforeAll
     static void start() {
         AZURITE.start();
-        String cs = "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=" + KEY
+        connectionString = "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=" + KEY
                 + ";BlobEndpoint=http://localhost:" + PORT + "/devstoreaccount1;";
-        storage = new AzureBlobStorage(new BlobContainerClientBuilder().connectionString(cs).containerName("test").buildClient());
+        storage = StorageConfig.azure(connectionString, "test");
     }
 
     static int freePort() {
@@ -110,6 +112,28 @@ class AzureBlobStorageTest {
         assertThat(res.statusCode()).isEqualTo(200);
         assertThat(res.headers().firstValue("Content-Type")).contains(xlsx);
         assertThat(res.body()).isEqualTo(bytes);
+    }
+
+    /**
+     * [H-1] 업로드는 파일 전체를 힙에 모으지 않아야 합니다. SDK 기본값(단일 업로드 상한 256MB)은 그 크기까지 내용을 모두 메모리에 모은 뒤
+     * 한 번에 보내, 업로드 상한(200MB) 파일 몇 개가 동시에 오면 운영 힙(1GB)을 넘을 수 있었습니다. 128MB 힙의 자식 JVM 으로 200MB 를 올립니다.
+     */
+    @Test
+    @DisplayName("[H-1] 128MB 힙에서도 200MB(업로드 상한) 파일을 올린다 — 파일 전체를 메모리에 모으지 않음")
+    void uploadDoesNotBufferWholeFile() throws Exception {
+        long size = 200L * 1024 * 1024;
+        Process child = new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin", "java").toString(),
+                "-Xmx128m", "-Djdk.httpclient.allowRestrictedHeaders=content-length",
+                "-cp", System.getProperty("java.class.path"), AzureUploadProbe.class.getName(),
+                connectionString, "test", String.valueOf(size))
+                .redirectErrorStream(true).start();
+        String out = new String(child.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        boolean finished = child.waitFor(3, TimeUnit.MINUTES);
+
+        assertThat(finished).isTrue();
+        assertThat(out).as(out.lines().filter(l -> l.contains("Error") || l.contains("OK")).findFirst().orElse(out))
+                .contains("OK " + size).doesNotContain("OutOfMemoryError");
+        assertThat(child.exitValue()).isZero();
     }
 
     @Test
