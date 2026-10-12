@@ -8,7 +8,7 @@ import { useToast } from '@/components/ui/Toast'
 import { useOnReconnect } from '@/lib/useOnReconnect'
 import { useRealtime, useSubscription } from './RealtimeProvider'
 import { queryKeys } from '@/api/queryKeys'
-import { applyNotification, applyTeamEvent, shouldMarkUnread, type TeamEvent } from './teamEvents'
+import { applyNotification, applyReconnect, applyTeamEvent, shouldMarkUnread, type TeamEvent } from './teamEvents'
 
 interface TeamActivityApi {
   unread: ReadonlySet<number>
@@ -74,14 +74,7 @@ export function TeamActivityProvider({ children }: { children: ReactNode }) {
     return () => unsubs.forEach((u) => u())
   }, [teamIds, subscribe, qc, me.username, toast, navigate])
 
-  // 끊긴 동안 팀에서 제외됐을 수 있으므로 재연결하면 팀 목록을 다시 받아 구독을 맞춥니다.
-  // (제외된 팀 토픽을 다시 구독하면 서버가 거절하며 연결을 닫습니다)
-  // 채팅·알림은 실시간으로만 갱신되므로(채팅 캐시는 만료 없음) 끊긴 동안 온 것을 다시 받습니다 [FB-05].
-  useOnReconnect(connected, () => {
-    void qc.invalidateQueries({ queryKey: queryKeys.teams })
-    void qc.invalidateQueries({ queryKey: queryKeys.chat.all })
-    void qc.invalidateQueries({ queryKey: queryKeys.notifications })
-  })
+  useOnReconnect(connected, () => applyReconnect(qc))
 
   useSubscription('/user/queue/notifications', (payload) => {
     const n = payload as AppNotification

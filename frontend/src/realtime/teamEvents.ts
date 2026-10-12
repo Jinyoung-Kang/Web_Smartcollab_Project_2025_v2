@@ -34,6 +34,16 @@ export function applyTeamEvent(qc: QueryClient, teamId: number, event: TeamEvent
   }
 }
 
+/**
+ * 다시 연결되면 끊긴 동안 놓쳤을 수 있는 것을 다시 받습니다. 끊긴 동안 팀에서 제외됐을 수 있어 팀 목록을 다시 받아 구독을 맞추고
+ * (제외된 팀 토픽을 다시 구독하면 서버가 거절하며 연결을 닫음), 실시간으로만 갱신되는 채팅·알림을 다시 받습니다 [FB-05].
+ */
+export function applyReconnect(qc: QueryClient) {
+  void qc.invalidateQueries({ queryKey: queryKeys.teams })
+  void qc.invalidateQueries({ queryKey: queryKeys.chat.all })
+  void qc.invalidateQueries({ queryKey: queryKeys.notifications })
+}
+
 /** 새 채팅 메시지를 안 읽음으로 표시할지: 남이 보냈고, 그 팀 채팅을 보고 있지 않을 때 */
 export function shouldMarkUnread(msg: ChatMessage, myUsername: string, viewingTeamId: number | null, teamId: number): boolean {
   return msg.sender.username !== myUsername && viewingTeamId !== teamId

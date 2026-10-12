@@ -2,7 +2,7 @@ import { QueryClient } from '@tanstack/react-query'
 import { CLIENT_ID } from '@/api/clientId'
 import { queryKeys } from '@/api/queryKeys'
 import type { AppNotification, ChatMessage } from '@/api/types'
-import { applyNotification, applyTeamEvent, shouldMarkUnread } from './teamEvents'
+import { applyNotification, applyReconnect, applyTeamEvent, shouldMarkUnread } from './teamEvents'
 
 function client() {
   const qc = new QueryClient()
@@ -32,6 +32,16 @@ describe('applyTeamEvent', () => {
     expect(reset).toHaveBeenCalledWith({ queryKey: queryKeys.chat.of(3) })
     expect(applyTeamEvent(qc, 3, { type: 'TEAM_DELETED', teamId: 3 })).toBe('team-deleted')
     expect(remove).toHaveBeenCalledWith({ queryKey: queryKeys.team(3) })
+  })
+})
+
+describe('applyReconnect', () => {
+  it('[FB-05] 다시 연결되면 팀 목록·채팅·알림을 다시 받는다', () => {
+    const { qc, invalidate } = client()
+    applyReconnect(qc)
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.teams })
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.chat.all })
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.notifications })
   })
 })
 
