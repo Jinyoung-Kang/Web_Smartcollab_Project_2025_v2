@@ -21,6 +21,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v5
       - name: 테스트 + 커버리지
         run: ./gradlew test --no-daemon
+      # 운영(App Service B1)처럼 JVM 이 CPU 를 1개로 보는 환경에서만 드러나는 시험 — 코어가 많은 러너의 기본 시험으로는 재현되지 않음 [C-1, ADR-0014]
+      - name: CPU 1개 JVM 시험
+        run: ./gradlew singleCarrierTest --no-daemon
       - name: 테스트·커버리지·측정 리포트
         if: always()
         uses: actions/upload-artifact@v7
@@ -28,6 +31,7 @@ jobs:
           name: backend-reports
           path: |
             backend/build/reports/tests/test
+            backend/build/reports/tests/singleCarrierTest
             backend/build/reports/jacoco/test/html
             backend/build/reports/metrics
 
