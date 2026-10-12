@@ -47,6 +47,45 @@ describe('FileTable', () => {
   })
 })
 
+describe('FileTable — 행 선택 규칙 (리팩터링 전 동작 고정)', () => {
+  const row = (i: number) => document.querySelectorAll<HTMLTableRowElement>('tbody tr[data-row]')[i]!
+  const setup = (selected: string[]) => {
+    const onChange = vi.fn()
+    render(<FileTable items={sortedItems} {...byName} selected={new Set(selected)} onSelectionChange={onChange} onOpen={vi.fn()} onContextAction={vi.fn()} />)
+    return onChange
+  }
+
+  it('행을 누르면 그 행만 고르고, Ctrl·⌘·Shift 와 함께 누르면 기존 선택에 더하거나 뺀다', () => {
+    const onChange = setup(['file-1'])
+    fireEvent.click(row(0))
+    expect(onChange).toHaveBeenLastCalledWith(new Set(['folder-3']))
+    fireEvent.click(row(1), { ctrlKey: true })
+    expect(onChange).toHaveBeenLastCalledWith(new Set(['file-1', 'file-2']))
+    fireEvent.click(row(2), { metaKey: true })
+    expect(onChange).toHaveBeenLastCalledWith(new Set())
+    fireEvent.click(row(0), { shiftKey: true })
+    expect(onChange).toHaveBeenLastCalledWith(new Set(['file-1', 'folder-3']))
+  })
+
+  it('Space 는 그 행을 선택에 더하거나 빼고, Esc 는 모두 해제, Ctrl·⌘+A 는 받은 항목을 모두 고른다', () => {
+    const onChange = setup(['file-1'])
+    fireEvent.keyDown(row(1), { key: ' ' })
+    expect(onChange).toHaveBeenLastCalledWith(new Set(['file-1', 'file-2']))
+    fireEvent.keyDown(row(2), { key: ' ' })
+    expect(onChange).toHaveBeenLastCalledWith(new Set())
+    fireEvent.keyDown(row(0), { key: 'Escape' })
+    expect(onChange).toHaveBeenLastCalledWith(new Set())
+    fireEvent.keyDown(row(0), { key: 'a', ctrlKey: true })
+    expect(onChange).toHaveBeenLastCalledWith(new Set(['folder-3', 'file-2', 'file-1']))
+  })
+
+  it('모두 선택된 상태에서 모두 선택을 누르면 모두 해제한다', async () => {
+    const onChange = setup(['folder-3', 'file-2', 'file-1'])
+    await userEvent.click(screen.getByLabelText('모두 선택'))
+    expect(onChange).toHaveBeenLastCalledWith(new Set())
+  })
+})
+
 // 행 450개를 jsdom 에 그리는 테스트라 느린 환경에서는 기본 제한(5초)을 넘었습니다(동시 실행 재현 6.5초).
 describe('FileTable — 항목이 많은 폴더 [PERF-02]', { timeout: 20_000 }, () => {
   const many = Array.from({ length: 450 }, (_, i) => item({ id: i + 1, name: `파일-${String(i).padStart(3, '0')}.txt` }))
