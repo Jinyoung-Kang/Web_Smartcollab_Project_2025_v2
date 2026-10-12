@@ -102,6 +102,7 @@ function ScopeChip({ active, onClick, icon: Icon, children }: { active: boolean;
   return (
     <button
       onClick={onClick}
+      aria-pressed={active}
       className={cn(
         'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium',
         active ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50',
@@ -139,7 +140,8 @@ function TreeRow({ node, depth, selected, onSelect, disabled }: {
         >
           {expanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
         </button>
-        <button disabled={isDisabled} onClick={() => onSelect(node.id)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
+        <button disabled={isDisabled} aria-pressed={selected === node.id} onClick={() => onSelect(node.id)}
+          className="flex min-w-0 flex-1 items-center gap-2 text-left">
           <Folder aria-hidden className="size-4 shrink-0 fill-amber-200 text-amber-500" />
           <span className="truncate">{node.name}</span>
         </button>
