@@ -11,7 +11,7 @@
 | 오류 형식 | RFC 9457 `application/problem+json` — `{ "status", "title", "detail", "code", "requestId", "errors"? }`. 경로에 `%00`·`%2F`·`//`·`;` 가 들어 Tomcat·보안 방화벽이 라우팅 전에 거절한 요청도 같은 형식의 400 입니다 |
 | 요청 추적 | 모든 응답에 `X-Request-Id` 헤더. 오류 본문의 `requestId` 와 서버 로그의 추적 ID 가 같습니다 (프록시가 보낸 값은 `[A-Za-z0-9._-]{8,64}` 일 때만 이어 씀) |
 | 요청한 화면 | 선택 헤더 `X-Client-Id`(`[A-Za-z0-9-]{8,64}`, 탭마다 하나). 이 요청이 만든 `FOLDER_CHANGED` 이벤트의 `origin` 에 그대로 실려, 보낸 탭은 자기 변경을 다시 불러오지 않습니다. 형식이 맞지 않으면 무시 |
-| 일시적 장애 | DB 연결 실패·응답 지연(트랜잭션 30초 초과) 등 잠시 뒤 다시 시도하면 될 수 있는 오류는 503 `SERVICE_UNAVAILABLE` 과 `Retry-After: 5` |
+| 일시적 장애 | DB 연결 실패·응답 지연(트랜잭션 30초 초과), 파일 저장소의 5xx·408·429·입출력 오류·시간 초과(시도당 30초·3회 뒤) 등 잠시 뒤 다시 시도하면 될 수 있는 오류는 503 `SERVICE_UNAVAILABLE` 과 `Retry-After: 5` [M-3] |
 | 본문 크기 | 파일 업로드를 뺀 요청 본문은 6MB 까지 (넘으면 413 `PAYLOAD_TOO_LARGE`). multipart 는 업로드 경로에서만 받습니다(다른 경로는 415 `UNSUPPORTED_MEDIA_TYPE`) |
 | 시각 | ISO-8601 UTC (`2026-09-27T02:40:00Z`) |
 | 권한 없음 | 읽을 수 없는 대상은 `404`(존재 여부 비공개), 읽을 수 있지만 권한이 부족하면 `403` |
@@ -31,9 +31,9 @@
 | `QUOTA_EXCEEDED` | 413 | 저장 공간 한도 초과 (개인 1GB·팀 5GB 기본, 옛 버전·휴지통 포함) |
 | `AI_REFUSED` | 422 | AI(Claude)가 안전 기준에 따라 문서의 요약·번역을 거절함 |
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | 업로드 경로가 아닌 곳으로 보낸 multipart 요청 (본문을 읽기 전에 거절) |
-| `RATE_LIMITED` | 429 | 요청 제한 초과 (로그인·가입·공유 비밀번호 시도, 사용자별 하루 AI 토큰·DeepL 번역 분량) |
+| `RATE_LIMITED` | 429 | 요청 제한 초과 (로그인·가입·공유 비밀번호·탈퇴 비밀번호 확인 시도, 사용자별 하루 AI 토큰·DeepL 번역 분량) |
 | `FEATURE_DISABLED` | 503 | 서버에 설정되지 않은 기능 (AI·번역 키 없음, 로컬 저장소에서 Office 미리보기 등) |
-| `SERVICE_UNAVAILABLE` | 503 | DB 연결 실패·트랜잭션 시간 초과 등 일시적 장애. `Retry-After` 초 뒤 다시 시도. AI 서비스의 요청 한도·과부하도 503 |
+| `SERVICE_UNAVAILABLE` | 503 | DB 연결 실패·트랜잭션 시간 초과·파일 저장소 일시 장애 등. `Retry-After` 초 뒤 다시 시도. AI 서비스의 요청 한도·과부하도 503 |
 
 ## 엔드포인트
 
@@ -47,7 +47,7 @@
 | POST | `/api/auth/logout` | 쿠키 삭제 |
 | GET | `/api/auth/me` | 내 정보 + 개인 루트 폴더 ID (로그인 전이면 401) |
 | GET | `/api/auth/session` | 로그인 여부 — 로그인 전에도 200. `{authenticated, user}`(`user` 는 `/me` 와 같은 모양, 로그인 전이면 `null`). 만료·위조된 쿠키는 지우고 `authenticated=false` |
-| POST | `/api/users/me/delete` | 회원 탈퇴 (`{password}` 재확인). 본문이 필요해 DELETE 대신 POST |
+| POST | `/api/users/me/delete` | 회원 탈퇴 (`{password}` 재확인). 본문이 필요해 DELETE 대신 POST. 비밀번호 확인은 사용자당 10분 5회(넘으면 429) [L-1] |
 
 ### 폴더·파일
 
@@ -173,7 +173,7 @@
 | Method | Path | 설명 |
 |---|---|---|
 | GET | `/__gate/?next=/경로` | 잠금화면. 이미 풀었으면 `/` 로 303 |
-| POST | `/__gate/unlock` | 폼(`code`, `next`, 2KB 까지). 맞으면 `__Host-sc_gate` 쿠키(12시간)와 함께 `next` 로 303, 틀리면 401 화면, 시도 초과면 429 화면(`Retry-After`). 다른 출처의 요청은 403 |
+| POST | `/__gate/unlock` | 폼(`code`, `next`, 2KB 까지). 맞으면 `__Host-sc_gate` 쿠키(12시간)와 함께 `next` 로 303, 틀리면 401 화면, 시도 초과면 429 화면(`Retry-After`), 같은 IP 의 앞선 시도를 확인하는 중이면 429(`Retry-After: 1`) [M-1]. 다른 출처의 요청은 403 |
 | GET | `/__gate/lock` | 쿠키를 지우고 잠금화면으로 303 |
 | GET | `/__gate/gate.css` | 잠금화면 스타일 |
 

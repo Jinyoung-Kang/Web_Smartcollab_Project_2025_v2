@@ -15,9 +15,11 @@ Azure(App Service · Database for MySQL · Blob) 구성으로 포트폴리오 �
 ## 결정
 - `AccessGateFilter` 를 추적 ID 필터 바로 뒤, 본문 제한·스프링 시큐리티보다 먼저 둡니다. `GATE_CODES` 가 비어 있으면 아무것도 하지 않습니다(개발·시험·E2E 기본값).
 - 잠금을 풀지 않은 요청: 화면 이동(GET·HEAD, `Accept: text/html`, WebSocket 아님)은 잠금화면(401), 그 밖은 401 problem+json `GATE_LOCKED`.
-  `/actuator/health/**` 는 열어 둡니다(App Service 헬스 체크). 프론트는 API 가 `GATE_LOCKED` 를 받으면 로그아웃 대신 잠금화면으로 이동합니다.
+  `/actuator/health` 와 그 아래 이름 조각 경로만 열어 둡니다(App Service 헬스 체크, `..`·`;`·인코딩 경로는 잠금 — 5차 점검 L-4). 프론트는 API 가 `GATE_LOCKED` 를 받으면 로그아웃 대신 잠금화면으로 이동합니다.
 - 맞히면 `__Host-sc_gate` 쿠키(HttpOnly·Secure·SameSite=Lax, 12시간, 코드 이름·만료를 HMAC 서명)를 줍니다. 목록에서 지운 코드의 쿠키는 바로 무효입니다.
 - 틀린 시도는 IP 당 15분에 5번이면 15분, 전체 1시간에 30번이면 30분 잠급니다(다른 서비스 gate 와 같은 값). 해시 계산(회당 16MB)은 동시에 2개까지.
+  시도는 해시를 계산하기 **전에** 실패로 먼저 세고(맞으면 되돌림, 서버가 바빠 계산하지 못하면 취소) IP 마다 진행 중인 시도는 1건만 받습니다(5차 점검 M-1).
+  처음에는 계산 뒤에 세어, 동시에 보낸 요청이 모두 잠금 확인을 통과해 IP 당 5회를 넘겨 계산했고 IP 하나로 전체 잠금을 걸 수 있었습니다.
 - 잠금 해제 POST 는 Origin 이 Host 와 같아야 받습니다(`null` 이면 Sec-Fetch-Site same-origin 일 때만). 다음 주소는 같은 사이트 경로만.
 - 잠금화면은 인라인 스크립트·스타일 없이 `/__gate/gate.css` 를 받고, CSP `default-src 'none'; style-src 'self'; form-action 'self'`.
 

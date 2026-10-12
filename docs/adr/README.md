@@ -15,3 +15,4 @@
 | [0011](0011-claude-document-tools.md) | 문서 요약·번역에 Claude(Haiku 5.5) — 토큰 예산·결과 캐시·문서는 신뢰하지 않는 입력, 키가 없으면 추출 요약·DeepL | 채택 |
 | [0012](0012-ai-billing-and-concurrency.md) | AI 비용은 최악값(입력 + max_tokens) 예약 → 과금된 실패는 한도에 남김, 요약·번역 동시 실행은 사용자당 2·서버 8 | 채택 |
 | [0013](0013-access-code-gate.md) | 공개 데모는 로그인 앞에 접근 코드 잠금 — 앱 안의 필터, 다른 포트폴리오 서비스와 같은 scrypt 해시·쿠키·시도 제한 | 채택 |
+| [0014](0014-platform-threads-on-java21.md) | Java 21 에서는 요청 처리에 가상 스레드를 쓰지 않음 — CPU 1개(App Service B1)에서 Azure SDK 의 synchronized 대기로 서버 전체가 멈춤 | 채택 |
