@@ -228,8 +228,9 @@ public class TeamService {
      * 팀 삭제: 채팅 → 팀 스토리지(폴더·파일·버전·서명·공유 링크) → 초대 → 멤버 → 팀 순으로 지웁니다.
      * 저장소의 실제 파일은 커밋 이후에 삭제됩니다.
      */
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void delete(Long teamId, Long userId) {
+        lockTeam(teamId);
         TeamMember leader = accessPolicy.requireLeader(teamId, userId);
         demoAccounts.forbidIfDemo(leader.getUser(), "체험 계정은 팀을 삭제할 수 없습니다.");
         purgeTeam(teamId, userId);
@@ -238,9 +239,12 @@ public class TeamService {
     /**
      * 팀과 팀 스토리지·채팅·초대·멤버를 지웁니다. <b>권한은 확인하지 않으므로</b> 호출하는 쪽이 확인해야 합니다
      * (팀 삭제 API, 데모 데이터 초기화). actorUserId(없으면 null)를 뺀 멤버에게 알림을 보냅니다.
+     * <p>팀 행을 먼저 잠가, 같은 팀에 진행 중인 업로드(저장 한도 확인에서 팀 행을 잠금)가 끝난 뒤의 파일 목록으로 지웁니다 —
+     * 잠그지 않으면 목록을 읽은 뒤 커밋된 파일이 폴더를 참조해 폴더 삭제가 FK 오류(409)로 실패했습니다 [L-6].</p>
      */
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void purgeTeam(Long teamId, Long actorUserId) {
+        lockTeam(teamId);
         Team team = teams.findWithOwner(teamId).orElseThrow(() -> ApiException.notFound("팀"));
         String teamName = team.getName();
         List<User> others = members.findMembers(teamId).stream()
