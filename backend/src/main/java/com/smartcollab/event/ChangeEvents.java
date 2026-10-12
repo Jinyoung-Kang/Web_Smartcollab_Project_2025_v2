@@ -25,8 +25,8 @@ public final class ChangeEvents {
     public record MembershipRevoked(Long teamId, Long userId) {
     }
 
-    /** 특정 사용자에게 보내는 알림 */
-    public record UserNotified(String username, Object payload) {
+    /** 특정 사용자에게 보내는 알림 — 사용자 ID 로 보냄(아이디는 탈퇴 뒤 다시 쓸 수 있음) [L-2] */
+    public record UserNotified(Long userId, Object payload) {
     }
 
     /** 팀 채팅 메시지 */

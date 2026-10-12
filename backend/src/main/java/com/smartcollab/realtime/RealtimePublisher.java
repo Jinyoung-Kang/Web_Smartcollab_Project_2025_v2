@@ -55,7 +55,7 @@ public class RealtimePublisher {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void on(ChangeEvents.UserNotified event) {
-        messaging.convertAndSendToUser(event.username(), "/queue/notifications", event.payload());
+        messaging.convertAndSendToUser(String.valueOf(event.userId()), "/queue/notifications", event.payload());
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)

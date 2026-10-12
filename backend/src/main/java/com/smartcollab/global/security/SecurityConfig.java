@@ -9,6 +9,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.JwtClaimNames;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
@@ -55,7 +56,9 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity http, JwtTokenService tokens, AuthCookies cookies,
                                             ObjectMapper mapper, AppProperties props) throws Exception {
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
-        converter.setPrincipalClaimName(JwtTokenService.CLAIM_USERNAME);
+        // 인증 이름(STOMP 사용자 목적지의 키)은 아이디가 아니라 사용자 ID — 아이디는 탈퇴 뒤 다시 쓸 수 있어,
+        // 탈퇴한 사용자의 열린 연결이 같은 아이디로 새로 가입한 사람의 알림을 받았습니다 [L-2]
+        converter.setPrincipalClaimName(JwtClaimNames.SUB);
 
         http
                 // 세션 없이 요청마다 인증하므로, 기본 CSRF 인증 전략은 "새로 인증됨"으로 보고 요청마다 토큰을 교체합니다.
