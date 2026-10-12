@@ -36,6 +36,19 @@ export function notifyUnauthorized() {
   unauthorizedHandler?.()
 }
 
+/**
+ * 접근 코드 잠금(GATE_LOCKED)이면 잠금화면으로 이동하고 true [GATE-01].
+ * 잠금 해제 쿠키가 화면을 연 채로 만료되면 API 가 이 코드로 막히는데, 로그인 만료로 다루면 로그인 화면도 막혀 있어 빠져나갈 수 없습니다.
+ */
+export function redirectIfGateLocked(error: ApiError): boolean {
+  if (error.code !== 'GATE_LOCKED') return false
+  gateNavigation.assign(`/__gate/?next=${encodeURIComponent(window.location.pathname + window.location.search)}`)
+  return true
+}
+
+/** 페이지 이동 (jsdom 은 location.assign 을 바꿀 수 없어 시험에서 가로챌 수 있게 둠) */
+export const gateNavigation = { assign: (url: string) => window.location.assign(url) }
+
 export function readCookie(name: string): string | null {
   const match = document.cookie.split('; ').find((c) => c.startsWith(`${name}=`))
   return match ? decodeURIComponent(match.slice(name.length + 1)) : null
@@ -114,6 +127,7 @@ export async function request<T>(path: string, options: RequestOptions = {}, ret
       await ensureCsrf(true)
       return request<T>(path, options, true)
     }
+    if (redirectIfGateLocked(error)) throw error
     if (res.status === 401 && !options.quiet401) {
       notifyUnauthorized()
     }

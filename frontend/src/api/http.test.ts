@@ -1,5 +1,5 @@
 import { CLIENT_ID } from './clientId'
-import { ApiError, onUnauthorized, request } from './http'
+import { ApiError, gateNavigation, onUnauthorized, request } from './http'
 
 function mockFetch(responses: Array<{ status: number; body?: unknown }>) {
   const calls: RequestInit[] = []
@@ -74,6 +74,22 @@ describe('request', () => {
     await request('/api/a').catch(() => undefined)
     await request('/api/b', { quiet401: true }).catch(() => undefined)
     expect(handler).toHaveBeenCalledTimes(1)
+  })
+
+  it('[GATE-01] 접근 코드 잠금(GATE_LOCKED)이면 로그아웃 대신 지금 주소를 담아 잠금화면으로 이동한다', async () => {
+    const handler = vi.fn()
+    onUnauthorized(handler)
+    const assign = vi.spyOn(gateNavigation, 'assign').mockImplementation(() => undefined)
+    window.history.pushState({}, '', '/files/3/edit?v=2')
+    mockFetch([{ status: 401, body: { code: 'GATE_LOCKED', detail: '접근 코드가 필요합니다.' } }])
+
+    const err = (await request('/api/a').catch((e: unknown) => e)) as ApiError
+
+    expect(err.code).toBe('GATE_LOCKED')
+    expect(assign).toHaveBeenCalledWith('/__gate/?next=%2Ffiles%2F3%2Fedit%3Fv%3D2')
+    expect(handler).not.toHaveBeenCalled()
+    assign.mockRestore()
+    window.history.pushState({}, '', '/')
   })
 })
 
