@@ -90,6 +90,19 @@ class AccessGateFilterTest {
     }
 
     @Test
+    @DisplayName("[L-4] 상태 확인 경로처럼 보이지만 다른 곳을 가리키는 경로(.. · ; · 인코딩)는 잠금을 통과하지 못한다")
+    void healthLookalikePathsStayLocked() throws Exception {
+        for (String path : List.of("/actuator/health/../../api/auth/me", "/actuator/health/..;/..;/api/auth/me",
+                "/actuator/health/%2e%2e/%2e%2e/api/auth/me", "/actuator/health;x=1/../../api/auth/me", "/actuator/health//api")) {
+            Result r = send(api(path));
+            assertThat(r.passed).as(path).isFalse();
+            assertThat(r.res.getStatus()).as(path).isEqualTo(401);
+        }
+        assertThat(send(api("/actuator/health")).passed).isTrue();
+        assertThat(send(api("/actuator/health/liveness")).passed).isTrue();
+    }
+
+    @Test
     @DisplayName("[GATE-01] 상태 확인(health)과 잠금화면 스타일은 잠금 없이 열린다")
     void healthAndStylesheetAreOpen() throws Exception {
         Result health = send(api("/actuator/health/readiness"));
