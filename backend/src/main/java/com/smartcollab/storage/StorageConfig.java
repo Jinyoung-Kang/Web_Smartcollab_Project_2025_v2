@@ -18,11 +18,16 @@ public class StorageConfig {
             if (!StringUtils.hasText(storage.azureConnectionString())) {
                 throw new IllegalStateException("STORAGE_TYPE=azure 에는 AZURE_STORAGE_CONNECTION_STRING 이 필요합니다.");
             }
-            return new AzureBlobStorage(new BlobContainerClientBuilder()
-                    .connectionString(storage.azureConnectionString())
-                    .containerName(storage.azureContainer())
-                    .buildClient());
+            return azure(storage.azureConnectionString(), storage.azureContainer());
         }
         return new LocalBlobStorage(Path.of(storage.localRoot()));
+    }
+
+    /** Azure 저장소 — 시험도 이 메서드로 만들어 운영과 같은 클라이언트 설정을 씁니다. */
+    static AzureBlobStorage azure(String connectionString, String containerName) {
+        return new AzureBlobStorage(new BlobContainerClientBuilder()
+                .connectionString(connectionString)
+                .containerName(containerName)
+                .buildClient());
     }
 }
