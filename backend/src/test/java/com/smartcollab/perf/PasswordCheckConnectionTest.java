@@ -71,6 +71,18 @@ class PasswordCheckConnectionTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("[L-1] 탈퇴의 비밀번호 확인도 비교하는 동안 DB 커넥션을 쥐지 않는다")
+    void accountDeletionCheckDoesNotHoldConnection() throws Exception {
+        Api.Session user = api().signUp("l1delete");
+        encoder.reset();
+        user.postJson("/api/users/me/delete", Map.of("password", "wrong-password-1")).andExpect(status().isForbidden());
+
+        assertThat(encoder.checks()).isPositive();
+        assertThat(encoder.holdingAtCheck()).isZero();
+        assertThat(encoder.maxActiveAtCheck()).isZero();
+    }
+
+    @Test
     @DisplayName("[M-2] 가입은 비밀번호를 해시하는 동안 DB 커넥션을 쥐지 않는다")
     void signUpDoesNotHoldConnection() throws Exception {
         encoder.reset();
