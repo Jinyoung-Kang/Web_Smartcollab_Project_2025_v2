@@ -115,7 +115,10 @@ public class TeamService {
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public void respondToInvitation(Long invitationId, boolean accept, Long userId) {
-        // 초대 행을 먼저 잠가 같은 초대의 수락·거절을 줄 세웁니다. 잠그지 않으면 둘 다 "대기 중"으로 읽고 둘 다 성공해,
+        // 팀 행 → 초대 행 순서로 잠급니다. 팀 삭제가 같은 순서(팀 행을 먼저 잠근 뒤 초대를 지움)라, 초대 행을 먼저 잠그면 멤버·알림을 넣을 때의
+        // 팀 외래 키 확인과 서로 기다려 교착(1213)이 났습니다 [L-6 후속]. 팀이 지워졌으면 아래에서 "초대 없음"으로 끝납니다.
+        invitations.findTeamId(invitationId).ifPresent(this::lockTeam);
+        // 초대 행을 잠가 같은 초대의 수락·거절을 줄 세웁니다. 잠그지 않으면 둘 다 "대기 중"으로 읽고 둘 다 성공해,
         // 초대한 사람에게 수락·거절 알림이 모두 가고 나중에 커밋한 쪽의 상태만 남았습니다 [QA-05].
         invitations.lockById(invitationId);
         Invitation invitation = invitations.findDetailed(invitationId)
