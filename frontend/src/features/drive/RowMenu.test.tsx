@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import type { Item } from '@/api/types'
 import { RowMenu } from './RowMenu'
@@ -28,5 +29,27 @@ describe('RowMenu', () => {
 
     expect(latest).toHaveBeenCalledOnce()
     expect(first).not.toHaveBeenCalled()
+  })
+
+  it('[L-5] ESC 로 닫으면 메뉴를 연 … 단추로 초점을 돌려놓는다 (초점이 문서 처음으로 사라지지 않게)', () => {
+    function Harness() {
+      const [open, setOpen] = useState(false)
+      return (
+        <>
+          <button onClick={() => setOpen(true)}>행 메뉴</button>
+          {open && <RowMenu x={300} y={100} item={file} canEdit onClose={() => setOpen(false)} onAction={() => setOpen(false)} />}
+        </>
+      )
+    }
+    render(<Harness />)
+    const opener = screen.getByRole('button', { name: '행 메뉴' })
+    opener.focus()
+    fireEvent.click(opener)
+    expect(screen.getByRole('menuitem', { name: '미리보기' })).toHaveFocus()
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(opener).toHaveFocus()
   })
 })

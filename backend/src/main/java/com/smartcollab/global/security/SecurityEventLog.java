@@ -33,6 +33,14 @@ public final class SecurityEventLog {
         LOG.warn("security-event share-password-failed link={} ip={}", linkId, clientIp);
     }
 
+    public static void accountDeleteFailed(Long userId) {
+        LOG.warn("security-event account-delete-failed user={}", userId);
+    }
+
+    public static void accountDeleteRateLimited(Long userId) {
+        LOG.warn("security-event rate-limited scope=account-delete user={}", userId);
+    }
+
     /** @param codeName 맞힌 접근 코드의 이름(코드 원문이 아님) — 누가 열었는지 알 수 있게 [GATE-01] */
     public static void gateUnlocked(String codeName, String clientIp) {
         LOG.info("security-event gate-unlocked code={} ip={}", codeName, clientIp);

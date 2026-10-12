@@ -38,7 +38,7 @@ function InviteForm({ teamId, onClose }: { teamId: number; onClose: () => void }
     <form onSubmit={submit} className="grid gap-4">
       <label>
         <span className="label">아이디</span>
-        <input className="input" value={username} onChange={(e) => setUsername(e.target.value)} autoFocus />
+        <input className="input" value={username} onChange={(e) => setUsername(e.target.value)} data-autofocus />
       </label>
       {error && <p role="alert" className="-mt-2 text-sm text-red-600">{error}</p>}
       <div className="flex justify-end gap-2">

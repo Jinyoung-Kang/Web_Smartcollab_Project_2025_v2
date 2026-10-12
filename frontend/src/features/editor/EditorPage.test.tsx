@@ -1,6 +1,6 @@
 import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { configApi, fileApi } from '@/api/endpoints'
 import { ApiError } from '@/api/http'
@@ -15,13 +15,14 @@ const doc: TextContent = {
 
 let client: QueryClient
 
-function renderEditor(config: Partial<PublicConfig> = {}) {
-  vi.spyOn(fileApi, 'content').mockResolvedValue(doc)
+function renderEditor(config: Partial<PublicConfig> = {}, content: TextContent = doc) {
+  vi.spyOn(fileApi, 'content').mockResolvedValue(content)
   vi.spyOn(configApi, 'get').mockResolvedValue({ translationEnabled: false, ...config } as PublicConfig)
   const router = createMemoryRouter(
     [
       { path: '/files/:fileId/edit', element: <EditorPage /> },
       { path: '/drive/*', element: <p>드라이브 화면</p> },
+      { path: '/teams/:teamId/folders/:folderId', element: <p>팀 폴더 화면</p> },
     ],
     { initialEntries: ['/files/1/edit'] },
   )
@@ -73,6 +74,21 @@ describe('EditorPage — 저장하지 않은 변경 보호', () => {
 
     expect(await screen.findByText('드라이브 화면')).toBeInTheDocument()
     expect(screen.queryByText('저장하지 않은 변경이 있습니다')).not.toBeInTheDocument()
+  })
+})
+
+describe('EditorPage — 저장 단축키 [M-5]', () => {
+  it('바꾼 것이 없으면 Ctrl/⌘+S 로 저장하지 않는다 — 같은 내용의 새 버전이 생기면 기존 서명이 무효가 됨', async () => {
+    const save = vi.spyOn(fileApi, 'save').mockResolvedValue({ versionId: 2, updatedAt: '2026-09-27T00:01:00Z' } as never)
+    renderEditor()
+    await screen.findByDisplayValue('처음 내용')
+
+    await userEvent.keyboard('{Control>}s{/Control}')
+    expect(save).not.toHaveBeenCalled()
+
+    await userEvent.type(screen.getByDisplayValue('처음 내용'), ' 추가')
+    await userEvent.keyboard('{Control>}s{/Control}')
+    expect(save).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -199,5 +215,38 @@ describe('EditorPage — AI 요약·번역 [AI-01]', () => {
     expect(await screen.findByRole('button', { name: /핵심 문장/ })).toBeEnabled()
     expect(screen.queryByRole('button', { name: /AI 요약/ })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '번역' })).toBeDisabled()
+  })
+})
+
+describe('EditorPage — 창으로 돌아올 때', () => {
+  it('[L-5] 다른 창에 다녀와도 문서 전체를 다시 받지 않는다 — 편집기는 처음 받은 내용만 쓰는데 돌아올 때마다 내려받았음', async () => {
+    renderEditor()
+    await screen.findByLabelText('문서 내용')
+    expect(fileApi.content).toHaveBeenCalledTimes(1)
+
+    act(() => {
+      focusManager.setFocused(false)
+      focusManager.setFocused(true)
+    })
+    await act(() => new Promise((r) => setTimeout(r, 50)))
+
+    expect(fileApi.content).toHaveBeenCalledTimes(1)
+    focusManager.setFocused(undefined)
+  })
+})
+
+describe('EditorPage — 닫기 (리팩터링 전 동작 고정)', () => {
+  it('닫으면 문서가 있는 폴더 화면으로 돌아간다 — 내 드라이브·팀 스토리지', async () => {
+    const user = userEvent.setup()
+    const personal = renderEditor()
+    await user.click(await screen.findByRole('button', { name: '편집기 닫기' }))
+    expect(personal.state.location.pathname).toBe('/drive/5')
+  })
+
+  it('팀 문서는 팀 폴더 주소로 돌아간다', async () => {
+    const user = userEvent.setup()
+    const team = renderEditor({}, { ...doc, teamId: 3 })
+    await user.click(await screen.findByRole('button', { name: '편집기 닫기' }))
+    expect(team.state.location.pathname).toBe('/teams/3/folders/5')
   })
 })

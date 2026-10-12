@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * 실제 서버(랜덤 포트)에 WebSocket(STOMP)으로 접속해 인증·인가를 검증합니다.
@@ -227,6 +228,30 @@ class WebSocketSecurityTest extends IntegrationTest {
         Map<String, Object> pushed = inbox.poll(5, TimeUnit.SECONDS);
         assertThat(pushed).isNotNull();
         assertThat(pushed.get("type")).isEqualTo("TEAM_INVITE");
+    }
+
+    @Test
+    @DisplayName("[L-2] 탈퇴한 사용자의 열린 연결은 같은 아이디로 새로 가입한 사람의 알림을 받지 않는다")
+    void notificationIsRoutedByUserIdNotUsername() throws Exception {
+        Api.Session leader = api().signUp("wsl2");
+        Api.Session leaving = api().signUp("wsl2o");
+        long[] team = leader.createTeam("알림 대상 팀");
+
+        // 탈퇴한 계정의 연결은 다음 정리 주기(1분)까지 열려 있을 수 있습니다
+        StompSession oldWs = connect(leaving);
+        BlockingQueue<Map<String, Object>> oldInbox = subscribe(oldWs, "/user/queue/notifications");
+        Thread.sleep(300);
+        leaving.postJson("/api/users/me/delete", Map.of("password", Api.PASSWORD)).andExpect(status().isNoContent());
+        Api.Session newcomer = api().signUpAs(leaving.username, "새 사용자");
+        assertThat(newcomer.userId).isNotEqualTo(leaving.userId);
+
+        StompSession newWs = connect(newcomer);
+        BlockingQueue<Map<String, Object>> newInbox = subscribe(newWs, "/user/queue/notifications");
+        Thread.sleep(300);
+        leader.postJson("/api/teams/{t}/invitations", Map.of("username", newcomer.username), team[0]);
+
+        assertThat(newInbox.poll(5, TimeUnit.SECONDS)).isNotNull();
+        assertThat(oldInbox.poll(1, TimeUnit.SECONDS)).isNull();
     }
 
     @Test

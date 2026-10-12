@@ -3,11 +3,17 @@ package com.smartcollab.user;
 import com.smartcollab.event.DeletionEvents;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.error.ErrorCode;
+import com.smartcollab.global.security.SecurityEventLog;
+import com.smartcollab.global.security.SlidingWindowRateLimiter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
+
+import java.time.Duration;
 
 /**
  * 회원 탈퇴.
@@ -29,15 +35,30 @@ public class AccountService {
     private final PasswordEncoder passwordEncoder;
     private final ApplicationEventPublisher events;
     private final DemoAccounts demoAccounts;
+    private final SlidingWindowRateLimiter rateLimiter;
+    private final PlatformTransactionManager transactionManager;
 
-    @Transactional
+    static final int DELETE_ATTEMPTS = 5;
+    static final Duration DELETE_WINDOW = Duration.ofMinutes(10);
+
+    /**
+     * 회원 탈퇴. 비밀번호 비교(bcrypt, 수십~수백 ms)는 트랜잭션 밖에서 하고, 맞을 때만 지우는 트랜잭션을 엽니다 [L-1] —
+     * 로그인·가입·공유 비밀번호(M-2)와 같은 이유로, 틀린 비밀번호를 동시에 보내면 DB 커넥션 풀을 차지할 수 있었습니다.
+     * 훔친 세션으로 비밀번호를 대입하지 못하게 사용자당 10분에 5번까지 받고, 틀리면 보안 로그에 남깁니다.
+     */
     public void deleteAccount(Long userId, String password) {
+        if (!rateLimiter.tryAcquire("account-delete:" + userId, DELETE_ATTEMPTS, DELETE_WINDOW)) {
+            SecurityEventLog.accountDeleteRateLimited(userId);
+            throw new ApiException(ErrorCode.RATE_LIMITED, "비밀번호 확인 시도가 너무 많습니다. 10분 뒤 다시 시도하세요.");
+        }
         User user = users.findById(userId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
         demoAccounts.forbidIfDemo(user, "체험 계정은 탈퇴할 수 없습니다.");
         if (password == null || !passwordEncoder.matches(password, user.getPassword())) {
+            SecurityEventLog.accountDeleteFailed(userId);
             throw new ApiException(ErrorCode.FORBIDDEN, "비밀번호가 일치하지 않습니다.");
         }
-        purgeAccount(userId);
+        // 같은 객체 안의 호출이라 @Transactional 이 듣지 않으므로 직접 트랜잭션을 엽니다(기본 격리·시간 제한)
+        new TransactionTemplate(transactionManager).executeWithoutResult(status -> purgeAccount(userId));
     }
 
     /**

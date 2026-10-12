@@ -38,7 +38,7 @@ public class NotificationService {
         Invitation invitation = request.invitationId() == null ? null : entityManager.getReference(Invitation.class, request.invitationId());
         Team team = request.teamId() == null ? null : entityManager.getReference(Team.class, request.teamId());
         Notification saved = notifications.save(new Notification(recipient, request.type(), request.content(), invitation, team));
-        events.publishEvent(new ChangeEvents.UserNotified(recipient.getUsername(), NotificationResponse.from(saved)));
+        events.publishEvent(new ChangeEvents.UserNotified(recipient.getId(), NotificationResponse.from(saved)));
     }
 
     @Transactional(readOnly = true)

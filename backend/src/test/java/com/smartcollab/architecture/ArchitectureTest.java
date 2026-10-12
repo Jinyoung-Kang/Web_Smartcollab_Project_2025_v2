@@ -3,6 +3,7 @@ package com.smartcollab.architecture;
 import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
+import com.tngtech.archunit.core.domain.JavaField;
 import com.tngtech.archunit.core.domain.JavaMethod;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
@@ -15,10 +16,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.repository.Repository;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Controller;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.fields;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
@@ -122,6 +126,51 @@ class ArchitectureTest {
                         "org.springframework.web.bind..", "org.springframework.web.servlet..")
                 .orShould().dependOnClassesThat().areAssignableTo(ResponseEntity.class)
                 .check(CLASSES);
+    }
+
+    @Test
+    @DisplayName("[L-7] 요청·응답 DTO(…Dtos 안의 레코드, …Request·…Response)의 구성요소에 엔티티를 담지 않는다 (타입 인자 포함)")
+    void dtoComponentsAreNotEntities() {
+        // 컨트롤러 반환 타입만 보면 DTO 안에 엔티티를 넣어 그대로 직렬화하는 경로(비밀번호 해시 노출·지연 로딩 오류)를 놓칩니다
+        fields().that().areDeclaredInClassesThat(dto()).and().areNotStatic()
+                .should(notInvolveEntities("hold an @Entity, even as a type argument"))
+                .check(CLASSES);
+    }
+
+    @Test
+    @DisplayName("[L-7] 요청 본문(@RequestBody·STOMP @Payload)으로 엔티티를 받지 않는다 (요청 값이 엔티티 필드에 그대로 묶이는 것 방지)")
+    void requestBodiesAreNotEntities() {
+        methods().that().areDeclaredInClassesThat().areMetaAnnotatedWith(Controller.class)
+                .should(new ArchCondition<JavaMethod>("not bind a request body to an @Entity") {
+                    @Override
+                    public void check(JavaMethod method, ConditionEvents events) {
+                        method.getParameters().stream()
+                                .filter(p -> p.isAnnotatedWith(RequestBody.class) || p.isAnnotatedWith(Payload.class))
+                                .flatMap(p -> p.getType().getAllInvolvedRawTypes().stream())
+                                .filter(type -> type.isAnnotatedWith(Entity.class))
+                                .forEach(entity -> events.add(SimpleConditionEvent.violated(method,
+                                        method.getFullName() + " binds request body to entity " + entity.getName())));
+                    }
+                })
+                .check(CLASSES);
+    }
+
+    private static DescribedPredicate<JavaClass> dto() {
+        return DescribedPredicate.describe("request/response DTOs", c -> c.isRecord() && (
+                c.getSimpleName().endsWith("Request") || c.getSimpleName().endsWith("Response")
+                        || c.getEnclosingClass().map(outer -> outer.getSimpleName().endsWith("Dtos")).orElse(false)));
+    }
+
+    private static ArchCondition<JavaField> notInvolveEntities(String description) {
+        return new ArchCondition<>("not " + description) {
+            @Override
+            public void check(JavaField field, ConditionEvents events) {
+                field.getType().getAllInvolvedRawTypes().stream()
+                        .filter(type -> type.isAnnotatedWith(Entity.class))
+                        .forEach(entity -> events.add(SimpleConditionEvent.violated(field,
+                                field.getFullName() + " holds entity " + entity.getName())));
+            }
+        };
     }
 
     /** 컨트롤러 안에 둔 요청·응답 레코드 */

@@ -1,9 +1,11 @@
 package com.smartcollab.realtime;
 
 import com.smartcollab.event.ChangeEvents;
+import com.smartcollab.global.security.JwtTokenService;
 import com.smartcollab.global.web.RequestOrigin;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -42,8 +44,14 @@ public class RealtimePublisher {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("type", "FOLDER_CHANGED");
         payload.put("folderId", event.folderId());
-        // 이 변경을 일으킨 탭의 ID — 그 탭은 자기 변경으로 목록을 다시 불러오지 않습니다 [IMP-03]
-        RequestOrigin.current().ifPresent(origin -> payload.put("origin", origin));
+        // 이 변경을 일으킨 탭의 ID — 그 탭은 자기 변경으로 목록을 다시 불러오지 않습니다 [IMP-03].
+        // 탭 ID 는 요청자가 정하는 값이라 요청한 사용자 ID 와 함께 싣고, 화면은 둘 다 자기 것일 때만 건너뜁니다 —
+        // 탭 ID 만 실으면 다른 팀원이 이벤트로 본 남의 탭 ID 를 보내 그 탭의 목록 갱신을 막을 수 있었습니다 [L-3]
+        Long requester = JwtTokenService.userIdOf(SecurityContextHolder.getContext().getAuthentication());
+        RequestOrigin.current().filter(origin -> requester != null).ifPresent(origin -> {
+            payload.put("origin", origin);
+            payload.put("originUserId", requester);
+        });
         messaging.convertAndSend(eventsTopic(event.teamId()), (Object) payload);
     }
 
@@ -55,7 +63,7 @@ public class RealtimePublisher {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void on(ChangeEvents.UserNotified event) {
-        messaging.convertAndSendToUser(event.username(), "/queue/notifications", event.payload());
+        messaging.convertAndSendToUser(String.valueOf(event.userId()), "/queue/notifications", event.payload());
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)

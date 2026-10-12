@@ -102,6 +102,33 @@ describe('DrivePage — 팀 패널', () => {
   })
 })
 
+describe('DrivePage — 다시 받기 실패 [M-6]', () => {
+  it('목록을 받은 뒤의 다시 받기가 실패하면 목록과 팀 패널을 그대로 두고 띠로 알린다 (입력 중이던 채팅 보존)', async () => {
+    renderDrive(true)
+    expect(await screen.findByRole('button', { name: '회의록' })).toBeInTheDocument()
+    expect(panel.mounts).toBe(1)
+
+    vi.mocked(folderApi.contents).mockRejectedValue(new ApiError(0, 'NETWORK', '서버에 연결할 수 없습니다. 네트워크를 확인하세요.'))
+    await act(() => client.invalidateQueries())
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('서버에 연결할 수 없습니다')
+    expect(screen.getByRole('button', { name: '회의록' })).toBeInTheDocument()
+    expect(screen.queryByText('폴더를 불러오지 못했습니다')).not.toBeInTheDocument()
+    expect(panel.mounts).toBe(1)
+  })
+
+  it('[M-6 후속] 다시 받기가 404(지워졌거나 권한이 사라짐)면 옛 목록·옛 권한 대신 "찾을 수 없음"을 보인다', async () => {
+    renderDrive(true)
+    expect(await screen.findByRole('button', { name: '회의록' })).toBeInTheDocument()
+
+    vi.mocked(folderApi.contents).mockRejectedValue(new ApiError(404, 'NOT_FOUND', '폴더를 찾을 수 없습니다.'))
+    await act(() => client.invalidateQueries())
+
+    expect(await screen.findByRole('heading', { name: '폴더를 찾을 수 없습니다' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '회의록' })).not.toBeInTheDocument()
+  })
+})
+
 describe('DrivePage — 변경 뒤 다시 불러오기', () => {
   it('[5단계] 지운 뒤 휴지통 목록도 바로 다시 불러온다 (이전: 캐시 유효 시간 30초 동안 옛 목록)', async () => {
     vi.spyOn(itemApi, 'remove').mockResolvedValue({ trashedFiles: 0, trashedFolders: 1 })
@@ -203,11 +230,11 @@ describe('DrivePage — 폴더 목록 나눠 받기 [IMP-02]', () => {
   it('처음에는 이름 오름차순으로 첫 묶음을 요청하고, 정렬을 바꾸면 그 정렬로 서버에 다시 요청한다', async () => {
     renderDrive(true)
     await screen.findByRole('button', { name: '회의록' })
-    expect(folderApi.contents).toHaveBeenCalledWith(10, expect.objectContaining({ sort: 'name', order: 'asc' }))
+    expect(folderApi.contents).toHaveBeenCalledWith(10, expect.objectContaining({ sort: 'name', order: 'asc' }), expect.any(AbortSignal))
 
     await userEvent.click(screen.getByRole('button', { name: /크기/ }))
     await vi.waitFor(() =>
-      expect(folderApi.contents).toHaveBeenCalledWith(10, expect.objectContaining({ sort: 'size', order: 'asc' })))
+      expect(folderApi.contents).toHaveBeenCalledWith(10, expect.objectContaining({ sort: 'size', order: 'asc' }), expect.any(AbortSignal)))
   })
 })
 

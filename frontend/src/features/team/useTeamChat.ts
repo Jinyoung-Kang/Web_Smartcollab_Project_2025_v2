@@ -8,7 +8,7 @@ import type { ChatMessage } from '@/api/types'
 import { usePublicConfig } from '@/auth/AuthProvider'
 import { useConfirm } from '@/components/ui/Confirm'
 import { useToast } from '@/components/ui/Toast'
-import { appendChatMessage } from '@/realtime/TeamActivity'
+import { appendChatMessage } from '@/realtime/teamEvents'
 import { validateUpload } from '@/features/drive/validateUpload'
 
 /**

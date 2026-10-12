@@ -2,16 +2,17 @@
 
 | 층 | 도구 | 개수 | 실행 |
 |---|---|---:|---|
-| 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 357 | `cd backend && ./gradlew test` |
-| 프론트엔드 단위·컴포넌트 | Vitest · Testing Library · jsdom | 140 | `cd frontend && npm test` |
-| E2E (전체 스택) | Playwright · Docker Compose · axe-core | 14 (시나리오 10 + 접근성 3·탭 제목 1) | `docker compose up -d --wait && cd e2e && npx playwright test` |
+| 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 379 | `cd backend && ./gradlew test` |
+| 백엔드 — CPU 1개 JVM | 같은 도구, `-XX:ActiveProcessorCount=1`(운영 App Service B1 과 같은 조건) · HTTPS Azurite | 2 | `cd backend && ./gradlew singleCarrierTest` (`check` 에 포함) |
+| 프론트엔드 단위·컴포넌트 | Vitest · Testing Library · jsdom | 178 | `cd frontend && npm test` |
+| E2E (전체 스택) | Playwright · Docker Compose · axe-core | 16 (시나리오 10 + 대화상자 초점 2 + 접근성 3·탭 제목 1) | `docker compose up -d --wait && cd e2e && npx playwright test` |
 
-백엔드 라인 커버리지 **92.5%**, 분기 커버리지 **80.5%** (JaCoCo, `backend/build/reports/jacoco/test/html`).
+백엔드 라인 커버리지 **92.1%**, 분기 커버리지 **79.7%** (JaCoCo, `backend/build/reports/jacoco/test/html`).
 
 ## 원칙
 
 - **H2 대신 실제 MySQL** 로 통합 테스트합니다. 재귀 CTE·`ON DELETE SET NULL`·조건부 UPDATE 처럼 DB 동작에 기대는 로직이 많아, 운영과 다른 DB 로 테스트하면 통과해도 믿을 수 없기 때문입니다.
-- 테스트마다 무작위 사용자 이름을 써서 데이터를 분리하고, 컨테이너와 Spring 컨텍스트는 한 번만 띄웁니다(전체 357건, `./gradlew test` 약 2분 30초). 테스트 JVM 은 운영 컨테이너·CI 와 같은 UTC 로 실행합니다.
+- 테스트마다 무작위 사용자 이름을 써서 데이터를 분리하고, 컨테이너와 Spring 컨텍스트는 한 번만 띄웁니다(전체 379건, `./gradlew clean build` 는 CPU 1개 시험·커버리지 포함 4분 47초 — 5차 점검 측정). 테스트 JVM 은 운영 컨테이너·CI 와 같은 UTC 로 실행합니다.
 - v1 에서 찾은 결함마다 이름에 `[v1 …]` 을, 2026-09 코드 리뷰 항목에는 `[SEC-01]`·`[BUG-02]` 처럼 항목 ID 를 붙인 회귀 테스트가 있습니다 → [REFACTORING_REPORT.md](REFACTORING_REPORT.md), [REVIEW_2026-09.md](REVIEW_2026-09.md)
 - 인증은 실제 브라우저처럼 HttpOnly 쿠키 + CSRF 토큰으로 요청합니다(`support/Api`). CSRF 는 Spring Security 의 `csrf()` 도우미 대신 같은 토큰을 쿠키·헤더로 보내는 `Api.xsrf()` 를 씁니다 — `csrf()` 는 공유 CSRF 필터의 저장소를 바꿔, 같은 컨텍스트의 실제 HTTP 시험이 실행 순서에 따라 실패했습니다.
 
@@ -28,6 +29,8 @@
 | `AuthFlowTest` | 쿠키·CSRF 인증 흐름, 요청 제한, 악센트 변형 아이디로 로그인 불가·긴 아이디 조기 거절 (S-02·S-03), 체험 계정 아이디로 가입 불가 (S-19) |
 | `FolderLimitsTest` · `FolderConcurrencyTest` · `FileContentConcurrencyTest` | 폴더 깊이 50단계·복사 폴더 1,000개·중복 항목 (S-04·S-05) / 다른 트랜잭션이 잠금을 쥔 채 기다리는 동안 요청을 보내(`support/TransactionRace`) 경합을 결정적으로 재현 — 휴지통 표시 유실·순환 이동·휴지통 폴더 아래 생성 (S-06), 저장·복원과 겹친 서명 (S-17), 복사 중 대상이 깊은 곳으로 옮겨지면 잠근 뒤 깊이 재확인 / `TrashConcurrencyTest`: 휴지통 비우기·자동 비우기와 겹친 파일 복원 (독립 검토) |
 | `AccountDeletionTest` | 복잡한 이력이 있는 사용자의 탈퇴와 팀 자료 이관 |
+| `SingleCarrierDownloadTest` (`singleCarrierTest` 작업) | CPU 1개 JVM + HTTPS Azurite 에서 32MB 업로드·내려받기 동안 상태 확인이 응답하고, 커밋 뒤 저장소 삭제가 끝남 — 가상 스레드를 켜면 서버 전체가 멈추던 문제 (C-1, ADR-0014) |
+| `DeletionUploadRaceTest` · `TeamDeletionInvitationRaceTest` | 팀 삭제와 겹친 업로드·초대 수락이 FK 오류·교착 없이 끝남, 업로드와 겹친 탈퇴는 409 로 깨끗이 거절(알려진 한계) (L-6) |
 | `QueryCountBenchmarkTest` · `DownloadMemoryBenchmarkTest` · `StorageConnectionBenchmarkTest` | 성능 측정값 산출 ([PERFORMANCE.md](PERFORMANCE.md)). 마지막은 업로드·복사·텍스트 저장·읽기·커밋 뒤 삭제가 저장소 입출력 중 DB 커넥션을 붙잡지 않는지 검증 (PERF-01·P-01~P-03) |
 | `CsrfEndpointTest` | 실제 서버에서 CSRF 발급 토큰이 헤더로 쓸 수 있는 값인지, 로그인한 요청이 토큰을 바꾸지 않는지 (BUG-07·08) |
 | `ClientIpRateLimitTest` | 실제 Tomcat 에 X-Forwarded-For 를 위조해 보내도 프록시가 덧붙인 IP 로 제한되는지 (SEC-01) |

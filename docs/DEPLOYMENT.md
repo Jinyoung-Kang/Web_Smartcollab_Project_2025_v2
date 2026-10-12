@@ -123,6 +123,11 @@ az webapp deploy -g <리소스그룹> -n <앱이름> --src-path backend/build/li
 - 기동 대기 한도를 늘리세요: `az webapp config appsettings set ... --settings WEBSITES_CONTAINER_START_TIME_LIMIT=600`. 기본값 230초 안에
   준비되지 않으면 App Service 가 기동을 실패로 보고 다시 띄웁니다. B1(1코어)에서 기동이 129~210초(프로세스 기준 최대 236초) 걸렸고,
   기동 때 DB 연결 재시도(`DB_CONNECT_RETRIES`)가 최대 약 1분을 더할 수 있습니다 [DEP-02]
+- 1코어 플랜(B1 등)에서 가상 스레드를 켜지 마세요(`SPRING_THREADS_VIRTUAL_ENABLED` 를 두지 않으면 꺼짐). JVM 이 CPU 를 1개로 보면 가상 스레드의
+  운반 스레드도 1개라, Java 21 에서는 큰 파일 한 건을 내려받는 동안 서버 전체가 멈췄습니다([ADR-0014](adr/0014-platform-threads-on-java21.md), C-1).
+  기동 로그의 `JVM runtime: availableProcessors=… maxHeap=… virtualThreads=…` 한 줄로 확인할 수 있습니다.
+- 파일 저장소(Blob) 호출은 시도당 30초·3회까지 기다리고, 그래도 응답이 없으면 503(`Retry-After: 5`)으로 답합니다(최악 약 95초로 App Service 앞단
+  230초 제한 안). 업로드는 4MB 블록 단위라 업로드 한 건이 쓰는 메모리가 파일 크기와 상관없습니다 [M-3·H-1].
 - 인스턴스는 1개로 운영하세요. 실시간 브로커·요청 제한·탈퇴 계정 거절 목록이 인메모리입니다([ARCHITECTURE.md §7](ARCHITECTURE.md#7-한계와-확장-방안)).
 
 ### 3.3 v2 를 이미 배포했다면

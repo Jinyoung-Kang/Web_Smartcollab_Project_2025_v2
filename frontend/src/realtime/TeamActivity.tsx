@@ -1,14 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { useQuery, useQueryClient, type InfiniteData, type QueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useLocation, useNavigate } from 'react-router'
 import { teamApi } from '@/api/endpoints'
-import type { AppNotification, ChatMessage, ChatPage } from '@/api/types'
+import type { AppNotification, ChatMessage } from '@/api/types'
 import { useMe } from '@/auth/AuthProvider'
 import { useToast } from '@/components/ui/Toast'
 import { useOnReconnect } from '@/lib/useOnReconnect'
 import { useRealtime, useSubscription } from './RealtimeProvider'
 import { queryKeys } from '@/api/queryKeys'
-import { applyNotification, applyTeamEvent, shouldMarkUnread, type TeamEvent } from './teamEvents'
+import { appendChatMessage, applyNotification, applyReconnect, applyTeamEvent, shouldMarkUnread, type TeamEvent } from './teamEvents'
 
 interface TeamActivityApi {
   unread: ReadonlySet<number>
@@ -21,15 +21,6 @@ const Ctx = createContext<TeamActivityApi | null>(null)
 /** 현재 주소가 그 팀의 화면인지 (/teams/1 은 /teams/12 와 구분) */
 export function isTeamPath(pathname: string, teamId: number): boolean {
   return pathname === `/teams/${teamId}` || pathname.startsWith(`/teams/${teamId}/`)
-}
-
-export function appendChatMessage(qc: QueryClient, teamId: number, msg: ChatMessage) {
-  qc.setQueryData<InfiniteData<ChatPage, number | undefined>>(queryKeys.chat.of(teamId), (data) => {
-    if (!data || data.pages.length === 0) return data
-    const [latest, ...older] = data.pages
-    if (!latest || latest.messages.some((m) => m.id === msg.id)) return data
-    return { ...data, pages: [{ ...latest, messages: [...latest.messages, msg] }, ...older] }
-  })
 }
 
 /**
@@ -65,23 +56,16 @@ export function TeamActivityProvider({ children }: { children: ReactNode }) {
         }
       }),
       subscribe(`/topic/teams/${teamId}/events`, (payload) => {
-        if (applyTeamEvent(qc, teamId, payload as TeamEvent) === 'team-deleted' && isTeamPath(pathRef.current, teamId)) {
+        if (applyTeamEvent(qc, teamId, payload as TeamEvent, me.id) === 'team-deleted' && isTeamPath(pathRef.current, teamId)) {
           toast.info('보고 있던 팀이 삭제되었습니다.')
           navigate('/drive', { replace: true })
         }
       }),
     ])
     return () => unsubs.forEach((u) => u())
-  }, [teamIds, subscribe, qc, me.username, toast, navigate])
+  }, [teamIds, subscribe, qc, me.username, me.id, toast, navigate])
 
-  // 끊긴 동안 팀에서 제외됐을 수 있으므로 재연결하면 팀 목록을 다시 받아 구독을 맞춥니다.
-  // (제외된 팀 토픽을 다시 구독하면 서버가 거절하며 연결을 닫습니다)
-  // 채팅·알림은 실시간으로만 갱신되므로(채팅 캐시는 만료 없음) 끊긴 동안 온 것을 다시 받습니다 [FB-05].
-  useOnReconnect(connected, () => {
-    void qc.invalidateQueries({ queryKey: queryKeys.teams })
-    void qc.invalidateQueries({ queryKey: queryKeys.chat.all })
-    void qc.invalidateQueries({ queryKey: queryKeys.notifications })
-  })
+  useOnReconnect(connected, () => applyReconnect(qc))
 
   useSubscription('/user/queue/notifications', (payload) => {
     const n = payload as AppNotification

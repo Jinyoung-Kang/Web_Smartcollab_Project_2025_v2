@@ -1,0 +1,20 @@
+# 5차 점검 브랜치 배포 뒤 운영 점검 — App Service Linux B1(Java SE 21, jar 배포) · Blob Storage, Korea Central
+# 배포: az webapp deploy 11:03:29 → 11:06:58 UTC, 기동 142.1초
+# 임시 앱 설정 SPRING_THREADS_VIRTUAL_ENABLED 삭제(11:07:19 UTC) → 다시 기동 166.8초(11:11:06 UTC)
+
+## 기동 로그 (RuntimeReport)
+JVM runtime: availableProcessors=1, maxHeap=989MB, virtualThreads=false     # 앱 설정을 지운 뒤에도(코드 기본값) 꺼짐
+
+## 큰 파일 (체험 계정, 시험 파일은 끝에 영구 삭제 — scratchpad 스크립트 prod_big_download.py, 커밋하지 않음)
+upload 30MB -> 201 in 11.6s
+download conc=1: 200 5640ms same=True
+download conc=2: 200 6556ms same=True, 200 6049ms same=True
+health n=19 p50=167ms max=257ms
+cleanup: 204 204
+
+## 접근 코드 잠금의 상태 확인 예외 (쿠키 없이, curl --path-as-is)
+/actuator/health/readiness               200
+/actuator/health/liveness                200
+/actuator/health/../../api/auth/me       401 GATE_LOCKED
+/actuator/health/..;/..;/api/auth/me     401 GATE_LOCKED
+/api/auth/me                             401 GATE_LOCKED

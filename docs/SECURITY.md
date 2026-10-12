@@ -7,7 +7,8 @@
 | 다른 사용자의 파일·팀 데이터 접근 (IDOR) | 모든 파일·폴더·팀 요청을 `AccessPolicy` 로 판단. 읽을 수 없으면 404 로 존재 여부도 숨김. 서비스에 흩어져 있던 팀 휴지통·초대·서명·채팅 파일 공유 규칙도 여기로 모음(A-06) | `access/AccessPolicy` |
 | 토큰 탈취 (XSS)·스타일 주입 | JWT 를 HttpOnly 쿠키에 보관(자바스크립트로 읽을 수 없음), CSP `script-src 'self'`·`style-src 'self'`(인라인 스타일도 금지, E2E 가 모든 화면의 CSP 위반을 감시) | `AuthCookies`, `SecurityConfig.CSP`, `e2e/tests/fixtures.ts` |
 | CSRF | 쿠키 `SameSite=Strict` + SPA CSRF 토큰(`XSRF-TOKEN` → `X-XSRF-TOKEN`). 토큰은 로그인·로그아웃 때만 교체(요청마다 교체하면 요청이 겹칠 때 어긋남) | `SecurityConfig`, `AuthCookies.clearCsrf` |
-| WebSocket 도청·사칭 (CSWSH 포함) | 핸드셰이크 쿠키 인증 + 출처 검사, 구독마다 팀 멤버 확인, 보낸 사람은 Principal | `StompAuthorizationInterceptor` |
+| WebSocket 도청·사칭 (CSWSH 포함) | 핸드셰이크 쿠키 인증 + 출처 검사, 구독마다 팀 멤버 확인, 보낸 사람은 Principal. 개인 알림 목적지(`/user/queue/…`)는 아이디가 아니라 사용자 ID 로 정함 — 아이디는 탈퇴 뒤 다시 쓸 수 있어, 탈퇴한 사용자의 열린 연결이 같은 아이디로 새로 가입한 사람의 알림을 받았음 [L-2] | `StompAuthorizationInterceptor`, `SecurityConfig`, `RealtimePublisher` |
+| 다른 팀원의 화면 갱신 방해 | 폴더 변경 이벤트의 탭 ID(`X-Client-Id`)는 요청자가 정하는 값이라 요청한 사용자 ID 와 함께 싣고, 화면은 둘 다 자기 것일 때만 갱신을 건너뜀 — 탭 ID 만 보면 팀원이 이벤트로 본 남의 탭 ID 를 보내 그 탭의 목록 갱신을 막을 수 있었음 [L-3] | `RealtimePublisher`, `teamEvents.ts` |
 | WebSocket 구독 폭주 | 한 연결에서 같은 목적지를 다시 구독하면 DB 조회 전에 거절, 연결당 구독 500개. 거절하면 ERROR 프레임 뒤 연결을 닫음 [S-11] | `StompAuthorizationInterceptor` |
 | 권한이 사라진 뒤의 WebSocket 수신 | 팀에서 제외·나가기·탈퇴가 커밋되면 그 사용자의 열린 팀 구독을 브로커에서 해제. 로그인(JWT)이 만료된 세션과 탈퇴한 계정의 세션은 1분 안에 닫고, 만료 후의 SUBSCRIBE·SEND 는 거절 | `TeamSubscriptionTracker`, `WebSocketSessionExpiry` |
 | 탈퇴한 계정의 남은 토큰 | 탈퇴가 커밋되면 그 사용자 ID 를 토큰 만료 시간(8시간) 동안 거절 목록에 두고, 쿠키·Bearer 토큰 검증에서 401 로 거절. 이전에는 `/api/auth/me` 만 401 이고 다른 API 는 빈 데이터·404 를 돌려줘, 다른 기기의 화면이 로그인 화면으로 돌아가지 않았음 [QA-07] | `RevokedUsers`, `JwtTokenService.decoder` |
@@ -20,11 +21,11 @@
 | 문서 내용의 외부 전송 | AI 키가 있으면 요약·번역할 문서(본문)가 Anthropic(Claude API)으로 전송됨. 화면의 단추 설명과 결과 패널에 알리고, 원하지 않는 배포는 `ANTHROPIC_API_KEY` 를 비워 둠(추출 요약·DeepL 경로). 권한 확인이 먼저라 볼 수 없는 문서는 보내지 않음. 서버 로그에는 작업·파일 ID·토큰 수만 남기고 내용은 남기지 않음 | `DocumentToolsService`, `DocumentTools.tsx` |
 | Word(docx) 파일로 서버 공격 | 본문 XML 만 읽고 DTD·외부 엔티티를 거절(XXE), 건너뛴 항목까지 합친 풀어낸 크기 20MB 상한(압축 폭탄), 뽑은 본문은 편집기 한도(2MB)에서 멈추고 413 — 예전에는 수 KB 파일 하나로 512MB 힙이 OOM [AI-02, H-1] | `DocxText` |
 | 공개 가입·업로드 남용 (저장 비용) | 저장 공간 한도(개인 1GB·팀 5GB, 옛 버전·휴지통 포함 실제 저장량 기준, 저장 직전 행 잠금 + 최신 커밋 데이터로 확인), 가입은 IP 당 시간당 5회. 팀마다 한도를 받으므로 한 사람이 팀장인 팀은 10개까지 [S-10] | `StorageQuota`, `AuthService.signUp`, `TeamService.create` |
-| 모르는 방문자의 자원·요금 사용 (공개 데모) | 접근 코드 잠금을 켜면(`GATE_CODES`) 코드를 맞힌 브라우저만 화면·API·WebSocket 에 닿습니다. 코드는 scrypt 해시로만 두고, 맞히면 HMAC 서명 쿠키(`__Host-`, HttpOnly·Secure·SameSite=Lax, 12시간). 틀린 시도는 IP 당 15분 5회·전체 1시간 30회로 잠그고, 잠금 해제 요청은 같은 출처만 받으며 다음 주소는 같은 사이트 경로만 [GATE-01, ADR-0013] | `AccessGateFilter`, `AccessCodes`, `GateLimiter` |
+| 모르는 방문자의 자원·요금 사용 (공개 데모) | 접근 코드 잠금을 켜면(`GATE_CODES`) 코드를 맞힌 브라우저만 화면·API·WebSocket 에 닿습니다. 코드는 scrypt 해시로만 두고, 맞히면 HMAC 서명 쿠키(`__Host-`, HttpOnly·Secure·SameSite=Lax, 12시간). 틀린 시도는 IP 당 15분 5회·전체 1시간 30회로 잠그고, 잠금 해제 요청은 같은 출처만 받으며 다음 주소는 같은 사이트 경로만 [GATE-01, ADR-0013]. 시도는 해시를 계산하기 전에 실패로 먼저 세고(맞으면 되돌림) IP 마다 진행 중인 시도는 1건만 받음 — 동시에 보내 IP 당 5회를 넘기거나 IP 하나로 전체 잠금을 걸 수 있었음 [M-1]. 잠금 없이 여는 상태 확인은 `/actuator/health` 와 그 아래 이름 조각 경로만(`..`·`;`·인코딩으로 다른 곳을 가리키는 경로는 잠금) [L-4] | `AccessGateFilter`, `AccessCodes`, `GateLimiter` |
 | 공개 체험 계정 훼손 (데모 모드) | 체험 계정은 탈퇴·팀 삭제·팀장 위임·팀 나가기·체험 계정 내보내기 불가, 체험 한도 50MB, 매일 05:00(Asia/Seoul) 체험 데이터 초기화. 체험 계정은 새 팀을 만들 수 없고 [S-10], 다른 팀장이 체험 계정에게 팀장을 넘길 수도 없음(넘기면 공개 비밀번호로 누구나 팀을 지울 수 있었음) [H-3], 체험 계정 아이디(`demo1~3`)는 데모 모드와 상관없이 가입에 쓸 수 없음 [S-19]. 체험 비밀번호는 공개 설정 API 로 안내되므로 데모 모드는 체험 전용 배포에서만 켜세요 | `DemoAccounts`, `DemoDataSeeder.reset` |
 | 요청 제한 우회(IP 위조) | 클라이언트 IP 는 Tomcat RemoteIpValve 가 X-Forwarded-For 를 **오른쪽부터** 읽어 신뢰할 프록시를 건너뛴 첫 주소로 정하고, 포트는 뗍니다. 클라이언트가 헤더 앞쪽에 넣은 값은 쓰이지 않습니다 | `server.forward-headers-strategy: native`, `ClientIp` |
 | 계정 존재 여부 추측 (타이밍) | 없는 아이디도 BCrypt 비교를 수행 | `AuthService.authenticate` |
-| 로그인·공유 비밀번호 시도 폭주로 DB 커넥션 고갈 | BCrypt 비교(수십 ms)를 트랜잭션 밖에서 해 커넥션을 잡지 않음 — 예전에는 동시 로그인 20건이 풀(10) 을 모두 잡아 다른 요청이 대기 [M-2] | `AuthService`, `ShareService.unlock` |
+| 로그인·공유 비밀번호 시도 폭주로 DB 커넥션 고갈 | BCrypt 비교(수십 ms)를 트랜잭션 밖에서 해 커넥션을 잡지 않음 — 예전에는 동시 로그인 20건이 풀(10) 을 모두 잡아 다른 요청이 대기 [M-2]. 탈퇴의 비밀번호 확인도 같은 구조(트랜잭션 밖, 사용자당 10분 5회, 실패·제한을 보안 로그로) [L-1] | `AuthService`, `ShareService.unlock`, `AccountService.deleteAccount` |
 | 휴지통에 넣은 자료의 노출 | 휴지통에 있는 폴더와 그 안의 폴더·파일은 `AccessPolicy` 가 404 로 막아 다운로드·미리보기·편집·공유 링크(410)·채팅 공유·검색·트리에서 모두 사라짐. 복원·영구 삭제는 그 스토리지의 삭제 권한 필요 | `AccessPolicy`, `TrashService` |
 | 저장형 XSS (업로드한 HTML·SVG) | 이미지·PDF·텍스트만 inline, 텍스트는 `text/plain` 고정, 나머지는 `attachment` + `nosniff`. 파일 응답에는 앱 CSP 에 `sandbox` 를 더해 브라우저에서 열려도 스크립트 실행·앱 출처 접근 불가(PDF 미리보기는 내장 뷰어를 위해 제외) [S-13] | `FileResponses` |
 | 파일 이름으로 확장자 위장 | 글자 방향 제어·보이지 않는 문자(U+202E 등)는 업로드 이름에서 지우고 입력한 이름은 거절. 이모지 결합(ZWJ)·ZWNJ 는 허용 [S-12] | `FileNames` |
@@ -88,5 +89,7 @@ v1 은 브라우저에서 Babel 이 JSX 를 `eval` 해야 했고 스크립트를
   사용자 ID 는 다시 쓰이지 않아 다른 사람의 데이터에는 닿지 않습니다. 여러 인스턴스로 늘리면 요청 제한과 함께 공유 저장소로 옮겨야 합니다 [QA-07].
 - 요청 제한은 인스턴스별 인메모리입니다. 여러 인스턴스로 확장하면 Redis 등 공유 저장소가 필요합니다.
 - 업로드 파일의 악성코드 검사는 하지 않습니다(운영 시 Azure Defender for Storage 등 연동 권장).
+- 설정 record 의 `toString` 은 비밀값(JWT 키·저장소 연결 문자열·API 키·체험 비밀번호·접근 코드 해시·쿠키 서명 키)을 `****` 로 가립니다 [L-4]. 로그에 설정 객체를 통째로 남기지 않는 것이 원칙이고, 이것은 실수에 대비한 보강입니다.
+- 내 드라이브에 업로드가 진행 중인 바로 그 순간 탈퇴하면 탈퇴가 409 로 거절됩니다(아무것도 지워지지 않고, 다시 하면 지워짐). 탈퇴가 사용자 행을 먼저 잠그면 해결되지만, 같은 사용자의 팀 업로드와 교착(1213)이 생겨(실험으로 확인) 적용하지 않았습니다 [L-6].
 - 업로드 경로로 온 multipart 는 인증 전에 CSRF 필터가 본문 파라미터에서 토큰을 찾느라 업로드 한도까지 해석할 수 있습니다.
   보내는 쪽도 같은 양을 보내야 해 증폭은 없습니다. CSRF 토큰을 헤더로만 받게 바꾸는 것이 다음 단계입니다(테스트 지원도 함께 변경 필요).

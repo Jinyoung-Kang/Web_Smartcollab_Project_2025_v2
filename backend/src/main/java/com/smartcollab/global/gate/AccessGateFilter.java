@@ -26,6 +26,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 /**
  * 접근 코드 잠금 [GATE-01, ADR-0013]. 포트폴리오 데모를 코드를 받은 사람에게만 열어, 모르는 방문자가 가입·업로드·AI 요약으로
@@ -41,7 +42,11 @@ import java.util.concurrent.TimeUnit;
 public class AccessGateFilter extends OncePerRequestFilter {
 
     public static final String PREFIX = "/__gate";
-    static final String HEALTH = "/actuator/health";
+    /**
+     * 잠금 없이 여는 상태 확인 경로 — 이름 조각만 허용합니다 [L-4]. 요청 URI 는 정규화 전 값이라, 앞부분만 비교하면
+     * {@code /actuator/health/../../api/...} 처럼 다른 곳을 가리키는 경로도 통과했습니다(뒤의 보안 방화벽이 막았지만 한 겹에 기대지 않음).
+     */
+    static final Pattern HEALTH = Pattern.compile("/actuator/health(/[A-Za-z0-9-]+)*");
     static final int MAX_FORM_BYTES = 2048;
     static final int MAX_NEXT_CHARS = 2000;
     static final String PAGE_CSP = "default-src 'none'; style-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'";
@@ -100,7 +105,7 @@ public class AccessGateFilter extends OncePerRequestFilter {
             handleGate(path, request, response);
             return;
         }
-        if (path.equals(HEALTH) || path.startsWith(HEALTH + "/") || authorizedAs(request).isPresent()) {
+        if (HEALTH.matcher(path).matches() || authorizedAs(request).isPresent()) {
             chain.doFilter(request, response);
             return;
         }
@@ -156,37 +161,49 @@ public class AccessGateFilter extends OncePerRequestFilter {
         String code = Optional.ofNullable(request.getParameter("code")).orElse("");
         String ip = ClientIp.of(request);
 
-        Duration wait = limiter.blockedFor(ip);
-        if (!wait.isZero()) {
+        GateLimiter.Reservation attempt = limiter.reserve(ip);   // 계산 전에 시도를 세고, IP 당 진행 중 1건 [M-1]
+        if (attempt.rejected()) {
             SecurityEventLog.rateLimited("gate-unlock", ip);
-            long minutes = Math.max(1, Math.round(wait.toSeconds() / 60.0));
-            response.setHeader(HttpHeaders.RETRY_AFTER, String.valueOf(wait.toSeconds() + 1));
-            sendPage(request, response, 429, next, "시도가 너무 많습니다. 약 " + minutes + "분 뒤에 다시 시도하세요.");
+            Duration wait = attempt.retryAfter();
+            if (wait.isZero()) {   // 같은 IP 의 앞선 시도를 확인하는 중
+                response.setHeader(HttpHeaders.RETRY_AFTER, "1");
+                sendPage(request, response, 429, next, "앞선 시도를 확인하는 중입니다. 잠시 후 다시 시도하세요.");
+            } else {
+                long minutes = Math.max(1, Math.round(wait.toSeconds() / 60.0));
+                response.setHeader(HttpHeaders.RETRY_AFTER, String.valueOf(wait.toSeconds() + 1));
+                sendPage(request, response, 429, next, "시도가 너무 많습니다. 약 " + minutes + "분 뒤에 다시 시도하세요.");
+            }
             return;
         }
         Optional<String> matched;
         try {
             if (!hashing.tryAcquire(5, TimeUnit.SECONDS)) {
+                limiter.cancel(attempt);
                 sendPage(request, response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, next, "잠시 후 다시 시도하세요.");
                 return;
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            limiter.cancel(attempt);
             sendPage(request, response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, next, "잠시 후 다시 시도하세요.");
             return;
         }
         try {
             matched = codes.match(code);
+        } catch (RuntimeException | Error e) {
+            // 계산하지 못한 시도는 세지 않습니다. Error(메모리 부족 등)도 되돌려야 그 IP 가 "진행 중"으로 영영 남지 않습니다
+            limiter.cancel(attempt);
+            throw e;
         } finally {
             hashing.release();
         }
         if (matched.isEmpty()) {
-            limiter.recordFailure(ip);
+            limiter.failed(attempt);
             SecurityEventLog.gateUnlockFailed(ip);
             sendPage(request, response, HttpServletResponse.SC_UNAUTHORIZED, next, "접근 코드가 올바르지 않습니다.");
             return;
         }
-        limiter.recordSuccess(ip);
+        limiter.succeeded(attempt);
         SecurityEventLog.gateUnlocked(matched.get(), ip);
         String token = tokens.sign(matched.get(), clock.instant().plus(cookieTtl).getEpochSecond());
         redirect(request, response, next, cookie(token, cookieTtl));

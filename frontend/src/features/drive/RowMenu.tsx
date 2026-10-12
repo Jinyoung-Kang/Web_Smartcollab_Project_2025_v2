@@ -4,7 +4,7 @@ import { cn } from '@/lib/cn'
 
 export type RowAction = 'open' | 'rename' | 'move' | 'copy' | 'share' | 'versions' | 'delete'
 
-/** 목록 행의 … 버튼 메뉴 (ESC·바깥 클릭으로 닫힘, 열리면 첫 항목에 초점) */
+/** 목록 행의 … 버튼 메뉴 (ESC·바깥 클릭으로 닫힘, 열리면 첫 항목에 초점, 닫히면 연 단추로 초점을 돌려놓음) */
 export function RowMenu({ x, y, item, canEdit, onClose, onAction }: {
   x: number
   y: number
@@ -21,7 +21,9 @@ export function RowMenu({ x, y, item, canEdit, onClose, onAction }: {
   // 처음 열릴 때 한 번만 첫 항목에 초점을 둡니다. 부모가 매번 새 onClose 를 넘겨 이 효과가 다시 실행되면,
   // 화면이 다시 그려질 때마다(목록 갱신·실시간 알림) 사용자가 옮긴 초점을 첫 항목으로 빼앗았습니다 [FB-10].
   useEffect(() => {
-    ref.current?.querySelector<HTMLButtonElement>('button')?.focus()
+    const menu = ref.current
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    menu?.querySelector<HTMLButtonElement>('button')?.focus()
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && latestClose.current()
     const onDown = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && latestClose.current()
     document.addEventListener('keydown', onKey)
@@ -29,6 +31,10 @@ export function RowMenu({ x, y, item, canEdit, onClose, onAction }: {
     return () => {
       document.removeEventListener('keydown', onKey)
       document.removeEventListener('mousedown', onDown)
+      // 메뉴와 함께 초점이 사라졌으면(ESC·항목 선택) 메뉴를 연 단추로 돌려놓습니다 — 문서 처음으로 돌아가 키보드 사용자가
+      // 목록 위치를 잃었습니다 [L-5]. 바깥을 눌러 다른 곳으로 초점이 옮겨 갔으면 그대로 둡니다.
+      const active = document.activeElement
+      if (opener?.isConnected && (active === null || active === document.body || menu?.contains(active))) opener.focus()
     }
   }, [])
 

@@ -14,6 +14,7 @@ import { DocumentToolButtons, DocumentToolPanel } from './DocumentTools'
 import { useDocumentTools } from './useDocumentTools'
 import { useTextDocument } from './useTextDocument'
 import { useUnsavedChangesGuard } from './useUnsavedChangesGuard'
+import { folderPath } from '@/lib/paths'
 
 /**
  * 텍스트 편집기.
@@ -25,10 +26,13 @@ import { useUnsavedChangesGuard } from './useUnsavedChangesGuard'
  */
 export default function EditorPage() {
   const fileId = Number(useParams().fileId)
-  const content = useQuery({ queryKey: queryKeys.fileContent(fileId), queryFn: () => fileApi.content(fileId), staleTime: 0 })
+  // 편집기는 처음 받은 내용만 쓰므로 창으로 돌아올 때 문서 전체를 다시 받지 않습니다 [L-5]. 저장할 때 버전으로 서버와 맞춰 봅니다.
+  const content = useQuery({
+    queryKey: queryKeys.fileContent(fileId), queryFn: () => fileApi.content(fileId), staleTime: 0, refetchOnWindowFocus: false,
+  })
 
   // 처음 불러온 내용으로 편집을 시작합니다. 이후 서버 값이 바뀌어도 편집 중인 내용은 덮어쓰지 않습니다.
-  // 데이터가 있으면 오류보다 먼저 봅니다 — 창으로 돌아올 때 하는 새로고침이 실패해도(노트북을 열자마자 네트워크가
+  // 데이터가 있으면 오류보다 먼저 봅니다 — 다시 연결될 때 하는 새로고침이 실패해도(노트북을 열자마자 네트워크가
   // 없을 때 등) 편집 화면과 저장하지 않은 내용을 그대로 둡니다 [FB-02]. 저장할 때 다시 서버와 맞춰 봅니다.
   if (content.data) return <Editor key={fileId} fileId={fileId} initial={content.data} />
   if (content.error) {
@@ -49,7 +53,7 @@ function Editor({ fileId, initial }: { fileId: number; initial: TextContent }) {
   const [historyOpen, setHistoryOpen] = useState(false)
   useUnsavedChangesGuard(dirty)
 
-  const backTo = initial.teamId ? `/teams/${initial.teamId}/folders/${initial.folderId}` : `/drive/${initial.folderId}`
+  const backTo = folderPath(initial.folderId, initial.teamId)
   // 저장하지 않은 변경이 있으면 useUnsavedChangesGuard 가 이동 전에 확인을 받습니다.
   const close = () => navigate(backTo)
 

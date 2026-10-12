@@ -93,16 +93,30 @@ public class DemoDataSeeder {
             log.error("Demo data reset failed; will retry at the next scheduled reset", e);
             return;
         }
-        seed();
+        seedOrDiscard("reset");
     }
 
     /** 기동 때의 시드는 실패해도 앱 기동을 막지 않습니다 — 체험 데이터는 다음 초기화 때 다시 만듭니다 [L-3] */
     @EventListener(ApplicationReadyEvent.class)
     public void seedOnStartup() {
+        seedOrDiscard("startup");
+    }
+
+    /**
+     * 시드가 중간에 실패하면 일부만 만든 체험 계정을 지웁니다 [M-4]. 시드는 체험 계정 셋이 모두 있으면 건너뛰므로, 남겨 두면 다음 기동이
+     * 빠진 데이터를 만들지 않아 다음 초기화(매일 05:00)까지 체험 데이터가 일부만 있었습니다. 지우기도 실패하면 다음 초기화가 이어 받습니다.
+     * (프로세스가 시드 도중에 강제로 끝나면 이 정리도 돌지 못합니다 — 그때는 다음 초기화가 바로잡습니다.)
+     */
+    private void seedOrDiscard(String when) {
         try {
             seed();
         } catch (RuntimeException e) {
-            log.error("Demo data could not be created at startup; will retry at the next scheduled reset", e);
+            log.error("Demo data could not be created ({}); removing the partial demo accounts so the next seed starts over", when, e);
+            try {
+                purge(existingDemoUsers());
+            } catch (RuntimeException cleanup) {
+                log.error("Removing partial demo data failed; the next scheduled reset will retry", cleanup);
+            }
         }
     }
 

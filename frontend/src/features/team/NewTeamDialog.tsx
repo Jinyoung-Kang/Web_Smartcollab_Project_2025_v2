@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { useToast } from '@/components/ui/Toast'
 import { queryKeys } from '@/api/queryKeys'
+import { folderPath } from '@/lib/paths'
 
 export function NewTeamDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [name, setName] = useState('')
@@ -19,7 +20,7 @@ export function NewTeamDialog({ open, onClose }: { open: boolean; onClose: () =>
       toast.success(`'${team.name}' 팀을 만들었습니다.`)
       setName('')
       onClose()
-      navigate(`/teams/${team.id}/folders/${team.rootFolderId}`)
+      navigate(folderPath(team.rootFolderId, team.id))
     },
     onError: (e: Error) => toast.error(e.message),
   })
@@ -34,7 +35,7 @@ export function NewTeamDialog({ open, onClose }: { open: boolean; onClose: () =>
       <form onSubmit={submit} className="grid gap-4">
         <label>
           <span className="label">팀 이름</span>
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} autoFocus />
+          <input className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} data-autofocus />
         </label>
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>취소</Button>

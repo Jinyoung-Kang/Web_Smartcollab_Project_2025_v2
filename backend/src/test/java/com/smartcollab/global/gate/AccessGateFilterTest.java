@@ -14,6 +14,13 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -83,6 +90,19 @@ class AccessGateFilterTest {
     }
 
     @Test
+    @DisplayName("[L-4] 상태 확인 경로처럼 보이지만 다른 곳을 가리키는 경로(.. · ; · 인코딩)는 잠금을 통과하지 못한다")
+    void healthLookalikePathsStayLocked() throws Exception {
+        for (String path : List.of("/actuator/health/../../api/auth/me", "/actuator/health/..;/..;/api/auth/me",
+                "/actuator/health/%2e%2e/%2e%2e/api/auth/me", "/actuator/health;x=1/../../api/auth/me", "/actuator/health//api")) {
+            Result r = send(api(path));
+            assertThat(r.passed).as(path).isFalse();
+            assertThat(r.res.getStatus()).as(path).isEqualTo(401);
+        }
+        assertThat(send(api("/actuator/health")).passed).isTrue();
+        assertThat(send(api("/actuator/health/liveness")).passed).isTrue();
+    }
+
+    @Test
     @DisplayName("[GATE-01] 상태 확인(health)과 잠금화면 스타일은 잠금 없이 열린다")
     void healthAndStylesheetAreOpen() throws Exception {
         Result health = send(api("/actuator/health/readiness"));
@@ -148,6 +168,27 @@ class AccessGateFilterTest {
         assertThat(send(unlock(CODE, "/", "192.0.2.99")).res.getStatus()).isEqualTo(429);
         clock.advance(GateLimiter.GLOBAL_LOCK.plusSeconds(1));
         assertThat(send(unlock(CODE, "/", "192.0.2.99")).res.getStatus()).isEqualTo(303);
+    }
+
+    @Test
+    @DisplayName("[M-1] 같은 IP 가 동시에 보낸 시도도 15분 5회를 넘겨 계산하지 않는다 — 계산 전에 시도를 세고, IP 당 진행 중 1건")
+    void concurrentAttemptsFromOneIpAreCounted() throws Exception {
+        filter = filter("slow:" + AccessCodes.hash(CODE, SALT, 16384, 8, 1));   // 운영과 같은 비용(회당 수십 ms)이라 요청이 겹침
+
+        List<Integer> statuses = sendConcurrently(20, i -> unlock("WRONG-" + i, "/", "203.0.113.5"));
+
+        assertThat(statuses.stream().filter(s -> s == 401).count()).as("계산한 시도(401)").isLessThanOrEqualTo(GateLimiter.IP_MAX_FAILS);
+        assertThat(statuses).allMatch(s -> s == 401 || s == 429);
+    }
+
+    @Test
+    @DisplayName("[M-1] IP 하나가 동시에 30번 틀려도 전체 잠금이 걸리지 않는다 — 다른 IP 의 맞는 코드는 통과")
+    void oneIpCannotTriggerGlobalLock() throws Exception {
+        filter = filter("slow:" + AccessCodes.hash(CODE, SALT, 16384, 8, 1));
+
+        sendConcurrently(GateLimiter.GLOBAL_MAX_FAILS, i -> unlock("WRONG-" + i, "/", "203.0.113.5"));
+
+        assertThat(send(unlock(CODE, "/", "198.51.100.7")).res.getStatus()).isEqualTo(303);
     }
 
     @Test
@@ -259,6 +300,27 @@ class AccessGateFilterTest {
         MockFilterChain chain = new MockFilterChain();
         filter.doFilter(req, res, chain);
         return new Result(res, chain.getRequest() != null);
+    }
+
+    /** 같은 순간에 출발시켜 상태 코드를 모읍니다 */
+    private List<Integer> sendConcurrently(int n, java.util.function.IntFunction<MockHttpServletRequest> request) throws Exception {
+        CountDownLatch start = new CountDownLatch(1);
+        try (ExecutorService pool = Executors.newFixedThreadPool(n)) {
+            List<Future<Integer>> futures = new ArrayList<>();
+            for (int i = 0; i < n; i++) {
+                MockHttpServletRequest req = request.apply(i);
+                futures.add(pool.submit(() -> {
+                    start.await();
+                    return send(req).res.getStatus();
+                }));
+            }
+            start.countDown();
+            List<Integer> statuses = new ArrayList<>();
+            for (Future<Integer> f : futures) {
+                statuses.add(f.get(60, TimeUnit.SECONDS));
+            }
+            return statuses;
+        }
     }
 
     private static MockHttpServletRequest api(String path) {

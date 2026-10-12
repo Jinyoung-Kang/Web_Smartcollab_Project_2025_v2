@@ -8,7 +8,7 @@ import { IconButton } from '@/components/ui/Button'
 import { formatBytes } from '@/lib/format'
 import { createTaskQueue } from './uploadQueue'
 import { cn } from '@/lib/cn'
-import { invalidateDriveChange } from '@/api/driveCache'
+import { scheduleDriveChange } from '@/api/driveCache'
 import { validateUpload } from './validateUpload'
 
 interface UploadTask {
@@ -50,7 +50,7 @@ export function UploadProvider({ children }: { children: ReactNode }) {
       try {
         await uploadFile(task.folderId, file, (p) => patch(task.id, { progress: p }), task.controller.signal)
         patch(task.id, { status: 'done', progress: 1 })
-        invalidateDriveChange(qc, { folderIds: [task.folderId] })
+        scheduleDriveChange(qc, { folderIds: [task.folderId] })
       } catch (e) {
         if (e instanceof ApiError && e.code === 'ABORTED') patch(task.id, { status: 'canceled' })
         else patch(task.id, { status: 'error', error: e instanceof ApiError ? e.message : '업로드 실패' })
@@ -140,7 +140,14 @@ export function UploadProvider({ children }: { children: ReactNode }) {
                     <p className="mt-0.5 text-xs text-slate-500">취소됨</p>
                   ) : (
                     <div className="mt-1.5 flex items-center gap-2">
-                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        role="progressbar"
+                        aria-label={`${t.name} 업로드`}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={Math.round(t.progress * 100)}
+                        className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100"
+                      >
                         <div
                           className={cn('h-full rounded-full transition-[width]', t.status === 'done' ? 'bg-emerald-500' : 'bg-brand-500')}
                           style={{ width: `${Math.round(t.progress * 100)}%` }}

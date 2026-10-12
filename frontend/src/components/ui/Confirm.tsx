@@ -63,7 +63,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             <span className="label">
               확인을 위해 <b className="text-slate-900">{options.requireText}</b>{objectParticle(options.requireText)} 입력하세요
             </span>
-            <input className="input" value={typed} onChange={(e) => setTyped(e.target.value)} autoFocus />
+            <input className="input" value={typed} onChange={(e) => setTyped(e.target.value)} data-autofocus />
           </label>
         )}
       </Dialog>

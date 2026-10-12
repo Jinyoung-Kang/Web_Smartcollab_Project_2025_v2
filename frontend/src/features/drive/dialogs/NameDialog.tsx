@@ -27,10 +27,10 @@ function NameForm({ initial = '', confirmLabel, onClose, onSubmit }: Omit<Props,
   const [pending, setPending] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // 초점은 Dialog 가 연 뒤에 줍니다(data-autofocus). 고른 범위는 입력란이 기억합니다.
   useEffect(() => {
     const input = inputRef.current
     if (!input) return
-    input.focus()
     const dot = initial.lastIndexOf('.')
     input.setSelectionRange(0, dot > 0 ? dot : initial.length)
   }, [initial])
@@ -55,7 +55,7 @@ function NameForm({ initial = '', confirmLabel, onClose, onSubmit }: Omit<Props,
     <form onSubmit={submit} className="grid gap-4">
       <label>
         <span className="sr-only">이름</span>
-        <input ref={inputRef} className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={255} />
+        <input ref={inputRef} data-autofocus className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={255} />
       </label>
       {error && <p role="alert" className="-mt-2 text-sm text-red-600">{error}</p>}
       <div className="flex justify-end gap-2">

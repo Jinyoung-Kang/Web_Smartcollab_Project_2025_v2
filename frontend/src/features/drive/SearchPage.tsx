@@ -10,6 +10,7 @@ import { formatBytes, formatRelative } from '@/lib/format'
 import { PreviewDialog } from './dialogs/PreviewDialog'
 import { useDocumentTitle } from '@/lib/useDocumentTitle'
 import { queryKeys } from '@/api/queryKeys'
+import { folderPath } from '@/lib/paths'
 
 /** 검색 결과. 하위 폴더까지 이름으로 찾고 파일이 있는 경로를 보여 줍니다. */
 export default function SearchPage() {
@@ -20,8 +21,6 @@ export default function SearchPage() {
   const [preview, setPreview] = useState<Item | null>(null)
   const team = useQuery({ queryKey: queryKeys.team(teamId), queryFn: () => teamApi.detail(teamId!), enabled: !!teamId })
   const results = useQuery({ queryKey: queryKeys.search(q, teamId), queryFn: () => fileApi.search(q, teamId), enabled: q.length > 0 })
-
-  const base = teamId ? `/teams/${teamId}/folders` : '/drive'
 
   return (
     <div className="flex h-full flex-col bg-white">
@@ -47,7 +46,7 @@ export default function SearchPage() {
                   {r.item.name}
                 </button>
                 <p className="text-xs text-slate-500">
-                  <Link to={`${base}/${r.folderId}`} className="hover:underline">{r.path === '/' ? '최상위 폴더' : r.path}</Link>
+                  <Link to={folderPath(r.folderId, teamId)} className="hover:underline">{r.path === '/' ? '최상위 폴더' : r.path}</Link>
                   {' · '}
                   {r.item.ownerName} · {formatRelative(r.item.updatedAt)} · {formatBytes(r.item.size)}
                 </p>

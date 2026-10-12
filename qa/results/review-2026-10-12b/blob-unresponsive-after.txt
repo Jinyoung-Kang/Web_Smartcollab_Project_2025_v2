@@ -1,0 +1,6 @@
+# M-3 수정 뒤: 응답하지 않는 저장소 — 측정 시험(커밋하지 않은 BlackHoleAfterProbeTest), 운영과 같은 StorageConfig.azure(연결 문자열, 컨테이너) 기본 설정
+# 서버: 연결을 받고 요청을 읽기만 하고 응답하지 않음 (HTTP, 수정 전 측정 ../deploy-2026-10-12/blob-unresponsive.txt 와 같은 방식)
+# 설정: 시도당 30초(JDK HttpClient 쓰기·응답·읽기 시간 상한 + RequestRetryOptions tryTimeout) · 최대 3회 · 지수 대기 1초~4초
+HTTP  : PROBE 결과: DependencyUnavailableException(→ 503 + Retry-After: 5)
+        PROBE 경과 94.9초, 연결 3회
+# 수정 전: 284.3초, 연결 4회, 500 — App Service 앞단 제한 230초보다 길었음

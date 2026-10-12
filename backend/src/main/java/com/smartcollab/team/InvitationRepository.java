@@ -24,6 +24,10 @@ public interface InvitationRepository extends JpaRepository<Invitation, Long> {
     @Query("select i from Invitation i where i.id = :id")
     Optional<Invitation> lockById(@Param("id") Long id);
 
+    /** 초대의 팀 ID — 엔티티를 영속성 컨텍스트에 올리지 않아, 잠근 뒤 다시 읽는 초대가 옛 상태로 남지 않습니다 */
+    @Query("select i.team.id from Invitation i where i.id = :id")
+    Optional<Long> findTeamId(@Param("id") Long id);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("delete from Invitation i where i.team.id = :teamId")
     int deleteByTeam(@Param("teamId") Long teamId);

@@ -1,0 +1,20 @@
+VT=true
+api vus=50 reqs=10053 rps=165.7 failed=0.00% p95=638.6ms
+read vus=50 reqs=7909 rps=130.6 failed=0.00% p95=819.6ms
+write vus=50 reqs=12595 rps=209.1 failed=0.00% p95=648.7ms
+api vus=50 reqs=8713 rps=144.0 failed=0.00% p95=687.0ms
+read vus=50 reqs=7730 rps=128.4 failed=0.00% p95=756.2ms
+write vus=50 reqs=16483 rps=273.7 failed=0.00% p95=461.3ms
+api vus=50 reqs=9355 rps=155.0 failed=0.00% p95=660.7ms
+read vus=50 reqs=8488 rps=140.7 failed=0.00% p95=724.1ms
+write vus=50 reqs=9980 rps=166.0 failed=0.00% p95=856.8ms
+api vus=50 reqs=8707 rps=143.5 failed=0.00% p95=738.4ms
+read vus=50 reqs=7709 rps=127.9 failed=0.00% p95=865.6ms
+write vus=50 reqs=16321 rps=270.4 failed=0.00% p95=472.5ms
+api vus=50 reqs=11216 rps=185.4 failed=0.00% p95=494.5ms
+read vus=50 reqs=6823 rps=113.0 failed=0.00% p95=973.4ms
+write vus=50 reqs=7164 rps=118.7 failed=0.29% p95=1319.7ms
+api vus=50 reqs=8721 rps=144.5 failed=0.00% p95=723.3ms
+read vus=50 reqs=7835 rps=129.8 failed=0.00% p95=810.8ms
+write vus=50 reqs=14156 rps=235.6 failed=12.67% p95=578.7ms
+no stall

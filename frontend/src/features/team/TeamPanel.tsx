@@ -64,7 +64,13 @@ export function TeamPanel({ teamId, visible = true, onClose }: { teamId: number;
           {online.size}명 접속 중
         </span>
       </div>
-      {!team.data ? (
+      {team.error && !team.data ? (
+        // 불러오지 못하면 끝없이 "불러오는 중"만 보였습니다 [L-5]
+        <div role="alert" className="flex flex-col items-start gap-2 p-4 text-sm text-slate-600">
+          <p>팀 정보를 불러오지 못했습니다. {team.error.message}</p>
+          <Button size="sm" onClick={() => void team.refetch()}>다시 시도</Button>
+        </div>
+      ) : !team.data ? (
         <Spinner className="p-4" />
       ) : tab === 'chat' ? (
         <ChatTab teamId={teamId} team={team.data} active={visible} />

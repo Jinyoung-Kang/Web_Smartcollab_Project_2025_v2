@@ -12,6 +12,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@org.junit.jupiter.api.extension.ExtendWith(org.springframework.boot.test.system.OutputCaptureExtension.class)
 class AccountDeletionTest extends IntegrationTest {
 
     @Test
@@ -57,5 +58,17 @@ class AccountDeletionTest extends IntegrationTest {
         leader.postJson("/api/users/me/delete", Map.of("password", Api.PASSWORD))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value(containsString("내가 팀장")));
+    }
+
+    @Test
+    @DisplayName("[L-1] 탈퇴 비밀번호를 10분에 5번 틀리면 맞는 비밀번호도 잠시 거절(429)하고 보안 로그에 남긴다 — 훔친 세션으로 비밀번호 대입 방지")
+    void wrongPasswordAttemptsAreLimited(org.springframework.boot.test.system.CapturedOutput output) throws Exception {
+        Api.Session user = api().signUp("l1limit");
+        for (int i = 0; i < 5; i++) {
+            user.postJson("/api/users/me/delete", Map.of("password", "wrong-" + i)).andExpect(status().isForbidden());
+        }
+
+        user.postJson("/api/users/me/delete", Map.of("password", Api.PASSWORD)).andExpect(status().isTooManyRequests());
+        assertThat(output).contains("security-event account-delete-failed").contains("scope=account-delete");
     }
 }

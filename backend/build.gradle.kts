@@ -91,19 +91,39 @@ tasks.withType<JavaCompile> {
     options.compilerArgs.addAll(listOf("-parameters", "-Xlint:deprecation"))
 }
 
+val testJvmArgs = listOf("-Dfile.encoding=UTF-8", "-Duser.timezone=UTC", "-javaagent:${mockitoAgent.asPath}", "-Xshare:off",
+        azureHttpClientOption)
+
 tasks.test {
-    useJUnitPlatform()
+    useJUnitPlatform { excludeTags("single-carrier") }
     // 운영 컨테이너·CI 와 같은 UTC 로 실행해, 개발 PC 시간대(KST)에서만 통과하는 테스트가 생기지 않게 합니다.
     // Mockito 인라인 목은 JDK 21+ 에서 동적 에이전트 대신 명시적 -javaagent 로 등록합니다(Mockito 권장 방식).
     // 목 디스패처를 부트스트랩 경로에 추가하므로, 의미 없는 CDS 경고를 피하려고 테스트 JVM 의 클래스 데이터 공유를 끕니다.
-    jvmArgs("-Dfile.encoding=UTF-8", "-Duser.timezone=UTC", "-javaagent:${mockitoAgent.asPath}", "-Xshare:off",
-            azureHttpClientOption)
+    jvmArgs(testJvmArgs)
     testLogging {
         events("failed", "skipped")
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
     }
     finalizedBy(tasks.jacocoTestReport)
 }
+
+// 운영(App Service B1 = 1 vCPU)처럼 JVM 이 CPU 를 1개로 보는 환경에서만 드러나는 문제를 따로 시험합니다 — 가상 스레드 캐리어도 1개 [C-1].
+// 개발 PC·CI 는 코어가 많아 기본 시험 작업으로는 재현되지 않았습니다.
+val singleCarrierTest = tasks.register<Test>("singleCarrierTest") {
+    description = "JVM 이 CPU 를 1개로 보는 환경(운영 B1)에서만 드러나는 시험"
+    group = "verification"
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    useJUnitPlatform { includeTags("single-carrier") }
+    jvmArgs(testJvmArgs + "-XX:ActiveProcessorCount=1")
+    testLogging {
+        events("failed", "skipped")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+    }
+    shouldRunAfter(tasks.test)
+}
+
+tasks.check { dependsOn(singleCarrierTest) }
 
 tasks.jacocoTestReport {
     reports {

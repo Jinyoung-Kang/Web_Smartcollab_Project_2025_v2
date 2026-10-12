@@ -2,7 +2,8 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
-import { folderApi } from '@/api/endpoints'
+import { folderApi, teamApi } from '@/api/endpoints'
+import type { TeamSummary } from '@/api/types'
 import { MoveCopyDialog } from './MoveCopyDialog'
 
 afterEach(() => vi.restoreAllMocks())
@@ -36,5 +37,22 @@ describe('MoveCopyDialog', () => {
     )
 
     expect(await screen.findByRole('alert')).toHaveTextContent('폴더 목록을 불러오지 못했습니다')
+  })
+
+  it('[L-5] 고른 스토리지·대상 폴더를 눌린 상태(aria-pressed)로 알린다 — 색으로만 표시해 화면 읽기 프로그램은 무엇을 골랐는지 몰랐음', async () => {
+    vi.spyOn(folderApi, 'tree').mockResolvedValue({ roots: [{ id: 100, name: '내 드라이브', children: [{ id: 101, name: '내 자료', children: [] }] }] })
+    vi.spyOn(teamApi, 'list').mockResolvedValue([{ id: 5, name: '디자인 팀', myPermissions: { canEdit: true } } as unknown as TeamSummary])
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MoveCopyDialog open mode="copy" count={1} disabledFolderIds={[]} onClose={vi.fn()} onConfirm={vi.fn()} />
+      </QueryClientProvider>,
+    )
+    const user = userEvent.setup()
+
+    expect(await screen.findByRole('button', { name: '내 드라이브', pressed: true })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: '디자인 팀', pressed: false })).toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: '내 자료' }))
+    expect(screen.getByRole('button', { name: '내 자료' })).toHaveAttribute('aria-pressed', 'true')
   })
 })

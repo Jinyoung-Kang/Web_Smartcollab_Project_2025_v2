@@ -55,10 +55,15 @@ public class Api {
     public Session signUp(String prefix) {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
         String username = (prefix.length() > 11 ? prefix.substring(0, 11) : prefix) + "_" + suffix;
+        return signUpAs(username, prefix + "님");
+    }
+
+    /** 정한 아이디 그대로 가입 (탈퇴한 아이디로 다시 가입하는 경우 등) */
+    public Session signUpAs(String username, String name) {
         MvcResult result = perform(MockMvcRequestBuilders.post("/api/auth/signup").with(xsrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(Map.of("username", username, "password", PASSWORD,
-                        "passwordConfirm", PASSWORD, "name", prefix + "님")))).andReturn();
+                        "passwordConfirm", PASSWORD, "name", name)))).andReturn();
         String body = content(result);
         if (result.getResponse().getStatus() != 201) {
             throw new AssertionError("signup failed: " + body);

@@ -9,7 +9,7 @@ import { ConfirmProvider } from '@/components/ui/Confirm'
 import { ToastProvider } from '@/components/ui/Toast'
 import { queryKeys } from '@/api/queryKeys'
 import { formatBytes } from '@/lib/format'
-import { appendChatMessage } from '@/realtime/TeamActivity'
+import { appendChatMessage } from '@/realtime/teamEvents'
 import { ChatTab } from './ChatTab'
 
 vi.mock('@/auth/AuthProvider', () => ({
@@ -21,10 +21,7 @@ vi.mock('@/api/upload', () => upload)
 const realtime = vi.hoisted(() => ({ publish: vi.fn(() => false) }))
 vi.mock('@/realtime/RealtimeProvider', () => ({ useRealtime: () => realtime }))
 const activity = vi.hoisted(() => ({ setActiveChat: vi.fn() }))
-vi.mock('@/realtime/TeamActivity', async (importOriginal) => ({
-  appendChatMessage: (await importOriginal<typeof import('@/realtime/TeamActivity')>()).appendChatMessage,
-  useTeamActivity: () => activity,
-}))
+vi.mock('@/realtime/TeamActivity', () => ({ useTeamActivity: () => activity }))
 
 const team: TeamDetail = {
   id: 3, name: '데모 팀', ownerUsername: 'demo1', rootFolderId: 10,
@@ -42,10 +39,10 @@ const current: Item = {
 
 let client: QueryClient
 
-function renderChat(active = true) {
+function renderChat(active = true, detail: TeamDetail = team) {
   vi.spyOn(chatApi, 'history').mockResolvedValue({ messages: [shared], hasMore: false })
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  const router = createMemoryRouter([{ path: '/', element: <ChatTab teamId={3} team={team} active={active} /> }])
+  const router = createMemoryRouter([{ path: '/', element: <ChatTab teamId={3} team={detail} active={active} /> }])
   render(
     <QueryClientProvider client={client}>
       <ToastProvider>
@@ -176,5 +173,40 @@ describe('ChatTab — 화면 읽기 프로그램 알림', () => {
     expect(await screen.findByText('회의 자료 올렸어요')).toBeInTheDocument()   // 캐시 변경은 다음 틱에 화면에 반영됨
     expect(live).toHaveTextContent('박서연: 회의 자료 올렸어요')
     expect(screen.getByRole('button', { name: '화면 스케치.png 미리보기' }).closest('[aria-live]')).toBeNull()
+  })
+})
+
+describe('ChatTab — 입력부 (리팩터링 전 동작 고정)', () => {
+  it('Enter 는 보내고 Shift+Enter 는 줄을 바꾸며, 공백만 있으면 보내지 않는다', async () => {
+    const user = userEvent.setup()
+    renderChat()
+    const sent = vi.spyOn(chatApi, 'send').mockResolvedValue({
+      id: 99, type: 'CHAT', content: '첫 줄\n둘째 줄', sender: { username: 'demo1', name: '김하늘' }, createdAt,
+    })
+    const box = await screen.findByLabelText('메시지')
+
+    await user.type(box, '   {Enter}')
+    expect(sent).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: '보내기' })).toBeDisabled()
+    await user.clear(box)
+    await user.type(box, '첫 줄{Shift>}{Enter}{/Shift}둘째 줄')
+    expect(box).toHaveValue('첫 줄\n둘째 줄')
+    await user.keyboard('{Enter}')
+
+    await vi.waitFor(() => expect(sent).toHaveBeenCalledWith(3, { content: '첫 줄\n둘째 줄' }))
+    expect(box).toHaveValue('')
+  })
+
+  it('대화 기록 지우기는 팀장에게만 보이고, 편집 권한이 없으면 파일 첨부를 막는다', async () => {
+    renderChat(true, { ...team, myPermissions: { canEdit: false, canDelete: false, canInvite: false, leader: false } })
+    await screen.findByRole('button', { name: '화면 스케치.png 미리보기' })
+
+    expect(screen.queryByRole('button', { name: /대화 기록 지우기/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '파일 첨부' })).toBeDisabled()
+  })
+
+  it('팀장이고 메시지가 있으면 대화 기록 지우기가 보인다', async () => {
+    renderChat()
+    expect(await screen.findByRole('button', { name: /대화 기록 지우기/ })).toBeInTheDocument()
   })
 })

@@ -14,18 +14,18 @@
 ## 결정
 - **연쇄 정리는 동기 도메인 이벤트**(`event.DeletionEvents`): 지우는 쪽은 `AccountDeleting`·`TeamDeleting`·`FilesPurging` 을 발행하고, 데이터를 가진 모듈이 같은 트랜잭션 안에서 `@EventListener` 로 정리합니다. 외래 키 순서는 `DeletionEvents.Order` 의 `@Order` 값으로 명시합니다. 하나라도 실패하면 전체가 롤백됩니다. 메시지 브로커 같은 새 인프라는 쓰지 않습니다.
 - **모듈 사이 이벤트는 중립 패키지 `event`** 에 둡니다(ID·값만 담음, ArchUnit 으로 도메인 의존 금지). 커밋 뒤 화면 갱신(`ChangeEvents`), 같은 트랜잭션의 후속 처리(`FileEvents`·`NoticeEvents`), 연쇄 정리(`DeletionEvents`).
-- **의존 역전이 자연스러운 곳은 인터페이스로**: 파일 모듈의 버전 기록은 `VersionSignatures` 로 서명을 받고 서명 모듈이 구현합니다.
+- **의존 역전이 자연스러운 곳은 인터페이스로**: 파일 모듈의 버전 기록은 `VersionSignatures` 로 서명을 받고 서명 모듈이 구현합니다. 팀 모듈은 최상위 폴더를 `TeamRootFolders` 로 만들고 찾으며 폴더 모듈의 `RootFolders` 가 구현합니다(5차 점검 L-7).
 - **기능은 데이터를 가진 모듈로**: 서명하기 → signature, 접속 현황 API → realtime, 최상위 폴더 생성·폴더 휴지통 상태 → folder, 권한 DTO → access.
-- **남은 순환(access·file·folder·team, 양방향 5쌍)은 기준선**으로 `ModuleBoundaryTest` 에 고정합니다. 새 순환·새 양방향 의존·다른 모듈 리포지토리의 새 사용은 테스트가 막고, 기준선에서 빠지면(개선) 기준선도 줄이도록 같음을 확인합니다.
+- **남은 순환(access·file·folder·team, 양방향 4쌍)은 기준선**으로 `ModuleBoundaryTest` 에 고정합니다. 새 순환·새 양방향 의존·다른 모듈 리포지토리의 새 사용은 테스트가 막고, 기준선에서 빠지면(개선) 기준선도 줄이도록 같음을 확인합니다.
 
 ## 남긴 순환과 이유
 | 쌍 | 원인 | 끊는 방법과 비용 |
 |---|---|---|
 | access ↔ file·folder·team | `AccessPolicy` 가 엔티티(파일·폴더·팀 멤버)를 받아 판단하고, 각 모듈의 서비스가 `AccessPolicy` 를 부름 | 권한 판단에 필요한 값만 담은 중립 타입으로 바꾸거나 정책을 각 모듈로 나눠야 함 — "권한 판단은 한 곳"(ADR-0005) 원칙과 맞바꾸게 됨 |
 | file ↔ folder | 파일 엔티티가 폴더를 가리키고, 폴더 내용 API 가 파일 목록을 함께 돌려줌(한 드라이브의 두 패키지) | 두 패키지를 `drive` 하나로 합치기 — 패키지 이름 변경이 문서·테스트 전반에 퍼짐 |
-| folder ↔ team | 폴더 엔티티가 팀을 가리키고(`team_id`), 팀을 만들 때 최상위 폴더를 만듦 | 폴더의 팀 연관을 ID 로 바꾸기 — 쿼리 10여 개와 엔티티 수정 |
 
 ## 결과
 - 양방향 의존 17쌍 → **5쌍**, 순환에 묶인 패키지 10개 → **4개**(import 와 ArchUnit 바이트코드 분석이 같은 값).
+- 5차 점검(L-7): folder ↔ team 을 `TeamRootFolders` 로 뒤집어 **4쌍**. 폴더 엔티티가 팀을 가리키는 folder → team 한 방향만 남았고, team 은 access 와의 양방향 때문에 여전히 순환(4개)에 묶여 있습니다.
 - 회원 탈퇴·팀 삭제의 동작·순서는 같고(기존 테스트 그대로 통과), 새 데이터가 생기면 그 모듈에 리스너만 추가하면 됩니다.
 - 이벤트 리스너가 흩어져 있으므로, 정리 순서는 `DeletionEvents.Order` 한 곳에서 읽습니다.

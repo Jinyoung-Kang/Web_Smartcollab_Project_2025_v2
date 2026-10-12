@@ -6,8 +6,6 @@ import com.smartcollab.access.PermissionsResponse;
 import com.smartcollab.event.ChangeEvents;
 import com.smartcollab.event.DeletionEvents;
 import com.smartcollab.event.NoticeEvents;
-import com.smartcollab.folder.Folder;
-import com.smartcollab.folder.RootFolders;
 import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.error.ErrorCode;
@@ -32,7 +30,7 @@ public class TeamService {
     private final TeamRepository teams;
     private final TeamMemberRepository members;
     private final InvitationRepository invitations;
-    private final RootFolders rootFolders;
+    private final TeamRootFolders rootFolders;
     private final UserRepository users;
     private final AccessPolicy accessPolicy;
     private final ApplicationEventPublisher events;
@@ -63,8 +61,8 @@ public class TeamService {
     private TeamDtos.TeamSummary createTeam(String name, User owner) {
         Team team = teams.save(new Team(name.strip(), owner));
         TeamMember leader = members.save(TeamMember.leader(team, owner));
-        Folder root = rootFolders.createTeam(team, owner);
-        return new TeamDtos.TeamSummary(team.getId(), team.getName(), owner.getName(), 1, root.getId(),
+        Long rootId = rootFolders.createRoot(team, owner);
+        return new TeamDtos.TeamSummary(team.getId(), team.getName(), owner.getName(), 1, rootId,
                 PermissionsResponse.of(Access.of(leader)));
     }
 
@@ -117,7 +115,10 @@ public class TeamService {
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public void respondToInvitation(Long invitationId, boolean accept, Long userId) {
-        // 초대 행을 먼저 잠가 같은 초대의 수락·거절을 줄 세웁니다. 잠그지 않으면 둘 다 "대기 중"으로 읽고 둘 다 성공해,
+        // 팀 행 → 초대 행 순서로 잠급니다. 팀 삭제가 같은 순서(팀 행을 먼저 잠근 뒤 초대를 지움)라, 초대 행을 먼저 잠그면 멤버·알림을 넣을 때의
+        // 팀 외래 키 확인과 서로 기다려 교착(1213)이 났습니다 [L-6 후속]. 팀이 지워졌으면 아래에서 "초대 없음"으로 끝납니다.
+        invitations.findTeamId(invitationId).ifPresent(this::lockTeam);
+        // 초대 행을 잠가 같은 초대의 수락·거절을 줄 세웁니다. 잠그지 않으면 둘 다 "대기 중"으로 읽고 둘 다 성공해,
         // 초대한 사람에게 수락·거절 알림이 모두 가고 나중에 커밋한 쪽의 상태만 남았습니다 [QA-05].
         invitations.lockById(invitationId);
         Invitation invitation = invitations.findDetailed(invitationId)
@@ -228,8 +229,9 @@ public class TeamService {
      * 팀 삭제: 채팅 → 팀 스토리지(폴더·파일·버전·서명·공유 링크) → 초대 → 멤버 → 팀 순으로 지웁니다.
      * 저장소의 실제 파일은 커밋 이후에 삭제됩니다.
      */
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void delete(Long teamId, Long userId) {
+        lockTeam(teamId);
         TeamMember leader = accessPolicy.requireLeader(teamId, userId);
         demoAccounts.forbidIfDemo(leader.getUser(), "체험 계정은 팀을 삭제할 수 없습니다.");
         purgeTeam(teamId, userId);
@@ -238,9 +240,12 @@ public class TeamService {
     /**
      * 팀과 팀 스토리지·채팅·초대·멤버를 지웁니다. <b>권한은 확인하지 않으므로</b> 호출하는 쪽이 확인해야 합니다
      * (팀 삭제 API, 데모 데이터 초기화). actorUserId(없으면 null)를 뺀 멤버에게 알림을 보냅니다.
+     * <p>팀 행을 먼저 잠가, 같은 팀에 진행 중인 업로드(저장 한도 확인에서 팀 행을 잠금)가 끝난 뒤의 파일 목록으로 지웁니다 —
+     * 잠그지 않으면 목록을 읽은 뒤 커밋된 파일이 폴더를 참조해 폴더 삭제가 FK 오류(409)로 실패했습니다 [L-6].</p>
      */
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void purgeTeam(Long teamId, Long actorUserId) {
+        lockTeam(teamId);
         Team team = teams.findWithOwner(teamId).orElseThrow(() -> ApiException.notFound("팀"));
         String teamName = team.getName();
         List<User> others = members.findMembers(teamId).stream()
