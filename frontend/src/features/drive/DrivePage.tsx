@@ -106,9 +106,10 @@ function DriveView({ folderId, routeTeamId }: { folderId: number; routeTeamId?: 
   }
 
   // 처음부터 받지 못했을 때만 전체 안내 — 받아 둔 목록이 있으면 다시 받기 실패(창 복귀·실시간 갱신·다음 묶음)로 목록과
-  // 팀 패널(입력 중이던 채팅)을 지우지 않고 띠로 알립니다 [M-6]
-  if (contents.error && !data) {
-    const notFound = contents.error instanceof ApiError && contents.error.status === 404
+  // 팀 패널(입력 중이던 채팅)을 지우지 않고 띠로 알립니다 [M-6]. 다만 404 는 일시적 실패가 아니라 폴더가 지워졌거나 볼 수 없게 된
+  // 것이라, 옛 목록·옛 권한(올리기·편집 단추)을 남기지 않고 바로 "찾을 수 없음"으로 바꿉니다.
+  const notFound = contents.error instanceof ApiError && contents.error.status === 404
+  if (contents.error && (!data || notFound)) {
     return (
       <EmptyState
         className="h-full"
