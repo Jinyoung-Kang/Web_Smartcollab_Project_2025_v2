@@ -65,7 +65,9 @@ export function useTextDocument(fileId: number, initial: TextContent) {
   }, [])
 
   const save = useCallback(async () => {
-    if (!editable) return
+    // 저장 단추와 같은 조건 — 바꾼 것이 없으면 저장하지 않습니다. 단축키(Ctrl/⌘+S)가 같은 내용의 새 버전을 만들어
+    // 기존 서명이 무효가 되고 팀에 변경 알림이 갔습니다 [M-5]
+    if (!editable || !dirty) return
     await exclusive(async () => {
       try {
         const res = await fileApi.save(fileId, draft, baseVersion)
@@ -76,7 +78,7 @@ export function useTextDocument(fileId: number, initial: TextContent) {
         else toast.error((e as Error).message)
       }
     })
-  }, [draft, baseVersion, editable, fileId, toast, exclusive, commitVersion])
+  }, [draft, baseVersion, editable, dirty, fileId, toast, exclusive, commitVersion])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
