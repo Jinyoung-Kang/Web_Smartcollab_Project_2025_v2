@@ -42,6 +42,7 @@ docker compose -p sc-qa down -v
 | `docker/` · `after-fix/` | k6(Docker 네트워크 안) 수정 전 / 수정 뒤 쓰기 |
 | `host/` · `docker-run1-oom/` | 비교에 쓰지 않은 측정(호스트 포트 포워딩 병목 / 메모리 한도 없이 OOMKilled). 기록으로만 둠 |
 | `backup-restore/` | 백업·복원 전후 비교 |
+| `deploy-2026-10-12/` | Azure 첫 배포 점검(DEP-01·02) — 기동 중 멈춤·DB 연결 실패 로그(가림), 원인 좁히기 측정(Blob 무응답·1코어 재현·DB 끊김 스레드 덤프), 수정 전 실패·수정 뒤 통과 |
 | `screens/` | 화면 크롤 스크린샷(수정 전) |
 
 느린 쿼리 원본 로그(`*.log`)는 크기 때문에 저장소에 넣지 않습니다(`.gitignore`). 요약은 `slowlog-load.json` 에 있습니다.

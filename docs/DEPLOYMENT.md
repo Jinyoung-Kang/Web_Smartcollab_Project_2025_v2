@@ -30,6 +30,8 @@ open http://localhost:8080
 | `JWT_TTL` | | `8h` | 로그인 유지 시간 |
 | `DB_POOL_SIZE` | | `10` (`prod` 는 `20`) | DB 커넥션 풀 크기 |
 | `DB_CONNECTION_TIMEOUT_MS` | | `5000` | DB 커넥션을 기다리는 최대 시간(ms). DB 장애 중 요청을 오래 붙잡지 않도록 짧게 둡니다. 넘으면 503 `SERVICE_UNAVAILABLE` |
+| `DB_SOCKET_TIMEOUT_MS` | | `60000` | 쿼리를 보낸 뒤 응답을 기다리는 최대 시간(ms). 연결이 소리 없이 끊겨도(응답도 RST 도 없음) 그 요청이 영원히 멈추지 않게 합니다 — 트랜잭션 시간 제한은 DB 가 받지 못한 쿼리를 풀지 못합니다. `DB_TX_TIMEOUT` 보다 길게, 그보다 오래 걸리는 마이그레이션이 있으면 그때만 늘리세요 [DEP-01] |
+| `DB_CONNECT_RETRIES` | | `5` | 기동할 때 첫 DB 연결이 실패하면 다시 시도할 횟수(1·2·4·8·16초 간격, 최대 약 1분). 0 이면 한 번 실패로 기동이 멈춥니다 [DEP-02] |
 | `DB_TX_TIMEOUT` | | `30s` | 트랜잭션 하나의 최대 시간. 넘으면 진행 중인 쿼리를 끊고 롤백한 뒤 503 — DB 가 느릴 때 요청이 끝없이 쌓이지 않게 합니다 |
 | `STORAGE_TYPE` | | `local` (`prod` 는 `azure`) | `local` \| `azure` |
 | `STORAGE_LOCAL_ROOT` | | `~/smartcollab-data` | 로컬 저장소 경로 |
@@ -118,6 +120,9 @@ az webapp deploy -g <리소스그룹> -n <앱이름> --src-path backend/build/li
 - 메모리: App Service 플랜의 메모리가 곧 한도입니다. 컨테이너 이미지는 그 75% 를 힙으로 씁니다(`JAVA_TOOL_OPTIONS` 의 `MaxRAMPercentage`). jar 배포라면 `JAVA_OPTS` 에 `-XX:MaxRAMPercentage=75` 를 더하세요.
 - HTTPS 전용으로 설정하세요(`COOKIE_SECURE=true` 가 `prod` 프로필 기본값이므로 HTTP 로는 로그인 쿠키가 전송되지 않습니다).
 - 배포 후 클라이언트 IP 판별을 확인하세요: 한 네트워크에서 로그인을 11번 틀리면 429, 그 사이 다른 네트워크(휴대폰 데이터 등)에서는 정상 로그인되어야 합니다. 모두 함께 막히면 프록시 주소가 `SERVER_TOMCAT_REMOTEIP_INTERNAL_PROXIES` 에 포함되지 않은 것입니다.
+- 기동 대기 한도를 늘리세요: `az webapp config appsettings set ... --settings WEBSITES_CONTAINER_START_TIME_LIMIT=600`. 기본값 230초 안에
+  준비되지 않으면 App Service 가 기동을 실패로 보고 다시 띄웁니다. B1(1코어)에서 기동이 129~210초(프로세스 기준 최대 236초) 걸렸고,
+  기동 때 DB 연결 재시도(`DB_CONNECT_RETRIES`)가 최대 약 1분을 더할 수 있습니다 [DEP-02]
 - 인스턴스는 1개로 운영하세요. 실시간 브로커·요청 제한·탈퇴 계정 거절 목록이 인메모리입니다([ARCHITECTURE.md §7](ARCHITECTURE.md#7-한계와-확장-방안)).
 
 ### 3.3 v2 를 이미 배포했다면

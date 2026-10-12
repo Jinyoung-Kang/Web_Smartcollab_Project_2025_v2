@@ -1,0 +1,4 @@
+# 1코어 재현 시도 — 로컬 java -XX:ActiveProcessorCount=1 -Xmx1g -jar (PR #30 의 jar), 실제 Azure Blob(시험용 컨테이너 repro-hang), 새 MySQL 8.4 컨테이너
+# DEMO_RESET_CRON=*/20 * * * * * 로 체험 데이터 초기화(계정·팀·파일 표본 48개 업로드)를 반복
+기동: Started SmartCollabApplication in 8.153 seconds
+05:09:30Z 첫 "Demo data created" ~ 05:30:22Z 마지막 — 64회 완료, ERROR 0, 120초 넘게 멈춘 적 없음
