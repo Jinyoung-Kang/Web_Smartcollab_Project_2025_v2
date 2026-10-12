@@ -190,7 +190,8 @@ public class AccessGateFilter extends OncePerRequestFilter {
         }
         try {
             matched = codes.match(code);
-        } catch (RuntimeException e) {
+        } catch (RuntimeException | Error e) {
+            // 계산하지 못한 시도는 세지 않습니다. Error(메모리 부족 등)도 되돌려야 그 IP 가 "진행 중"으로 영영 남지 않습니다
             limiter.cancel(attempt);
             throw e;
         } finally {
