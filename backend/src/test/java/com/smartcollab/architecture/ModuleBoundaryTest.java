@@ -34,11 +34,11 @@ class ModuleBoundaryTest {
             .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
             .importPackages("com.smartcollab");
 
-    /** 남아 있는 양방향 의존(기준선). 3차 점검 전 17쌍 → 5쌍 */
+    /** 남아 있는 양방향 의존(기준선). 3차 점검 전 17쌍 → 5쌍 → 4쌍(5차, L-7) */
     private static final Set<String> BIDIRECTIONAL_BASELINE = Set.of(
             "access <-> file", "access <-> folder", "access <-> team",   // AccessPolicy 가 엔티티를 받아 판단
-            "file <-> folder",                                            // 한 드라이브의 두 패키지(파일 → 폴더 엔티티, 폴더 내용에 파일)
-            "folder <-> team");                                           // 폴더 → 팀 엔티티, 팀 만들 때 최상위 폴더
+            "file <-> folder");                                           // 한 드라이브의 두 패키지(파일 → 폴더 엔티티, 폴더 내용에 파일)
+    // folder <-> team 은 팀 모듈이 정한 TeamRootFolders 를 폴더 모듈이 구현해 folder → team 한 방향이 됐습니다 [L-7]
 
     /** 순환에 묶여도 되는 모듈(기준선). 3차 점검 전 10개 → 4개 */
     private static final Set<String> CYCLE_BASELINE = Set.of("access", "file", "folder", "team");

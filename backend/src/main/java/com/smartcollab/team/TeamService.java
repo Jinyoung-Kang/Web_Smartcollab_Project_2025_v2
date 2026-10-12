@@ -6,8 +6,6 @@ import com.smartcollab.access.PermissionsResponse;
 import com.smartcollab.event.ChangeEvents;
 import com.smartcollab.event.DeletionEvents;
 import com.smartcollab.event.NoticeEvents;
-import com.smartcollab.folder.Folder;
-import com.smartcollab.folder.RootFolders;
 import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.error.ErrorCode;
@@ -32,7 +30,7 @@ public class TeamService {
     private final TeamRepository teams;
     private final TeamMemberRepository members;
     private final InvitationRepository invitations;
-    private final RootFolders rootFolders;
+    private final TeamRootFolders rootFolders;
     private final UserRepository users;
     private final AccessPolicy accessPolicy;
     private final ApplicationEventPublisher events;
@@ -63,8 +61,8 @@ public class TeamService {
     private TeamDtos.TeamSummary createTeam(String name, User owner) {
         Team team = teams.save(new Team(name.strip(), owner));
         TeamMember leader = members.save(TeamMember.leader(team, owner));
-        Folder root = rootFolders.createTeam(team, owner);
-        return new TeamDtos.TeamSummary(team.getId(), team.getName(), owner.getName(), 1, root.getId(),
+        Long rootId = rootFolders.createRoot(team, owner);
+        return new TeamDtos.TeamSummary(team.getId(), team.getName(), owner.getName(), 1, rootId,
                 PermissionsResponse.of(Access.of(leader)));
     }
 
