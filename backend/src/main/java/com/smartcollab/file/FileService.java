@@ -134,7 +134,8 @@ public class FileService {
         if (FileNames.previewKind(file.getName()) != FileNames.PreviewKind.OFFICE) {
             throw ApiException.badRequest("Office 문서만 온라인 미리보기를 지원합니다.");
         }
-        return storage.readOnlyUrl(file.getActiveVersion().getStoredPath(), Duration.ofMinutes(10))
+        return storage.readOnlyUrl(file.getActiveVersion().getStoredPath(), Duration.ofMinutes(10),
+                        FileNames.officeMediaType(file.getName()).orElse(null))
                 .orElseThrow(() -> new ApiException(ErrorCode.FEATURE_DISABLED,
                         "Office 미리보기는 클라우드(Azure) 저장소에서만 지원합니다. 파일을 내려받아 확인하세요."));
     }

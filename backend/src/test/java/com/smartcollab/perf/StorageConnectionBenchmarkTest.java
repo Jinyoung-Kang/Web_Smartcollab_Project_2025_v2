@@ -263,8 +263,8 @@ class StorageConnectionBenchmarkTest extends IntegrationTest {
         }
 
         @Override
-        public Optional<String> readOnlyUrl(String key, Duration ttl) {
-            return delegate.readOnlyUrl(key, ttl);
+        public Optional<String> readOnlyUrl(String key, Duration ttl, String contentType) {
+            return delegate.readOnlyUrl(key, ttl, contentType);
         }
 
         @Override

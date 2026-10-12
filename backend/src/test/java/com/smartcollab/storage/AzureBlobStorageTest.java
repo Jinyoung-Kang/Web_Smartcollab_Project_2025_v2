@@ -79,7 +79,7 @@ class AzureBlobStorageTest {
             assertThat(new String(in.readAllBytes(), StandardCharsets.UTF_8)).isEqualTo("hello azure");
         }
 
-        String url = storage.readOnlyUrl("files/y", Duration.ofMinutes(5)).orElseThrow();
+        String url = storage.readOnlyUrl("files/y", Duration.ofMinutes(5), null).orElseThrow();
         HttpResponse<String> res = HttpClient.newHttpClient()
                 .send(HttpRequest.newBuilder(URI.create(url)).GET().build(), HttpResponse.BodyHandlers.ofString());
         assertThat(res.statusCode()).isEqualTo(200);
@@ -88,6 +88,28 @@ class AzureBlobStorageTest {
         storage.delete("files/x");
         storage.delete("files/x");
         assertThatThrownBy(() -> storage.open("files/x").read()).isInstanceOf(Exception.class);
+    }
+
+    /**
+     * [DEP-03] Office 웹 뷰어는 주소 경로에 확장자가 없으면 응답 형식(Content-Type)으로 문서 종류를 정합니다. 저장 키(files/UUID)에는
+     * 확장자가 없고 Blob 형식은 application/octet-stream 이라 Azure 에서 "파일을 찾을 수 없음"이 났습니다(qa/results/deploy-2026-10-12).
+     * 미리보기 URL 이 응답 형식을 정해 주면 뷰어가 엽니다.
+     */
+    @Test
+    @DisplayName("[DEP-03] 미리보기 URL 의 응답은 넘긴 형식(Content-Type)을 단다 — 저장 키에 확장자가 없어도 Office 뷰어가 문서 종류를 안다")
+    void readOnlyUrlCarriesContentType() throws Exception {
+        String xlsx = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+        byte[] bytes = "PK-office".getBytes(StandardCharsets.UTF_8);
+        String key = "files/office-" + UUID.randomUUID();
+        storage.put(key, new ByteArrayInputStream(bytes), bytes.length);
+
+        String url = storage.readOnlyUrl(key, Duration.ofMinutes(5), xlsx).orElseThrow();
+        HttpResponse<byte[]> res = HttpClient.newHttpClient()
+                .send(HttpRequest.newBuilder(URI.create(url)).GET().build(), HttpResponse.BodyHandlers.ofByteArray());
+
+        assertThat(res.statusCode()).isEqualTo(200);
+        assertThat(res.headers().firstValue("Content-Type")).contains(xlsx);
+        assertThat(res.body()).isEqualTo(bytes);
     }
 
     @Test

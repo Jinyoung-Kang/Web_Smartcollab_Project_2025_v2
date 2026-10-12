@@ -10,6 +10,19 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class FileNamesTest {
 
     @Test
+    @DisplayName("[DEP-03] Office 문서는 Office 웹 뷰어가 알아보는 형식(MIME)을 준다 — 다른 파일은 없음")
+    void officeMediaType() {
+        assertThat(FileNames.officeMediaType("예산.XLSX")).contains("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        assertThat(FileNames.officeMediaType("입사 안내.docx")).contains("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+        assertThat(FileNames.officeMediaType("발표.pptx")).contains("application/vnd.openxmlformats-officedocument.presentationml.presentation");
+        assertThat(FileNames.officeMediaType("옛 문서.doc")).contains("application/msword");
+        assertThat(FileNames.officeMediaType("옛 표.xls")).contains("application/vnd.ms-excel");
+        assertThat(FileNames.officeMediaType("옛 발표.ppt")).contains("application/vnd.ms-powerpoint");
+        assertThat(FileNames.officeMediaType("보고서.pdf")).isEmpty();
+        assertThat(FileNames.officeMediaType("확장자없음")).isEmpty();
+    }
+
+    @Test
     @DisplayName("업로드 파일명에서 경로와 제어 문자를 제거한다")
     void sanitize() {
         assertThat(FileNames.sanitizeUploadName("C:\\Users\\me\\report.pdf")).isEqualTo("report.pdf");

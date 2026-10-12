@@ -33,7 +33,7 @@ class LocalBlobStorageTest {
         storage.delete("files/a");
         storage.delete("files/a");
         assertThatThrownBy(() -> storage.open("files/a")).isInstanceOf(BlobNotFoundException.class);
-        assertThat(storage.readOnlyUrl("files/b", java.time.Duration.ofMinutes(1))).isEmpty();
+        assertThat(storage.readOnlyUrl("files/b", java.time.Duration.ofMinutes(1), null)).isEmpty();
     }
 
     @Test

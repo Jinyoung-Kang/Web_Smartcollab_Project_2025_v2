@@ -3,6 +3,7 @@ package com.smartcollab.global.util;
 import com.smartcollab.global.error.ApiException;
 
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -79,6 +80,11 @@ public final class FileNames {
         if (TEXT.contains(ext)) return PreviewKind.TEXT;
         if (OFFICE.contains(ext)) return PreviewKind.OFFICE;
         return PreviewKind.NONE;
+    }
+
+    /** Office 문서의 형식(MIME) — 아직 정하지 않음 [DEP-03] */
+    public static Optional<String> officeMediaType(String name) {
+        return Optional.empty();
     }
 
     public static boolean isTextEditable(String name) {

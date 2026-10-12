@@ -87,7 +87,7 @@ public class AzureBlobStorage implements BlobStorage {
     }
 
     @Override
-    public Optional<String> readOnlyUrl(String key, Duration ttl) {
+    public Optional<String> readOnlyUrl(String key, Duration ttl, String contentType) {
         BlobClient blob = container.getBlobClient(key);
         return Optional.of(blob.getBlobUrl() + "?" + readSas(blob, ttl));
     }
