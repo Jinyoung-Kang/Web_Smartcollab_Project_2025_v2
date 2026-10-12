@@ -1,5 +1,6 @@
 package com.smartcollab.ai;
 
+import com.smartcollab.global.config.AppProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.util.StringUtils;
 import org.springframework.util.unit.DataSize;
@@ -25,5 +26,14 @@ public record AiProperties(String apiKey, String model, String summaryEffort, St
 
     public boolean enabled() {
         return StringUtils.hasText(apiKey);
+    }
+
+    /** API 키를 가립니다 [L-4] */
+    @Override
+    public String toString() {
+        return "AiProperties[apiKey=" + AppProperties.redact(apiKey) + ", model=" + model + ", summaryEffort=" + summaryEffort
+                + ", translationEffort=" + translationEffort + ", tokensPerUserPerDay=" + tokensPerUserPerDay
+                + ", maxDocumentSize=" + maxDocumentSize + ", timeout=" + timeout + ", translationTimeout=" + translationTimeout
+                + ", maxConcurrent=" + maxConcurrent + "]";
     }
 }

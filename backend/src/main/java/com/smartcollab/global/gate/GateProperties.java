@@ -1,5 +1,6 @@
 package com.smartcollab.global.gate;
 
+import com.smartcollab.global.config.AppProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.util.StringUtils;
 
@@ -25,5 +26,12 @@ public record GateProperties(String codes, String secret, String hours, Duration
 
     public boolean enabled() {
         return StringUtils.hasText(codes);
+    }
+
+    /** 코드 해시·서명 키를 가립니다 [L-4] */
+    @Override
+    public String toString() {
+        return "GateProperties[codes=" + AppProperties.redact(codes) + ", secret=" + AppProperties.redact(secret)
+                + ", hours=" + hours + ", cookieTtl=" + cookieTtl + "]";
     }
 }
