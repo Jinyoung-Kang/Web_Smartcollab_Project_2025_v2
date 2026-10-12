@@ -1,4 +1,4 @@
-import { documentKind, languageName, modelName } from './useDocumentTools'
+import { documentKind, languageName, modelName } from './documentKinds'
 
 describe('문서 종류·표시 이름 (리팩터링 전 동작 고정)', () => {
   it('편집할 수 있는 글은 TEXT, 확장자로 PDF·DOCX, 그 밖은 요약·번역 대상이 아니다', () => {

@@ -7,7 +7,8 @@ import { Spinner } from '@/components/ui/misc'
 import { useToast } from '@/components/ui/Toast'
 import { cn } from '@/lib/cn'
 import { PRIVACY, toolAvailability } from './toolAvailability'
-import { LANGUAGES, modelName, type DocumentKind, type DocumentTools, type ToolResult } from './useDocumentTools'
+import { LANGUAGES, modelName, type DocumentKind } from './documentKinds'
+import type { DocumentTools, ToolResult } from './useDocumentTools'
 
 /**
  * 요약·번역 단추 [AI-01·02]. 서버에 AI 키가 있으면 Claude 로 요약·번역(텍스트·PDF·Word),

@@ -1,5 +1,5 @@
 import type { PublicConfig } from '@/api/types'
-import { modelName, type DocumentKind } from './useDocumentTools'
+import { modelName, type DocumentKind } from './documentKinds'
 
 export const PRIVACY = '문서 내용이 Anthropic(Claude API)으로 전송됩니다.'
 
