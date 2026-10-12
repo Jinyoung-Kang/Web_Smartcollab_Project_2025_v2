@@ -109,7 +109,7 @@ tasks.test {
 
 // 운영(App Service B1 = 1 vCPU)처럼 JVM 이 CPU 를 1개로 보는 환경에서만 드러나는 문제를 따로 시험합니다 — 가상 스레드 캐리어도 1개 [C-1].
 // 개발 PC·CI 는 코어가 많아 기본 시험 작업으로는 재현되지 않았습니다.
-val singleCarrierTest by tasks.registering(Test::class) {
+val singleCarrierTest = tasks.register<Test>("singleCarrierTest") {
     description = "JVM 이 CPU 를 1개로 보는 환경(운영 B1)에서만 드러나는 시험"
     group = "verification"
     testClassesDirs = sourceSets.test.get().output.classesDirs
