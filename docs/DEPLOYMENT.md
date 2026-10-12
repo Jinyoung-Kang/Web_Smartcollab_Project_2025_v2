@@ -30,6 +30,8 @@ open http://localhost:8080
 | `JWT_TTL` | | `8h` | 로그인 유지 시간 |
 | `DB_POOL_SIZE` | | `10` (`prod` 는 `20`) | DB 커넥션 풀 크기 |
 | `DB_CONNECTION_TIMEOUT_MS` | | `5000` | DB 커넥션을 기다리는 최대 시간(ms). DB 장애 중 요청을 오래 붙잡지 않도록 짧게 둡니다. 넘으면 503 `SERVICE_UNAVAILABLE` |
+| `DB_SOCKET_TIMEOUT_MS` | | `60000` | 쿼리를 보낸 뒤 응답을 기다리는 최대 시간(ms). 연결이 소리 없이 끊겨도(응답도 RST 도 없음) 그 요청이 영원히 멈추지 않게 합니다 — 트랜잭션 시간 제한은 DB 가 받지 못한 쿼리를 풀지 못합니다. `DB_TX_TIMEOUT` 보다 길게, 그보다 오래 걸리는 마이그레이션이 있으면 그때만 늘리세요 [DEP-01] |
+| `DB_CONNECT_RETRIES` | | `5` | 기동할 때 첫 DB 연결이 실패하면 다시 시도할 횟수(1·2·4·8·16초 간격, 최대 약 1분). 0 이면 한 번 실패로 기동이 멈춥니다 [DEP-02] |
 | `DB_TX_TIMEOUT` | | `30s` | 트랜잭션 하나의 최대 시간. 넘으면 진행 중인 쿼리를 끊고 롤백한 뒤 503 — DB 가 느릴 때 요청이 끝없이 쌓이지 않게 합니다 |
 | `STORAGE_TYPE` | | `local` (`prod` 는 `azure`) | `local` \| `azure` |
 | `STORAGE_LOCAL_ROOT` | | `~/smartcollab-data` | 로컬 저장소 경로 |

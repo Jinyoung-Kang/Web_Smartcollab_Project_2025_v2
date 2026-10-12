@@ -15,7 +15,7 @@
 | **데이터·저장소** | MySQL 8 · Azure Blob Storage(또는 로컬 디스크) |
 | **AI** | Claude Haiku 5.5(Anthropic 공식 Java SDK) — 문서 요약·번역, 사용자별 토큰 한도. 키가 없으면 추출 요약·DeepL |
 | **배포 구성** | Azure App Service(Docker 이미지 또는 jar) · Azure Database for MySQL · Azure Blob Storage — 절차는 [DEPLOYMENT](docs/DEPLOYMENT.md) |
-| **CI·테스트** | GitHub Actions · JUnit 6 + Testcontainers(MySQL·Azurite) 351건 · Vitest 140건 · Playwright E2E 14건(접근성 자동 검사 포함) · ArchUnit 구조 규칙 |
+| **CI·테스트** | GitHub Actions · JUnit 6 + Testcontainers(MySQL·Azurite) 355건 · Vitest 140건 · Playwright E2E 14건(접근성 자동 검사 포함) · ArchUnit 구조 규칙 |
 
 ---
 
@@ -96,7 +96,7 @@ API 문서: <http://localhost:8080/swagger-ui.html> · 전체 목록 [docs/API.m
 ## 테스트
 
 ```bash
-cd backend && ./gradlew test          # 351건 (MySQL·Azurite 컨테이너 자동 실행), 커버리지 리포트 포함
+cd backend && ./gradlew test          # 355건 (MySQL·Azurite 컨테이너 자동 실행), 커버리지 리포트 포함
 cd frontend && npm test               # 140건
 docker compose up -d --wait && cd e2e && npm ci && npx playwright test   # E2E 14건 (접근성 자동 검사 포함)
 ```
