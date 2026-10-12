@@ -26,6 +26,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 /**
  * 접근 코드 잠금 [GATE-01, ADR-0013]. 포트폴리오 데모를 코드를 받은 사람에게만 열어, 모르는 방문자가 가입·업로드·AI 요약으로
@@ -41,7 +42,11 @@ import java.util.concurrent.TimeUnit;
 public class AccessGateFilter extends OncePerRequestFilter {
 
     public static final String PREFIX = "/__gate";
-    static final String HEALTH = "/actuator/health";
+    /**
+     * 잠금 없이 여는 상태 확인 경로 — 이름 조각만 허용합니다 [L-4]. 요청 URI 는 정규화 전 값이라, 앞부분만 비교하면
+     * {@code /actuator/health/../../api/...} 처럼 다른 곳을 가리키는 경로도 통과했습니다(뒤의 보안 방화벽이 막았지만 한 겹에 기대지 않음).
+     */
+    static final Pattern HEALTH = Pattern.compile("/actuator/health(/[A-Za-z0-9-]+)*");
     static final int MAX_FORM_BYTES = 2048;
     static final int MAX_NEXT_CHARS = 2000;
     static final String PAGE_CSP = "default-src 'none'; style-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'";
@@ -100,7 +105,7 @@ public class AccessGateFilter extends OncePerRequestFilter {
             handleGate(path, request, response);
             return;
         }
-        if (path.equals(HEALTH) || path.startsWith(HEALTH + "/") || authorizedAs(request).isPresent()) {
+        if (HEALTH.matcher(path).matches() || authorizedAs(request).isPresent()) {
             chain.doFilter(request, response);
             return;
         }
