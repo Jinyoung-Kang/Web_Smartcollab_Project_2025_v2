@@ -1,0 +1,49 @@
+2026-10-12T04:27:28.2493543Z [Previous Container] Received signal SIGTERM
+2026-10-12T04:27:28.2493773Z [Previous Container] Sending SIGTERM to main process. Child Process ID: 76
+2026-10-12T04:27:28.5974514Z [Previous Container] Done processing signal SIGTERM. Exiting now!
+2026-10-12T04:30:57.6272038Z 2026-10-12T04:30:57.626Z  INFO 70 --- [smartcollab] [           main] [] o.f.core.internal.command.DbMigrate      : Current version of schema `smartcollab`: << Empty Schema >>
+2026-10-12T04:30:58.0953204Z 2026-10-12T04:30:58.087Z  INFO 70 --- [smartcollab] [           main] [] o.f.core.internal.command.DbMigrate      : Migrating schema `smartcollab` to version "1 - init schema"
+2026-10-12T04:31:00.1277242Z 2026-10-12T04:31:00.127Z  INFO 70 --- [smartcollab] [           main] [] o.f.core.internal.command.DbMigrate      : Migrating schema `smartcollab` to version "2 - notifications recent index"
+2026-10-12T04:31:00.6104413Z 2026-10-12T04:31:00.610Z  INFO 70 --- [smartcollab] [           main] [] o.f.core.internal.command.DbMigrate      : Migrating schema `smartcollab` to version "3 - folder trash"
+2026-10-12T04:31:01.0967030Z 2026-10-12T04:31:01.096Z  INFO 70 --- [smartcollab] [           main] [] o.f.core.internal.command.DbMigrate      : Migrating schema `smartcollab` to version "4 - storage usage counters"
+2026-10-12T04:31:01.8301086Z 2026-10-12T04:31:01.829Z  INFO 70 --- [smartcollab] [           main] [] o.f.core.internal.command.DbMigrate      : Successfully applied 4 migrations to schema `smartcollab`, now at version v4 (executi
+2026-10-12T04:32:32.1643524Z 2026-10-12T04:32:32.164Z  INFO 70 --- [smartcollab] [           main] [] com.smartcollab.SmartCollabApplication   : Started SmartCollabApplication in 173.347 seconds (process running for 185.124)
+2026-10-12T04:32:38.4418348Z 2026-10-12T04:32:38.441Z  INFO 70 --- [smartcollab] [           main] [] c.s.user.SystemAccountInitializer        : System account 'deleted_user' created
+2026-10-12T04:32:58.1255797Z [Previous Container] Received signal SIGTERM
+2026-10-12T04:32:58.1266520Z [Previous Container] Sending SIGTERM to main process. Child Process ID: 76
+2026-10-12T04:32:58.5439246Z [Previous Container] Done processing signal SIGTERM. Exiting now!
+2026-10-12T04:33:55.1448881Z 2026-10-12T04:33:55.144Z  INFO 70 --- [smartcollab] [mcat-handler-14] [6581d634555f437ab61491b11c615ddb] security                                 : security-event login-succeeded user=2 ip=<ip>
+2026-10-12T04:33:58.5150463Z 2026-10-12T04:33:58.505Z  INFO 70 --- [smartcollab] [mcat-handler-17] [3679a128f9f44c379f5b8157d94ca14f] c.s.global.web.RequestTraceFilter        : POST /api/files/upload 201 1241ms user=2 ip=<ip>
+2026-10-12T04:41:11.8998165Z 2026-10-12T04:41:11.899Z  INFO 69 --- [smartcollab] [           main] [] o.f.core.internal.command.DbMigrate      : Current version of schema `smartcollab`: 4
+2026-10-12T04:41:12.0785454Z 2026-10-12T04:41:12.078Z  INFO 69 --- [smartcollab] [           main] [] o.f.core.internal.command.DbMigrate      : Schema `smartcollab` is up to date. No migration necessary.
+2026-10-12T04:43:09.8566427Z 2026-10-12T04:43:09.856Z  INFO 69 --- [smartcollab] [           main] [] com.smartcollab.SmartCollabApplication   : Started SmartCollabApplication in 210.001 seconds (process running for 236.309)
+2026-10-12T04:43:36.8787638Z [Previous Container] Received signal SIGTERM
+2026-10-12T04:43:36.8868709Z [Previous Container] Sending SIGTERM to main process. Child Process ID: 70
+2026-10-12T04:43:39.5401107Z [Previous Container] Done processing signal SIGTERM. Exiting now!
+2026-10-12T04:48:09.1498580Z 2026-10-12T04:48:09.149Z  WARN 69 --- [smartcollab] [           main] [] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org
+2026-10-12T04:48:09.1499363Z Message    : Communications link failure
+2026-10-12T04:48:10.2288122Z 2026-10-12T04:48:09.958Z ERROR 69 --- [smartcollab] [           main] [] o.s.boot.SpringApplication               : Application run failed
+2026-10-12T04:48:10.2288654Z org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'entityManagerFactory' defined in class path resource [org/springframework/boot/hibernate/autoconfigure/HibernateJ
+2026-10-12T04:48:10.2288799Z Message    : Communications link failure
+2026-10-12T04:48:10.2289308Z Caused by: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/flyway/autoconfigure/Flywa
+2026-10-12T04:48:10.2569450Z Message    : Communications link failure
+2026-10-12T04:48:10.2570167Z Caused by: org.flywaydb.core.internal.exception.sqlExceptions.FlywaySqlUnableToConnectToDbException: Unable to obtain connection from database: Communications link failure
+2026-10-12T04:48:10.2570325Z Message    : Communications link failure
+2026-10-12T04:48:10.2570716Z Caused by: com.mysql.cj.jdbc.exceptions.CommunicationsException: Communications link failure
+2026-10-12T04:48:10.2571263Z Caused by: com.mysql.cj.exceptions.CJCommunicationsException: Communications link failure
+2026-10-12T04:48:10.2571710Z Caused by: java.net.SocketException: Connection attempt exceeded defined timeout.
+2026-10-12T04:48:34.8373958Z [Previous Container] Received signal SIGTERM
+2026-10-12T04:48:34.8374425Z [Previous Container] Sending SIGTERM to main process. Child Process ID: 69
+2026-10-12T04:48:36.9278684Z [Previous Container] Done processing signal SIGTERM. Exiting now!
+2026-10-12T04:51:22.0839134Z 2026-10-12T04:51:22.083Z  INFO 69 --- [smartcollab] [           main] [] o.f.core.internal.command.DbMigrate      : Current version of schema `smartcollab`: 4
+2026-10-12T04:51:22.1919876Z 2026-10-12T04:51:22.191Z  INFO 69 --- [smartcollab] [           main] [] o.f.core.internal.command.DbMigrate      : Schema `smartcollab` is up to date. No migration necessary.
+2026-10-12T04:52:48.2506097Z 2026-10-12T04:52:48.250Z  INFO 69 --- [smartcollab] [           main] [] com.smartcollab.SmartCollabApplication   : Started SmartCollabApplication in 147.114 seconds (process running for 156.579)
+2026-10-12T04:53:25.2933920Z 2026-10-12T04:53:25.292Z  INFO 69 --- [smartcollab] [MessageBroker-1] [] com.smartcollab.system.DemoDataSeeder    : Demo data created: accounts [demo1, demo2, demo3]
+2026-10-12T04:58:30.6240885Z 2026-10-12T04:58:30.623Z  INFO 69 --- [smartcollab] [           main] [] o.f.core.internal.command.DbMigrate      : Current version of schema `smartcollab`: 4
+2026-10-12T04:58:30.7125658Z 2026-10-12T04:58:30.712Z  INFO 69 --- [smartcollab] [           main] [] o.f.core.internal.command.DbMigrate      : Schema `smartcollab` is up to date. No migration necessary.
+2026-10-12T04:59:38.7749031Z 2026-10-12T04:59:38.774Z  INFO 69 --- [smartcollab] [           main] [] com.smartcollab.SmartCollabApplication   : Started SmartCollabApplication in 163.86 seconds (process running for 195.396)
+2026-10-12T05:00:07.7546991Z [Previous Container] Received signal SIGTERM
+2026-10-12T05:00:07.8046270Z [Previous Container] Sending SIGTERM to main process. Child Process ID: 69
+2026-10-12T05:00:15.6010783Z 2026-10-12T05:00:15.600Z  INFO 69 --- [smartcollab] [mcat-handler-11] [80626f29a8c644ca963091f3554c6712] security                                 : security-event login-succeeded user=5 ip=<ip>
+2026-10-12T05:00:22.6806734Z 2026-10-12T05:00:22.673Z  INFO 69 --- [smartcollab] [mcat-handler-14] [1c5927167c7d4bd3bcdf99b5645e2923] c.s.global.web.RequestTraceFilter        : POST /api/files/upload 201 3380ms user=5 ip=<ip>
+2026-10-12T05:06:03.0143266Z 2026-10-12T05:06:03.013Z  INFO 69 --- [smartcollab] [mcat-handler-72] [caafaaf1cb824d3889c4136c037d15d5] security                                 : security-event login-succeeded user=5 ip=<ip>

@@ -1,0 +1,9 @@
+# 응답하지 않는 저장소에 대한 Blob 업로드 — 측정 시험(커밋하지 않은 BlackHoleProbeTest), 운영과 같은 BlobContainerClientBuilder().connectionString().buildClient()
+# 서버: 연결을 받고 요청을 읽기만 하고 응답하지 않음 (azure-storage-blob 12.35.0 · azure-core 1.58.1 · azure-core-http-jdk-httpclient 1.1.5)
+HTTP  : PROBE 실패: reactor.core.Exceptions$ReactiveException — java.net.http.HttpTimeoutException: request timed out
+        PROBE 경과 284.3초, 연결 4회
+HTTPS : PROBE 실패: reactor.core.Exceptions$ReactiveException — java.net.http.HttpConnectTimeoutException: HTTP connect timed out
+        PROBE 경과 84.3초, 연결 4회
+# 기본값(설치된 jar 바이트코드): HttpUtils 연결 10초·쓰기 60초·응답 60초·읽기 60초(AZURE_REQUEST_*_TIMEOUT) /
+# RequestRetryOptions 최대 4회·시도당 상한 Integer.MAX_VALUE초·지수 대기 4초부터 최대 120초 /
+# SharedExecutorService 는 azure.sdk.shared.threadpool.usevirtualthreads 기본 true(Java 21 이면 가상 스레드)
