@@ -32,4 +32,5 @@ export const queryKeys = {
   officeUrl: (fileId: number | undefined) => ['office-url', fileId] as const,
   search: (query: string, teamId: number | undefined) => ['search', query, teamId] as const,
   publicShare: (token: string) => ['share', token] as const,
+  adminAccounts: { all: ['admin-accounts'] as const, page: (page: number) => ['admin-accounts', page] as const },
 }

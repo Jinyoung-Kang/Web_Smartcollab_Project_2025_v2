@@ -1,5 +1,7 @@
 import { http } from './http'
 import type {
+  AdminAccountPage,
+  AdminDeletionResult,
   AppNotification,
   ChatMessage,
   ChatPage,
@@ -43,6 +45,12 @@ export const authApi = {
     http.post<Me>('/api/auth/signup', body),
   logout: () => http.post<void>('/api/auth/logout'),
   deleteAccount: (password: string) => http.post<void>('/api/users/me/delete', { password }),
+}
+
+/** 관리 전용 계정 (ADR-0015) */
+export const adminApi = {
+  accounts: (page: number, size: number) => http.get<AdminAccountPage>(`/api/admin/users${q({ page, size })}`),
+  deleteAccount: (userId: number) => http.del<AdminDeletionResult>(`/api/admin/users/${userId}`),
 }
 
 export const configApi = {
