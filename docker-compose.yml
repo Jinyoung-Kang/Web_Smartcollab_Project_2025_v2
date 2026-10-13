@@ -13,7 +13,9 @@ services:
     volumes:
       - db-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$${MYSQL_ROOT_PASSWORD}"]
+      # TCP(127.0.0.1)로 확인합니다 — 소켓(localhost)이면 첫 기동의 초기화용 임시 서버(네트워크 꺼짐, root 비밀번호 설정 전)에도 "살아 있음"이라
+      # --wait 가 초기화 도중에 풀려, 백업 복원(DEPLOYMENT §4)의 DB 가져오기가 접속 실패·접근 거부로 실패했습니다 [QA6-11]
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--protocol=tcp", "-u", "root", "-p$${MYSQL_ROOT_PASSWORD}"]
       interval: 5s
       timeout: 5s
       retries: 30
