@@ -2,7 +2,7 @@
 
 | 층 | 도구 | 개수 | 실행 |
 |---|---|---:|---|
-| 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 410 | `cd backend && ./gradlew test` |
+| 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 418 | `cd backend && ./gradlew test` |
 | 백엔드 — CPU 1개 JVM | 같은 도구, `-XX:ActiveProcessorCount=1`(운영 App Service B1 과 같은 조건) · HTTPS Azurite | 2 | `cd backend && ./gradlew singleCarrierTest` (`check` 에 포함, CI 백엔드 작업에서도 실행) |
 | 프론트엔드 단위·컴포넌트 | Vitest · Testing Library · jsdom | 182 | `cd frontend && npm test` |
 | E2E (전체 스택) | Playwright · Docker Compose · axe-core | 19 (시나리오 10 + 관리자 1 + 대화상자 초점 2 + 배치 2 + 접근성 3·탭 제목 1) | `docker compose up -d --wait && cd e2e && npx playwright test` |
@@ -12,7 +12,7 @@
 ## 원칙
 
 - **H2 대신 실제 MySQL** 로 통합 테스트합니다. 재귀 CTE·`ON DELETE SET NULL`·조건부 UPDATE 처럼 DB 동작에 기대는 로직이 많아, 운영과 다른 DB 로 테스트하면 통과해도 믿을 수 없기 때문입니다.
-- 테스트마다 무작위 사용자 이름을 써서 데이터를 분리하고, 컨테이너와 Spring 컨텍스트는 한 번만 띄웁니다(전체 410건, `./gradlew clean build` 는 CPU 1개 시험·커버리지 포함 4분 58초 — AI-12 뒤 측정). 테스트 JVM 은 운영 컨테이너·CI 와 같은 UTC 로 실행합니다.
+- 테스트마다 무작위 사용자 이름을 써서 데이터를 분리하고, 컨테이너와 Spring 컨텍스트는 한 번만 띄웁니다(전체 418건, `./gradlew clean build` 는 CPU 1개 시험·커버리지 포함 4분 50초 — AI-13 뒤 측정). 테스트 JVM 은 운영 컨테이너·CI 와 같은 UTC 로 실행합니다.
 - v1 에서 찾은 결함마다 이름에 `[v1 …]` 을, 2026-09 코드 리뷰 항목에는 `[SEC-01]`·`[BUG-02]` 처럼 항목 ID 를 붙인 회귀 테스트가 있습니다 → [REFACTORING_REPORT.md](REFACTORING_REPORT.md), [REVIEW_2026-09.md](REVIEW_2026-09.md)
 - 인증은 실제 브라우저처럼 HttpOnly 쿠키 + CSRF 토큰으로 요청합니다(`support/Api`). CSRF 는 Spring Security 의 `csrf()` 도우미 대신 같은 토큰을 쿠키·헤더로 보내는 `Api.xsrf()` 를 씁니다 — `csrf()` 는 공유 CSRF 필터의 저장소를 바꿔, 같은 컨텍스트의 실제 HTTP 시험이 실행 순서에 따라 실패했습니다.
 
@@ -51,7 +51,7 @@
 | `NotificationQueryPlanTest` | 알림 최신순 조회가 정렬 없이 인덱스 순서로 읽히는지 실행 계획으로 확인 (PERF-04) |
 | `ArchitectureTest` · `ModuleBoundaryTest` | 계층·의존 방향 규칙 7개 — 컨트롤러→리포지토리 금지, 서비스의 서블릿·웹 타입·컨트롤러 의존 금지(A-05), 엔티티 응답 금지, global·storage·event 의 도메인 의존 금지 (ARC-05·A-03) / 모듈 사이 양방향 의존·순환·다른 모듈 리포지토리 사용이 기준선([ADR-0010](adr/0010-module-boundaries-and-events.md))과 같은지 (A-08) |
 | `PermissionRulesTest` | AccessPolicy 로 모은 권한 규칙 — 팀 휴지통은 삭제 권한, 서명은 소유자·팀장, 채팅에는 그 팀의 휴지통이 아닌 파일만 (A-06) |
-| `ClaudeDocumentAiTest` · `DocumentToolsTest` · `DocxTextTest` | Claude 요청 형식을 가짜 Anthropic 서버(`FakeAnthropicServer`)로 — 모델·effort low·번역 스트리밍·요약 구조화 출력·document 블록(텍스트·PDF)·시스템 프롬프트의 "신뢰하지 않는 문서", 거절 422·출력 잘림 413·429→503·401→502, 실측에서 나온 결과 정리(번역을 감싼 문서 표기·코드 울타리 벗기기, 요약의 원문에 없는 연도 떼기, 번역 notes → translation 구조화 출력·작업별 effort, 번역에 파일 이름 안 보냄, 한국어 결과의 일본어 조사 고치기, 문서 대신 용어표 JSON·지나치게 짧은 번역은 불완전으로 보고 짧게 끝난 빈·불완전 답만 한 번 다시 요청·두 요청 토큰 합산) (AI-06~12) / AI 를 가짜로 바꾼 통합 시험 — 키가 있으면 생성형·없으면 추출 요약·DeepL, 권한이 먼저(볼 수 없으면 404 이고 AI 를 부르지 않음), 텍스트·PDF·Word 만, 입력 토큰 상한 413, 하루 토큰 한도 예약·정산·실패 시 반환, 버전별 결과 캐시 / Word 본문 추출·XXE 거절·압축 폭탄 상한 (AI-01~05) |
+| `ClaudeDocumentAiTest` · `DocumentToolsTest` · `DocxTextTest` | Claude 요청 형식을 가짜 Anthropic 서버(`FakeAnthropicServer`)로 — 모델·effort low·번역 스트리밍·요약 구조화 출력·document 블록(텍스트·PDF)·시스템 프롬프트의 "신뢰하지 않는 문서", 거절 422·출력 잘림 413·429→503·401→502, 실측에서 나온 결과 정리(번역을 감싼 문서 표기·코드 울타리 벗기기, 요약의 원문에 없는 연도 떼기, 번역 notes → translation 구조화 출력·작업별 effort, 번역에 파일 이름 안 보냄, 한국어 결과의 일본어 조사 고치기, 문서 대신 용어표 JSON·지나치게 짧은 번역·대상 언어에 쓰지 않는 글자(영어 번역의 한글 등)가 10% 넘게 남은 결과는 불완전으로 보고 한 번 다시 요청·두 요청 토큰 합산, 출력 한도에서 잘린 답은 다시 보내지 않음) (AI-06~13) / AI 를 가짜로 바꾼 통합 시험 — 키가 있으면 생성형·없으면 추출 요약·DeepL, 권한이 먼저(볼 수 없으면 404 이고 AI 를 부르지 않음), 텍스트·PDF·Word 만, 입력 토큰 상한 413, 하루 토큰 한도 예약·정산·실패 시 반환, 버전별 결과 캐시 / Word 본문 추출·XXE 거절·압축 폭탄 상한 (AI-01~05) |
 | `AzureBlobStorageTest` | Azure 구현을 에뮬레이터(Azurite)로 검증 — 업로드·서버 측 복사·SAS URL·삭제 |
 | `SlidingWindowRateLimiterTest` 외 단위 테스트 | 요청 제한(동시성·키별 창으로 정리·분량 반환), 트리 구성(깊이 5,000), 요약 알고리즘, grant 서명, 파일명 검증(방향 제어 문자, S-12), DeepL 호출 형식 |
 | E2E `smoke.spec.ts` | 모든 화면의 CSP 위반 감시(`fixtures.ts`, 하나라도 있으면 실패), CSP 헤더, 문서 편집·버전, 업로드·이름 변경·휴지통 복원, **두 사용자 실시간 채팅·폴더 반영**, 비로그인 공유 다운로드, 검색 화면 새로고침, 로그아웃·비밀번호 오류 뒤 로그인 (BUG-09), 폴더를 휴지통에 넣고 복원 (UX-06), 팀 채팅에 올린 파일 미리보기(이미지가 실제로 그려지는지) |
@@ -78,6 +78,7 @@
 | 프론트 `EditorPage.test` · `PreviewDialog.test` (요약·번역) | AI 요약(요약 문단·핵심 항목·모델·Anthropic 전송 안내)·번역 언어 선택, 키가 없으면 핵심 문장·번역 꺼짐 / 미리보기의 PDF 요약·Word 번역, 이미지에는 도구 없음, AI 키가 없을 때 PDF 는 꺼지고 이유 안내, DeepL 만 있으면 텍스트 번역 (AI-01·02) |
 | 프론트 `AuthProvider.test` | 실제 App·데이터 라우터로 로그아웃·세션 만료(401)·탈퇴 뒤 로그인 화면에 머무는지, 이전 사용자 캐시 삭제, 편집 중 세션 만료 시 확인, 비밀번호 오류 뒤 로그인 (BUG-09), 세션 만료 안내 (UX-03) |
 | `DocxTextTest` · `ExtractiveSummarizerTest` · `DocumentToolsTest`(H-1) | 수 KB Word 압축 폭탄(앞쪽 항목에 숨긴 것 포함)이 힙을 다 쓰지 않고 413, 뽑은 본문이 편집기 한도를 넘으면 키가 있든 없든 413, 추출 요약을 상위 k 개 방식으로 바꾼 뒤에도 고르는 문장이 같음(동작 고정) — 측정은 `qa/scripts/probes` ([REVIEW_2026-10-12](REVIEW_2026-10-12.md)) |
+| `PdfTextTest` · `DocumentToolsTest`(AI-13) | PDF 번역은 서버(PDFBox)가 뽑은 글자를 쪽 순서대로 텍스트로 넘기고 글자가 거의 없는(스캔)·손상된 PDF 만 원본, 요약은 원본, 뽑은 글자 2MB 넘으면 413, 압축 폭탄(내용 하나·내용 배열·필터 두 개)은 64MB 까지만 풀어 보고 원본으로 — 예전 PDFBox 기본 경로는 내용 배열 폭탄을 통째로 메모리에 풀었음 (AI-13) |
 | `ClaudeDocumentAiTest` · `DocumentToolsTest`(H-2) · `DocumentToolsConcurrencyTest` · `DocumentToolSlotsTest` · `PdfRequestAllocationBenchmarkTest` | 응답을 받은 뒤의 실패(잘림·거절·형식 오류·스트림 끊김)는 과금 토큰을 한도에 남김, 번역 예약은 요청의 max_tokens 와 같음, 번역 스트림은 바이트가 계속 오면 `AI_TIMEOUT` 보다 오래 걸려도 받고 멈추면 끊되 과금으로 봄 (H-2) / 한도를 다 쓰면 문서를 읽기 전에 429, 사용자당 2·서버 전체 동시 실행 상한, PDF 요청 메모리 할당 상한 (M-1) |
 | `CommitOutcomeUnknownTest` · `TransactionRunnerTest` | 커밋은 됐는데 확인 응답을 못 받은 업로드·텍스트 저장·복사가 저장소 파일을 지우지 않음 — 실제 커밋 뒤 예외를 던지는 트랜잭션 관리자로 재현 (H-4) |
 | `DemoProtectionTest` · `PasswordCheckConnectionTest` · `ShareLinkTest` · `AzureBlobStorageTest` | 체험 계정에게 팀장 위임 불가 (H-3), 초기화가 중간에 실패해 일부만 남은 체험 계정도 다음 시드가 정리 (L-3) / 로그인·공유 비밀번호 확인 중 DB 커넥션을 잡지 않음 (M-2) / 공유 다운로드는 저장소를 연 뒤에만 횟수 차감 (L-2) / Azure 복사의 404·실패 상태 (L-1) |
@@ -103,7 +104,7 @@ CI 와 별도로, QA 스택(`docker compose -f docker-compose.yml -f qa/compose.
 - 백엔드·API: 인가 행렬·인증·CSRF·입력 퍼징·파일 처리·경계값·동시 요청
 - 신뢰성: 장애 주입(Toxiproxy)·정합성 검사·백업 복원
 - 성능: 부하(k6)·Lighthouse
-- AI 요약·번역 실측(실제 Claude 호출, 과금): 임시 스택 `sc-ai` 에 `qa/scripts/ai-live.mjs`(표본 5개, 확인 7개)·`ai-translate-repeat.mjs`·`ai-summary-dates.mjs`(반복) → [qa/results/ai](../qa/results/ai/README.md). 이 실측과 화면 확인에서 결함 6건(AI-06~11)을 찾아 시험을 먼저 더하고 고쳤습니다. 사용자가 신고한 PDF 한국어 번역 결함(AI-12)은 `ai-translate-pdf.mjs` 로 수정 전·후를 쟀습니다. QA 스택은 키를 비워 Claude 를 부르지 않습니다
+- AI 요약·번역 실측(실제 Claude 호출, 과금): 임시 스택 `sc-ai` 에 `qa/scripts/ai-live.mjs`(표본 5개, 확인 7개)·`ai-translate-repeat.mjs`·`ai-summary-dates.mjs`(반복) → [qa/results/ai](../qa/results/ai/README.md). 이 실측과 화면 확인에서 결함 6건(AI-06~11)을 찾아 시험을 먼저 더하고 고쳤습니다. 사용자가 신고한 PDF 번역 결함(AI-12·13)은 `ai-translate-pdf.mjs` 로 수정 전·후를 쟀습니다. QA 스택은 키를 비워 Claude 를 부르지 않습니다
 - 개인·팀 드라이브 기능 점검(브라우저, 과금): 임시 스택 `sc-test` 에 `qa/scripts/feature-walkthrough.mjs` — PDF·Word·CSV·Markdown·JSON·PNG 의 미리보기·내려받기·요약·번역·편집·공유 링크·팀 채팅 전송·권한 63개 항목 → [qa/results/walkthrough](../qa/results/walkthrough/README.md)
 - 화면: 화면 크롤·접근성 확장 점검(`e2e/qa`, `npx playwright test -c playwright.qa.config.ts`)
 
