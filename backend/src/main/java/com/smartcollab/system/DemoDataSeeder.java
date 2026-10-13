@@ -89,9 +89,9 @@ public class DemoDataSeeder {
         try {
             purge(existingDemoUsers());
         } catch (RuntimeException e) {
-            // 일부만 지워진 상태는 다음 시드·초기화가 남은 것부터 다시 지웁니다 [L-3]
-            log.error("Demo data reset failed; will retry at the next scheduled reset", e);
-            return;
+            // 지우기가 중간에 실패해도(교착·일시적 DB 오류) 끝내지 않고 시드로 넘어갑니다 — 시드가 빠진 것을 알아보고 남은 것부터 지운 뒤
+            // 다시 만듭니다. 예전에는 여기서 끝나, 팀만 지워지고 계정 셋은 남아 다음 날까지 체험 팀이 없었습니다 [QA6-07, L-3]
+            log.error("Demo data reset failed halfway; the seed below will repair it", e);
         }
         seedOrDiscard("reset");
     }
@@ -114,8 +114,9 @@ public class DemoDataSeeder {
             log.error("Demo data could not be created ({}); removing the partial demo accounts so the next seed starts over", when, e);
             try {
                 purge(existingDemoUsers());
+                seed();   // 정리됐으면 한 번 더 만듭니다 — 아니면 다음 기동·초기화까지 체험 계정이 없음 [QA6-07]
             } catch (RuntimeException cleanup) {
-                log.error("Removing partial demo data failed; the next scheduled reset will retry", cleanup);
+                log.error("Removing partial demo data or seeding again failed; the next scheduled reset will retry", cleanup);
             }
         }
     }
@@ -125,6 +126,11 @@ public class DemoDataSeeder {
                 .map(a -> users.findByUsername(a.username()))
                 .flatMap(Optional::stream)
                 .toList();
+    }
+
+    /** 시드가 만드는 두 체험 팀(팀장 demo1·demo2)이 남아 있는지. 체험 계정은 팀을 만들거나 지울 수 없어 초기화 사이에는 그대로입니다. */
+    private boolean demoTeamsExist(List<User> demoUsers) {
+        return demoUsers.stream().limit(2).allMatch(u -> !teams.findIdsOwnedBy(u.getId()).isEmpty());
     }
 
     /** 체험 계정이 이끄는 팀 → 체험 계정 순서로 지웁니다 */
@@ -151,9 +157,10 @@ public class DemoDataSeeder {
             return;
         }
         List<User> existing = existingDemoUsers();
-        if (existing.size() == DemoAccounts.ACCOUNTS.size()) return;
+        if (existing.size() == DemoAccounts.ACCOUNTS.size() && demoTeamsExist(existing)) return;
         if (!existing.isEmpty()) {
-            log.warn("Found {} of {} demo accounts (an earlier reset stopped halfway); removing them before seeding",
+            // 계정 수만 보면 초기화가 팀만 지우고 멈춘 상태(계정 셋은 남음)를 완성으로 봐 체험 팀이 없는 채로 두었습니다 [QA6-07]
+            log.warn("Found {} of {} demo accounts or missing demo teams (an earlier reset stopped halfway); removing them before seeding",
                     existing.size(), DemoAccounts.ACCOUNTS.size());
             purge(existing);
         }
