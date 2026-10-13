@@ -35,5 +35,8 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: '계정 관리' })).toBeInTheDocument()
     expect(await screen.findByText('가입한 계정이 없습니다')).toBeInTheDocument()
+    // RequireAuth 가 로그인 확인과 함께 미리 받기 시작한 화면 코드(앱 틀·드라이브)를 다 받을 때까지 기다립니다 — 시험이 먼저 끝나면
+    // 정리된 환경에서 모듈을 불러 Vitest 가 오류(EnvironmentTeardownError)로 실패 처리했습니다(CI 에서만, 느린 환경)
+    await Promise.all([import('@/layout/AppShell'), import('@/features/drive/DrivePage')])
   })
 })
