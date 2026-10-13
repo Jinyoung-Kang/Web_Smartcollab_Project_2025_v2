@@ -12,6 +12,7 @@ import org.springframework.util.unit.DataSize;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Base64;
 
@@ -225,6 +226,42 @@ class ClaudeDocumentAiTest {
         server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 100, 50, translationChunks(" "))));
         assertThatThrownBy(() -> ai.translate(AiDocument.text("a.txt", "본문"), TargetLanguage.EN, 64_000))
                 .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.UPSTREAM_ERROR));
+    }
+
+    /**
+     * [AI-12] 거의 한국어인 PDF(영문 낱말 몇 개)를 한국어로 번역하자, 문서 대신 용어 대응표 {"e-Friend Expert": "e-Friend Expert"} 만 와서
+     * 그대로 번역 결과로 보였습니다(운영 사용자 신고, 같은 문서의 영어 번역은 정상). 문서가 JSON 이 아닌데 결과가 JSON 이거나, 원문을 아는
+     * 문서(텍스트·Word)에서 결과가 원문보다 지나치게 짧으면 문서 일부만 옮긴 것으로 보고 보여 주지 않습니다(과금된 실패).
+     */
+    @Test
+    @DisplayName("[AI-12] 번역이 문서 대신 용어표(JSON)이거나 원문보다 지나치게 짧으면 불완전한 번역으로 보고 502 — 운영에서 한국어 PDF 번역 결과가 용어 하나였음")
+    void incompleteTranslationIsRejected() {
+        AiDocument pdf = AiDocument.pdf("Expert_VC++.pdf", "%PDF-1.4 sample".getBytes(StandardCharsets.UTF_8));
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 12_000, 40, translationChunks("{\"e-Friend Expert\": \"e-Friend Expert\"}"))));
+        assertThatThrownBy(() -> ai.translate(pdf, TargetLanguage.KO, 64_000))
+                .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.UPSTREAM_ERROR));
+
+        String longText = "회의 결과를 정리합니다. 다음 주까지 각 팀은 일정을 확정합니다.\n".repeat(20);
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 800, 20, translationChunks("Meeting results."))));
+        assertThatThrownBy(() -> ai.translate(AiDocument.text("회의.txt", longText), TargetLanguage.EN, 64_000))
+                .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.UPSTREAM_ERROR));
+
+        // 문서 자체가 JSON 이면 JSON 번역은 정상, 짧은 문서의 짧은 번역도 정상
+        String jsonDoc = "{\"title\": \"Hello\"}";
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 100, 20, translationChunks("{\"title\": \"안녕하세요\"}"))));
+        assertThat(ai.translate(AiDocument.text("a.json", jsonDoc), TargetLanguage.KO, 64_000).value()).isEqualTo("{\"title\": \"안녕하세요\"}");
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 100, 20, translationChunks("Hi"))));
+        assertThat(ai.translate(AiDocument.text("a.txt", "안녕하세요"), TargetLanguage.EN, 64_000).value()).isEqualTo("Hi");
+    }
+
+    @Test
+    @DisplayName("[AI-12] 번역 프롬프트는 이미 대상 언어인 부분도 빠짐없이 옮겨 문서 전체를 쓰고, 번역 칸에 용어표·JSON 을 넣지 않게 한다")
+    void translationPromptAsksForWholeDocument() {
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 100, 50, translationChunks("안녕하세요"))));
+        ai.translate(AiDocument.text("a.txt", "Hello"), TargetLanguage.KO, 64_000);
+        String system = lastRequest().path("system").toString();
+        assertThat(system).contains("whole document").contains("never drop").contains("glossary");
+        assertThat(system).doesNotContain("keep it as it is");
     }
 
     @Test
