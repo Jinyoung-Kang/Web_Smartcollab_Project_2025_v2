@@ -223,6 +223,8 @@ class ClaudeDocumentAiTest {
         assertThatThrownBy(() -> ai.translate(AiDocument.text("a.txt", "본문"), TargetLanguage.EN, 64_000))
                 .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.UPSTREAM_ERROR));
 
+        // 빈 번역은 한 번 다시 요청하고[AI-12], 그래도 비면 502
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 100, 50, translationChunks(" "))));
         server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 100, 50, translationChunks(" "))));
         assertThatThrownBy(() -> ai.translate(AiDocument.text("a.txt", "본문"), TargetLanguage.EN, 64_000))
                 .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.UPSTREAM_ERROR));
@@ -237,11 +239,14 @@ class ClaudeDocumentAiTest {
     @DisplayName("[AI-12] 번역이 문서 대신 용어표(JSON)이거나 원문보다 지나치게 짧으면 불완전한 번역으로 보고 502 — 운영에서 한국어 PDF 번역 결과가 용어 하나였음")
     void incompleteTranslationIsRejected() {
         AiDocument pdf = AiDocument.pdf("Expert_VC++.pdf", "%PDF-1.4 sample".getBytes(StandardCharsets.UTF_8));
-        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 12_000, 40, translationChunks("{\"e-Friend Expert\": \"e-Friend Expert\"}"))));
+        String termMap = "{\"e-Friend Expert\": \"e-Friend Expert\"}";
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 12_000, 40, translationChunks(termMap))));
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 12_000, 40, translationChunks(termMap))));
         assertThatThrownBy(() -> ai.translate(pdf, TargetLanguage.KO, 64_000))
                 .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.UPSTREAM_ERROR));
 
         String longText = "회의 결과를 정리합니다. 다음 주까지 각 팀은 일정을 확정합니다.\n".repeat(20);
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 800, 20, translationChunks("Meeting results."))));
         server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 800, 20, translationChunks("Meeting results."))));
         assertThatThrownBy(() -> ai.translate(AiDocument.text("회의.txt", longText), TargetLanguage.EN, 64_000))
                 .isInstanceOfSatisfying(ApiException.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.UPSTREAM_ERROR));
@@ -254,13 +259,44 @@ class ClaudeDocumentAiTest {
         assertThat(ai.translate(AiDocument.text("a.txt", "안녕하세요"), TargetLanguage.EN, 64_000).value()).isEqualTo("Hi");
     }
 
+    /**
+     * [AI-12] 프롬프트를 고친 뒤에도 실측(같은 PDF 한국어 3회)에서 1회는 notes 만 쓰고 translation 이 빈 답이었습니다. 짧게 끝난 빈·불완전한
+     * 답은 한 번 더 요청하고, 두 요청의 사용량을 합쳐 정산합니다. 출력 한도 가까이 쓴 답이나 다시 보낸 요청의 실패는 다시 보내지 않습니다.
+     */
+    @Test
+    @DisplayName("[AI-12] 빈·불완전한 번역은 한 번 다시 요청하고 두 요청의 토큰을 합쳐 알린다 — 실측 3회 중 1회 빈 번역")
+    void emptyOrIncompleteTranslationIsRetriedOnce() {
+        AiDocument pdf = AiDocument.pdf("Expert_VC++.pdf", "%PDF-1.4 sample".getBytes(StandardCharsets.UTF_8));
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 15_000, 60, translationChunks(""))));
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 15_000, 2_700, translationChunks("# 설치 안내\n본문 전체"))));
+        DocumentAi.Output<String> out = ai.translate(pdf, TargetLanguage.KO, 64_000);
+        assertThat(out.value()).isEqualTo("# 설치 안내\n본문 전체");
+        assertThat(out.inputTokens()).isEqualTo(30_000L);
+        assertThat(out.outputTokens()).isEqualTo(2_760L);
+        assertThat(server.requests).hasSize(2);
+
+        // 다시 보낸 요청이 과금 전 오류(401)여도 첫 요청의 사용량은 과금된 실패로 알림
+        server.requests.clear();
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 15_000, 60, translationChunks(""))));
+        server.reply(Reply.error(401, "authentication_error", "bad key"));
+        assertThatThrownBy(() -> ai.translate(pdf, TargetLanguage.KO, 64_000))
+                .isInstanceOfSatisfying(DocumentAi.BilledFailure.class, e -> assertThat(e.totalTokens()).isEqualTo(15_060L));
+
+        // 출력 한도의 1/4 넘게 쓰고도 불완전하면 다시 보내지 않음(비용)
+        server.requests.clear();
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 15_000, 20_000, translationChunks("{\"a\": \"b\"}"))));
+        assertThatThrownBy(() -> ai.translate(pdf, TargetLanguage.KO, 64_000))
+                .isInstanceOfSatisfying(DocumentAi.BilledFailure.class, e -> assertThat(e.totalTokens()).isEqualTo(35_000L));
+        assertThat(server.requests).hasSize(1);
+    }
+
     @Test
     @DisplayName("[AI-12] 번역 프롬프트는 이미 대상 언어인 부분도 빠짐없이 옮겨 문서 전체를 쓰고, 번역 칸에 용어표·JSON 을 넣지 않게 한다")
     void translationPromptAsksForWholeDocument() {
         server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 100, 50, translationChunks("안녕하세요"))));
         ai.translate(AiDocument.text("a.txt", "Hello"), TargetLanguage.KO, 64_000);
         String system = lastRequest().path("system").toString();
-        assertThat(system).contains("whole document").contains("never drop").contains("glossary");
+        assertThat(system).contains("whole document").contains("never drop").contains("glossary").contains("empty translation is never correct");
         assertThat(system).doesNotContain("keep it as it is");
     }
 
