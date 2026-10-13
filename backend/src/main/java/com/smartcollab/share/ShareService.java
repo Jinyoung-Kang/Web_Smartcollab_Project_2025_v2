@@ -159,7 +159,10 @@ public class ShareService {
     }
 
     private ShareLink usable(String token) {
-        ShareLink link = links.findByToken(token).orElseThrow(() -> ApiException.notFound("공유 링크"));
+        // 토큰 열의 콜레이션(utf8mb4_0900_ai_ci)은 대소문자·악센트를 무시해, 한 글자만 바꾼 토큰도 같은 링크로 찾습니다. 요청 제한 키는
+        // 받은 토큰 문자열이라 변형마다 비밀번호 시도 한도가 새로 생겼으므로, 찾은 링크의 토큰과 글자 그대로 같을 때만 씁니다 [QA6-02]
+        ShareLink link = links.findByToken(token).filter(l -> l.getToken().equals(token))
+                .orElseThrow(() -> ApiException.notFound("공유 링크"));
         if (link.isExpired(Instant.now()) || link.isExhausted() || link.getFile().isInTrash()
                 || !accessPolicy.canShare(link.getFile(), link.getOwner().getId())) {
             throw new ApiException(ErrorCode.LINK_EXPIRED);
