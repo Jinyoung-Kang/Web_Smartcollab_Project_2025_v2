@@ -60,6 +60,9 @@ jobs:
       # E2E 는 모든 요청이 한 IP·같은 체험 계정으로 로그인하므로 운영 한도(분당 10회)에 가깝습니다. 테스트 환경만 넉넉하게.
       LOGIN_RATE_PER_MINUTE: "200"
       LOGIN_ACCOUNT_RATE: "200"
+      # 관리 전용 계정(ADR-0015) — CI 에서만 쓰는 가짜 값. E2E 도 같은 이름으로 읽습니다
+      ADMIN_USERNAME: ci-admin
+      ADMIN_PASSWORD: ci-admin-password
     steps:
       - uses: actions/checkout@v7
       - name: 전체 스택 실행 (MySQL + 앱)
