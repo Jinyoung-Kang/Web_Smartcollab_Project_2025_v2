@@ -290,13 +290,59 @@ class ClaudeDocumentAiTest {
         assertThat(server.requests).hasSize(1);
     }
 
+    /**
+     * [AI-13] 운영에서 PDF 의 영어 번역이 한국어 원문을 거의 그대로 옮긴 글이었습니다("번역 결과 (영어)"에 "단 계 : 업무명 :" …).
+     * 같은 PDF 를 3번 재현하니 2번이 원문 그대로이거나 "단계: Step:"처럼 원문과 번역을 나란히 적었습니다(한글이 글자의 21~51%, 정상은 0~0.3%).
+     * 대상 언어에 쓰지 않는 글자(영어 번역의 한글·가나·한자, 일본어 번역의 한글 …)가 많이 남으면 번역이 아닌 것으로 보고 한 번 다시 요청합니다.
+     */
+    @Test
+    @DisplayName("[AI-13] 영어 번역에 한글이 많이 남으면(원문 그대로·원문과 번역 병기) 한 번 다시 요청하고, 그래도 그러면 502 — 운영에서 영어 번역이 한국어 원문이었음")
+    void untranslatedSourceScriptIsRetried() {
+        String source = "단 계 :\n업무명 :\n일 자 :\n작성자 :\nExpert(통신API) VC++에서 사용방법\n제.개정이력\n버전 제.개정일자 제.개정 내용\n1.0 2011.03.08 최초 작성\n";
+        AiDocument doc = AiDocument.text("Expert_VC++.pdf", source);
+        String bilingual = "단계: Step\n업무명: Task name\n일자: Date\n작성자: Author\nExpert(통신API) VC++에서 사용방법: How to use Expert in VC++\n"
+                + "제.개정이력: Revision history\n버전 제.개정일자 제.개정 내용: Version, revision date, changes\n1.0 2011.03.08 최초 작성: first draft\n";
+        String english = "Step:\nTask name:\nDate:\nAuthor:\nHow to use Expert (communication API) in VC++\nRevision history\n"
+                + "Version, revision date, changes\n1.0 2011.03.08 First draft\n";
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 3_000, 200, translationChunks(bilingual))));
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 3_000, 180, translationChunks(english))));
+        DocumentAi.Output<String> out = ai.translate(doc, TargetLanguage.EN, 64_000);
+        assertThat(out.value()).isEqualTo(english);
+        assertThat(out.inputTokens()).isEqualTo(6_000L);
+        assertThat(out.outputTokens()).isEqualTo(380L);
+        assertThat(server.requests).hasSize(2);
+
+        // 두 번 다 원문 그대로면 보여 주지 않음
+        server.requests.clear();
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 3_000, 150, translationChunks(source))));
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 3_000, 150, translationChunks(source))));
+        assertThatThrownBy(() -> ai.translate(doc, TargetLanguage.EN, 64_000))
+                .isInstanceOfSatisfying(DocumentAi.BilledFailure.class, e -> {
+                    assertThat(e.code()).isEqualTo(ErrorCode.UPSTREAM_ERROR);
+                    assertThat(e.totalTokens()).isEqualTo(6_300L);
+                });
+        assertThat(server.requests).hasSize(2);
+
+        // 한국어로 옮길 때 한글은 정상, 일본어 번역에 남은 한글은 번역 안 됨, 영어 번역에 한글 이름 몇 글자는 정상
+        server.requests.clear();
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 3_000, 150, translationChunks(source))));
+        assertThat(ai.translate(doc, TargetLanguage.KO, 64_000).value()).isEqualTo(source);
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 3_000, 150, translationChunks(source))));
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 3_000, 150, translationChunks(source))));
+        assertThatThrownBy(() -> ai.translate(doc, TargetLanguage.JA, 64_000)).isInstanceOf(DocumentAi.BilledFailure.class);
+        String withName = english + "Author: Park Sungmin (박성민), reviewed by Mun Jongbaek (문종백)\n";
+        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 3_000, 150, translationChunks(withName))));
+        assertThat(ai.translate(doc, TargetLanguage.EN, 64_000).value()).isEqualTo(withName);
+    }
+
     @Test
     @DisplayName("[AI-12] 번역 프롬프트는 이미 대상 언어인 부분도 빠짐없이 옮겨 문서 전체를 쓰고, 번역 칸에 용어표·JSON 을 넣지 않게 한다")
     void translationPromptAsksForWholeDocument() {
         server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 100, 50, translationChunks("안녕하세요"))));
         ai.translate(AiDocument.text("a.txt", "Hello"), TargetLanguage.KO, 64_000);
         String system = lastRequest().path("system").toString();
-        assertThat(system).contains("whole document").contains("never drop").contains("glossary").contains("empty translation is never correct");
+        assertThat(system).contains("whole document").contains("never drop").contains("glossary").contains("empty translation is never correct")
+                .contains("Never put the original text next to its translation");
         assertThat(system).doesNotContain("keep it as it is");
     }
 

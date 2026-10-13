@@ -161,6 +161,39 @@ class DocumentToolsTest extends IntegrationTest {
         assertThat(translated.getValue().text()).isEqualTo("워드 본문\n둘째 문단");
     }
 
+    /**
+     * [AI-13] PDF 를 통째로 보내면(쪽 이미지 + 글자) 영어 번역이 한국어 원문을 그대로 옮기거나 원문과 번역을 나란히 적는 일이 실측 3번 중 2번이었고,
+     * 서버는 원문 글자를 몰라 이를 가려낼 수 없었습니다. 번역은 서버가 PDF 에서 뽑은 글자를 텍스트로 넘기고(입력도 약 1/5),
+     * 글자가 거의 없는 PDF(스캔한 그림 등)만 원본 그대로 넘깁니다. 요약은 지금처럼 원본입니다.
+     */
+    @Test
+    @DisplayName("[AI-13] PDF 번역은 서버가 뽑은 글자를 텍스트로 넘기고, 글자가 거의 없는(스캔) PDF 만 원본 그대로 — 통째로 보내면 영어 번역에 원문이 남았음")
+    void pdfTranslationUsesExtractedText() throws Exception {
+        Api.Session s = api().signUp("ai13p");
+        byte[] textPdf = PdfFixtures.pdf(new String[]{"Expert manual", "How to use the control in VC++"},
+                new String[]{"Revision history", "1.0 first draft"});
+        byte[] scanned = PdfFixtures.pdf(new String[]{}, new String[]{});
+        long withText = Api.id(s.upload(s.rootFolderId, "manual.pdf", textPdf));
+        long image = Api.id(s.upload(s.rootFolderId, "scan.pdf", scanned));
+
+        s.send(MockMvcRequestBuilders.post("/api/files/{id}/translation?target=KO", withText)).andExpect(status().isOk());
+        s.send(MockMvcRequestBuilders.post("/api/files/{id}/translation?target=KO", image)).andExpect(status().isOk());
+
+        ArgumentCaptor<AiDocument> counted = ArgumentCaptor.forClass(AiDocument.class);
+        verify(documentAi, times(2)).countTranslationTokens(counted.capture(), any());
+        ArgumentCaptor<AiDocument> translated = ArgumentCaptor.forClass(AiDocument.class);
+        verify(documentAi, times(2)).translate(translated.capture(), any(), anyLong());
+        AiDocument text = translated.getAllValues().get(0);
+        assertThat(text.isPdf()).isFalse();
+        assertThat(text.title()).isEqualTo("manual.pdf");
+        assertThat(text.text()).contains("Expert manual", "How to use the control in VC++", "Revision history", "1.0 first draft");
+        assertThat(text.text().indexOf("Expert manual")).isLessThan(text.text().indexOf("Revision history"));
+        assertThat(counted.getAllValues().get(0)).isSameAs(text);
+        AiDocument original = translated.getAllValues().get(1);
+        assertThat(original.isPdf()).isTrue();
+        assertThat(java.util.Base64.getDecoder().decode(original.pdfBase64())).isEqualTo(scanned);
+    }
+
     @Test
     @DisplayName("[AI-01] 키가 없으면 텍스트·Word 요약은 추출 요약으로, PDF 요약과 번역(DeepL 키도 없음)은 503")
     void fallsBackWithoutKey() throws Exception {
