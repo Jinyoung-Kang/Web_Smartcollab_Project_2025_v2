@@ -5,6 +5,7 @@ import com.smartcollab.event.ChangeEvents;
 import com.smartcollab.folder.Folder;
 import com.smartcollab.folder.FolderNode;
 import com.smartcollab.folder.FolderRepository;
+import com.smartcollab.folder.FolderStructureLock;
 import com.smartcollab.folder.FolderTree;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.error.ErrorCode;
@@ -45,6 +46,7 @@ public class FileService {
     private final ApplicationEventPublisher events;
     private final TransactionRunner tx;
     private final StorageQuota quota;
+    private final FolderStructureLock structureLock;
 
     /**
      * 업로드. 저장소 쓰기(Azure 라면 네트워크 전송)는 DB 트랜잭션 밖에서 하여 그동안 커넥션을 붙잡지 않습니다 [PERF-01].
@@ -77,6 +79,9 @@ public class FileService {
         // READ COMMITTED: 저장 한도 확인이 잠금 읽기 없이 최신 값을 보게 합니다(다른 사용자와의 교착 방지) [QA-06]
         // 확실히 롤백됐을 때만 방금 쓴 파일을 지웁니다 — 커밋 결과를 모르는 실패에서 지우면 커밋된 버전이 내용을 잃음 [H-4]
         return tx.writeReadCommitted(() -> {
+            // 저장 공간을 먼저 잠근 뒤 폴더를 읽습니다 — 잠그기 전에 읽으면, 그사이 휴지통으로 옮겨진 폴더(또는 내보내진 멤버)를 놓쳐
+            // 휴지통 안에 201 로 저장했습니다. 폴더 만들기·복사와 같은 순서입니다 [QA6-04, S-06]
+            structureLock.lockScopesOf(List.of(folderId));
             Folder folder = getFolder(folderId);
             accessPolicy.requireEdit(folder, userId);
             quota.lockAndCheckRoom(StorageQuota.Scope.of(folder), blob.size());
@@ -88,6 +93,11 @@ public class FileService {
             publishChanged(folder);
             return DriveDtos.ItemResponse.of(file);
         }, () -> blobLifecycle.discard(List.of(key)));
+    }
+
+    /** 파일이 속한 저장 공간을 잠급니다. 잠근 뒤 파일·폴더를 읽어야 휴지통 이동 같은 동시 변경을 최신 상태로 봅니다 [QA6-04] */
+    void lockScopeOfFile(Long fileId) {
+        files.findFolderId(fileId).ifPresent(folderId -> structureLock.lockScopesOf(List.of(folderId)));
     }
 
     private Folder getFolder(Long folderId) {
