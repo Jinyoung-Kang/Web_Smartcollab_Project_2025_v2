@@ -5,7 +5,7 @@
 | 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 379 | `cd backend && ./gradlew test` |
 | 백엔드 — CPU 1개 JVM | 같은 도구, `-XX:ActiveProcessorCount=1`(운영 App Service B1 과 같은 조건) · HTTPS Azurite | 2 | `cd backend && ./gradlew singleCarrierTest` (`check` 에 포함, CI 백엔드 작업에서도 실행) |
 | 프론트엔드 단위·컴포넌트 | Vitest · Testing Library · jsdom | 178 | `cd frontend && npm test` |
-| E2E (전체 스택) | Playwright · Docker Compose · axe-core | 16 (시나리오 10 + 대화상자 초점 2 + 접근성 3·탭 제목 1) | `docker compose up -d --wait && cd e2e && npx playwright test` |
+| E2E (전체 스택) | Playwright · Docker Compose · axe-core | 17 (시나리오 10 + 대화상자 초점 2 + 배치 1 + 접근성 3·탭 제목 1) | `docker compose up -d --wait && cd e2e && npx playwright test` |
 
 백엔드 라인 커버리지 **92.1%**, 분기 커버리지 **79.7%** (JaCoCo, `backend/build/reports/jacoco/test/html`).
 
@@ -65,6 +65,7 @@
 | `PreRoutingErrorFormatTest` · `ProblemWriterTest` | 실제 Tomcat 에서 라우팅 전에 거절된 주소(`%00`·`%2F`)와 방화벽이 거절한 주소(`//`·`;`)도 problem+json·추적 ID, `/error` 를 직접 부르면 404, 상태별 오류 코드 (QA-08) |
 | `EventOriginTest`, 프론트 `teamEvents.test` · `http.test` | 요청의 탭 ID 가 폴더 변경 이벤트에 실리고 형식이 틀리면 버림, 자기 탭의 이벤트는 다시 불러오지 않음, 모든 요청에 탭 ID 헤더 (IMP-03) |
 | E2E `a11y.spec.ts` | 로그인·드라이브·팀(내가 보낸 채팅 파일 카드 포함)·선택 작업 바·버전 기록·알림·휴지통을 axe(WCAG 2.1 AA·모범 사례)로 검사 — 위반이 하나라도 있으면 실패, 화면별 탭 제목 (UX-01·02) / 팀 멤버·팀 메뉴·없는 폴더·공유 받기·375 폭, 보이는 글자를 포함하는 이름(실험 규칙) (QA-09~13) |
+| E2E `layout.spec.ts` | 주소가 긴 운영 도메인(긴 `*.localhost` 하위 도메인으로 흉내)에서 공유 대화상자의 만든 링크 줄과 복사·해제 단추가 대화상자 안에 들어가는지 (DEP-04) |
 | 프론트 `AppErrorPage.test` · `useDocumentTitle.test` · `josa.test`, 백엔드 `ApiExceptionTest` | 렌더링 오류·새 배포 안내 (ARC-04), 탭 제목 (UX-02), 받침에 맞는 조사 (UX-04) |
 | 프론트 `ChatTab.test` · `TeamActivityProvider.test` · `NotificationBell.test` | 채팅에 공유된 파일을 누르면 지금 파일 정보로 드라이브와 같은 미리보기, 내려받기 링크 분리, 지워진 파일 안내, 보일 때만 보는 중 (FB-06) / 다시 연결되면 채팅·알림 다시 받기 (FB-05) / 알림 요청 실패 안내 (FB-08) |
 | 프론트 `TrashPage.test` | 휴지통의 폴더(파일 수)·파일 구분, 폴더 복원(최상위로 옮겨진 경우 안내), 폴더 영구 삭제 확인 (UX-06) |
