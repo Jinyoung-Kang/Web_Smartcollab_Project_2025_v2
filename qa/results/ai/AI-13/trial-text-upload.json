@@ -1,0 +1,68 @@
+{
+  "at": "2026-10-13T14:01:16.966Z",
+  "file": "사용자 신고 PDF (8쪽, 320KB, 한국어 + 영어 용어·C++ 코드). 공개 저장소라 결과 글은 남기지 않음",
+  "how": "앱(sc-ai)에서 텍스트 파일 번역",
+  "note": "같은 PDF 에서 뽑은 글자(pypdf)를 .txt 로 올려 번역 — 수정 전 프롬프트",
+  "results": [
+    {
+      "run": 1,
+      "target": "EN",
+      "status": 200,
+      "ms": 14392,
+      "kind": "문서 전체",
+      "chars": 4370,
+      "hangulOfLetters": 0.0,
+      "sourceTranslationPairs": 0,
+      "inputTokens": 2962,
+      "outputTokens": 3868
+    },
+    {
+      "run": 2,
+      "target": "EN",
+      "status": 200,
+      "ms": 13025,
+      "kind": "문서 전체",
+      "chars": 4324,
+      "hangulOfLetters": 0.0,
+      "sourceTranslationPairs": 0,
+      "inputTokens": 2962,
+      "outputTokens": 3409
+    },
+    {
+      "run": 3,
+      "target": "EN",
+      "status": 200,
+      "ms": 23489,
+      "kind": "원문 남음(한글 20%)",
+      "chars": 6766,
+      "hangulOfLetters": 0.199,
+      "sourceTranslationPairs": 53,
+      "inputTokens": 2962,
+      "outputTokens": 7355
+    },
+    {
+      "run": 4,
+      "target": "KO",
+      "status": 200,
+      "ms": 13828,
+      "kind": "문서 전체",
+      "chars": 2598,
+      "hangulOfLetters": 0.562,
+      "sourceTranslationPairs": 12,
+      "inputTokens": 2987,
+      "outputTokens": 2796
+    },
+    {
+      "run": 5,
+      "target": "KO",
+      "status": 200,
+      "ms": 12932,
+      "kind": "문서 전체",
+      "chars": 2598,
+      "hangulOfLetters": 0.562,
+      "sourceTranslationPairs": 12,
+      "inputTokens": 2987,
+      "outputTokens": 2619
+    }
+  ]
+}

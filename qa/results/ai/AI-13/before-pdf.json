@@ -1,0 +1,44 @@
+{
+  "at": "2026-10-13T13:59:43.699Z",
+  "file": "사용자 신고 PDF (8쪽, 320KB, 한국어 + 영어 용어·C++ 코드). 공개 저장소라 결과 글은 남기지 않음",
+  "how": "앱(sc-ai)에서 PDF 를 올려 영어 번역 3번",
+  "note": "수정 전(운영과 같은 main 980d926) — PDF 원본을 보냄",
+  "results": [
+    {
+      "run": 1,
+      "target": "EN",
+      "status": 200,
+      "ms": 13269,
+      "kind": "원문 남음(한글 51%)",
+      "chars": 3135,
+      "hangulOfLetters": 0.507,
+      "sourceTranslationPairs": 17,
+      "inputTokens": 15349,
+      "outputTokens": 2855
+    },
+    {
+      "run": 2,
+      "target": "EN",
+      "status": 200,
+      "ms": 9277,
+      "kind": "문서 전체",
+      "chars": 4836,
+      "hangulOfLetters": 0.003,
+      "sourceTranslationPairs": 0,
+      "inputTokens": 15349,
+      "outputTokens": 2109
+    },
+    {
+      "run": 3,
+      "target": "EN",
+      "status": 200,
+      "ms": 13800,
+      "kind": "원문 남음(한글 21%)",
+      "chars": 6641,
+      "hangulOfLetters": 0.21,
+      "sourceTranslationPairs": 46,
+      "inputTokens": 15349,
+      "outputTokens": 3992
+    }
+  ]
+}

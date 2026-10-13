@@ -1,4 +1,4 @@
-// [AI-12] PDF 번역 실측(과금) — 같은 PDF 를 매번 새로 올려(결과 캐시를 피함) 대상 언어마다 번역합니다. 임시 스택 sc-ai(8090)에서만.
+// [AI-12·AI-13] PDF 번역 실측(과금) — 같은 PDF 를 매번 새로 올려(결과 캐시를 피함) 대상 언어마다 번역합니다. 임시 스택 sc-ai(8090)에서만.
 // 사용: node qa/scripts/ai-translate-pdf.mjs <PDF 경로> <결과.json> KO KO EN JA …   (BASE 기본 http://localhost:8090)
 // 공개 저장소에 남기므로 결과 글은 저장하지 않고 길이·한글 비율·결과 유형만 적습니다.
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -21,7 +21,10 @@ async function req(method, path, body, headers = {}) {
   return { status: r.status, data: d }
 }
 const isJson = (t) => { try { const v = JSON.parse(t); return typeof v === 'object' && v !== null } catch { return false } }
-const kind = (status, text) => status !== 200 ? '실패' : isJson(text.trim()) ? 'JSON(문서 아님)' : text.length < 500 ? '짧음' : '문서 전체'
+// 한글이 글자에서 차지하는 비율 — 영어·일본어·중국어 번역에 10% 넘게 남으면 원문을 옮긴 것(AI-13)
+const hangulOfLetters = (t) => +((t.match(/[가-힣]/g) ?? []).length / Math.max((t.match(/\p{L}/gu) ?? []).length, 1)).toFixed(3)
+const kind = (status, text, target) => status !== 200 ? '실패' : isJson(text.trim()) ? 'JSON(문서 아님)' : text.length < 500 ? '짧음'
+  : target !== 'KO' && hangulOfLetters(text) > 0.1 ? '원문 남음' : '문서 전체'
 
 const u = 'aipdf' + Math.random().toString(36).slice(2, 7), pw = 'Pw1-' + Math.random().toString(36).slice(2)
 const s = await req('POST', '/api/auth/signup', JSON.stringify({ username: u, password: pw, passwordConfirm: pw, name: '실측' }), { 'content-type': 'application/json' })
@@ -34,8 +37,8 @@ for (const [i, target] of targets.entries()) {
   const started = Date.now()
   const r = await req('POST', `/api/files/${up.data.id}/translation?target=${target}`)
   const text = r.data?.text ?? ''
-  results.push({ run: i + 1, target, status: r.status, ms: Date.now() - started, kind: kind(r.status, text), chars: text.length,
-    hangulRatio: text ? +((text.match(/[가-힣]/g) ?? []).length / text.length).toFixed(2) : 0, error: r.status >= 400 ? r.data?.detail : undefined })
+  results.push({ run: i + 1, target, status: r.status, ms: Date.now() - started, kind: kind(r.status, text, target), chars: text.length,
+    hangulOfLetters: hangulOfLetters(text), error: r.status >= 400 ? r.data?.detail : undefined })
   console.log(JSON.stringify(results.at(-1)))
 }
 writeFileSync(out, JSON.stringify({ at: new Date().toISOString(), file: `${basename(pdfPath).replace(/[^.]+(?=\.pdf$)/i, 'sample')} (${pdf.length} bytes)`, results }, null, 2) + '\n')

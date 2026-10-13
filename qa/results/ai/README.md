@@ -24,6 +24,7 @@
 | AI-11 | 한국어 요약에 일본어 조사가 섞임("증가분の 대부분은") — 개인·팀 드라이브 기능 점검에서 발견 | [summary-script-before-AI-11.txt](summary-script-before-AI-11.txt) 5/10(프롬프트 4/10, effort medium 2/10) | 한글 바로 뒤의 "の"를 "의"로 → [after](summary-script-after-AI-11.txt) 0/10 |
 | AI-10 | 번역 첫 줄에 옮긴 파일 이름("週次会議メモ.txt")이 붙음 — 화면 확인에서 발견 | [title-before-AI-10.txt](title-before-AI-10.txt) 1/10 | 번역 요청에 파일 이름을 보내지 않음 → [title-after-AI-10.json](title-after-AI-10.json) 0/10 |
 | AI-12 | 거의 한국어인 PDF 의 한국어 번역이 문서 대신 용어표 `{"e-Friend Expert": "e-Friend Expert"}` 하나 — 운영 사용자 신고 | [AI-12/before.json](AI-12/before.json) 2/2 실패(JSON 한 줄 · 출력 한도까지 반복 413) | 프롬프트 + 불완전 판정 → [prompt-guard](AI-12/prompt-guard.json) 3번 중 1번 빈 번역(502) → + 한 번 다시 요청 → [retry-final](AI-12/retry-final.json) 6/6 |
+| AI-13 | AI-12 를 고친 뒤 같은 PDF 의 영어 번역이 한국어 원문을 거의 그대로 옮김 — 운영 화면 신고 | [AI-13/before-pdf.json](AI-13/before-pdf.json) 3번 중 2번 원문 남음(한글이 글자의 21·51%) | PDF 는 서버가 뽑은 글자로 번역(ADR-0016) + 결과 글자 체계 확인·다시 요청 → [after](AI-13/after.json) 9/9 |
 
 ### AI-07 — 한국어 → 일본어·중국어 번역 (CSV·Word 각 10번, `qa/scripts/ai-translate-repeat.mjs`)
 
@@ -62,10 +63,24 @@ runs-1~3 에서 요약 effort medium 이 low 보다 자주 연도를 적어(9번
 본문·끝은 다른 실행과 같았습니다(결과 글 전체를 남기지 않아 확정하지 못함). 원문 PDF·결과 글은 사용자 문서라 공개 저장소에 남기지 않고 길이·한글 비율·결과 유형만 적었습니다.
 실측 원자료는 처음에 결과 앞뒤 글까지 적는 임시 스크립트로 모은 뒤 글을 지웠고, 같은 측정을 다시 하는 스크립트(결과 글을 남기지 않음)를 `qa/scripts` 에 두었습니다.
 
+### AI-13 — 같은 PDF 의 영어 번역에 원문이 남음 (`qa/scripts/ai-translate-pdf.mjs`, 프롬프트 실험은 API 직접)
+
+| 단계 | 영어 | 한국어 | 일본어 · 중국어 | 입력 토큰 |
+|---|---|---|---|---:|
+| 수정 전(PDF 원본) | 1/3 (원문 남음 2번: 한글 51%·21%) | — | — | 15,349 |
+| 시험: 뽑은 글자를 .txt 로(프롬프트 그대로) | 2/3 (원문·번역 병기 1번: 한글 20%, 출력 7,355 토큰) | 2/2 | — | 2,962 |
+| 시험: API 직접, 프롬프트 v0 · v1(병기 금지) | 6/6 · 6/6 | — | — | 2,962 · 3,047 |
+| **수정 뒤(PDFBox 로 뽑은 글자 + 글자 체계 확인·다시 요청 + v1)** | **4/4** (한글 0%) | **3/3** | **1/1 · 1/1** | 약 3,030 |
+
+수정 뒤 다시 요청은 일어나지 않았습니다. 원문을 남긴 답은 한글이 글자의 20~51%, 제대로 된 영어 번역은 0~0.3% 라 판정 기준을 10%(20자 이상)로 두었습니다.
+원문과 번역을 나란히 적은 답은 오히려 길어(7,355 토큰, 출력 한도의 절반 넘게) AI-12 의 "출력이 한도의 1/4 이하일 때만 다시 요청" 조건을 뺐습니다.
+번역 1번 비용은 약 $0.003 에서 약 $0.002 로 줄었습니다(입력이 약 1/5, 출력이 비용 대부분). 이번 작업의 실제 호출은 앱 17번 + API 직접 18번입니다(약 $0.08).
+
 ## 파일
 
 - `runs-*/`: `qa/scripts/ai-live.mjs` 를 effort 설정마다 여러 번 돌린 원자료와 `comparison.md`(`qa/scripts/ai-effort-compare.mjs`)
 - `live-measurement-before-AI-0n.*`: 각 결함을 찾은 실행
 - `dates-*.json`, `translate-*.json`: 반복 확인 원자료(결과 글 포함)
 - `AI-12/`: 거의 한국어인 PDF 번역 — 수정 전·중간·최종(결과 글 없음)
+- `AI-13/`: 같은 PDF 의 영어 번역 — 수정 전·텍스트 시험·프롬프트 실험·수정 뒤(결과 글 없음)
 - `failing-tests-before-fix.txt`, `frontend-failing-before-fix.txt`: 구현 전 시험 결과

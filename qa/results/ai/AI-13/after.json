@@ -1,0 +1,116 @@
+{
+  "at": "2026-10-13T14:19:21.397Z",
+  "file": "사용자 신고 PDF (8쪽, 320KB, 한국어 + 영어 용어·C++ 코드). 공개 저장소라 결과 글은 남기지 않음",
+  "how": "앱(sc-ai)에서 PDF 를 올려 영어 4·한국어 3·일본어·중국어 각 1번",
+  "note": "수정 뒤 — 서버(PDFBox)가 뽑은 글자로 번역, 결과 글자 체계 확인·다시 요청(일어나지 않음)",
+  "results": [
+    {
+      "run": 1,
+      "target": "EN",
+      "status": 200,
+      "ms": 16397,
+      "kind": "문서 전체",
+      "chars": 4347,
+      "hangulOfLetters": 0.0,
+      "sourceTranslationPairs": 0,
+      "inputTokens": 3029,
+      "outputTokens": 4125
+    },
+    {
+      "run": 2,
+      "target": "EN",
+      "status": 200,
+      "ms": 13977,
+      "kind": "문서 전체",
+      "chars": 4374,
+      "hangulOfLetters": 0.0,
+      "sourceTranslationPairs": 0,
+      "inputTokens": 3029,
+      "outputTokens": 3907
+    },
+    {
+      "run": 3,
+      "target": "EN",
+      "status": 200,
+      "ms": 17374,
+      "kind": "문서 전체",
+      "chars": 4330,
+      "hangulOfLetters": 0.0,
+      "sourceTranslationPairs": 0,
+      "inputTokens": 3029,
+      "outputTokens": 3939
+    },
+    {
+      "run": 4,
+      "target": "EN",
+      "status": 200,
+      "ms": 14780,
+      "kind": "문서 전체",
+      "chars": 4387,
+      "hangulOfLetters": 0.0,
+      "sourceTranslationPairs": 0,
+      "inputTokens": 3029,
+      "outputTokens": 4004
+    },
+    {
+      "run": 5,
+      "target": "KO",
+      "status": 200,
+      "ms": 16151,
+      "kind": "문서 전체",
+      "chars": 2582,
+      "hangulOfLetters": 0.57,
+      "sourceTranslationPairs": 12,
+      "inputTokens": 3061,
+      "outputTokens": 4984
+    },
+    {
+      "run": 6,
+      "target": "KO",
+      "status": 200,
+      "ms": 10434,
+      "kind": "문서 전체",
+      "chars": 2572,
+      "hangulOfLetters": 0.566,
+      "sourceTranslationPairs": 12,
+      "inputTokens": 3061,
+      "outputTokens": 3066
+    },
+    {
+      "run": 7,
+      "target": "KO",
+      "status": 200,
+      "ms": 11706,
+      "kind": "문서 전체",
+      "chars": 2534,
+      "hangulOfLetters": 0.592,
+      "sourceTranslationPairs": 12,
+      "inputTokens": 3061,
+      "outputTokens": 3243
+    },
+    {
+      "run": 8,
+      "target": "JA",
+      "status": 200,
+      "ms": 22326,
+      "kind": "문서 전체",
+      "chars": 2545,
+      "hangulOfLetters": 0.0,
+      "sourceTranslationPairs": 0,
+      "inputTokens": 3066,
+      "outputTokens": 4438
+    },
+    {
+      "run": 9,
+      "target": "ZH",
+      "status": 200,
+      "ms": 10084,
+      "kind": "문서 전체",
+      "chars": 2070,
+      "hangulOfLetters": 0.0,
+      "sourceTranslationPairs": 0,
+      "inputTokens": 3091,
+      "outputTokens": 2475
+    }
+  ]
+}
