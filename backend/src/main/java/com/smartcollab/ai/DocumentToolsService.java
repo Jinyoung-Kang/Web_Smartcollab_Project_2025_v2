@@ -118,7 +118,7 @@ public class DocumentToolsService {
         }
         requireBudgetLeft(userId, DocumentAi.translationMaxOutputTokens(0));
         try (DocumentToolSlots.Slot ignored = slots.acquire(userId)) {
-            AiDocument doc = aiDocument(ref);
+            AiDocument doc = translationDocument(ref);
             long input = ai.countTranslationTokens(doc, lang);
             requireWithinCap(input, TRANSLATION_INPUT_CAP, "번역");
             long maxOutput = DocumentAi.translationMaxOutputTokens(input);
@@ -184,6 +184,19 @@ public class DocumentToolsService {
         Long versionId() {
             return target.versionId();
         }
+    }
+
+    /**
+     * 번역할 문서. PDF 는 서버가 뽑은 글자를 텍스트로 보냅니다 [AI-13] — 통째로 보내면 영어 번역에 원문이 그대로 남는 일이 잦았고,
+     * 서버가 원문을 몰라 결과를 확인할 수 없었습니다(입력 토큰도 약 1/5). 글자가 거의 없는 PDF(스캔 등)만 원본을 보냅니다.
+     */
+    private AiDocument translationDocument(DocumentRef ref) {
+        if (ref.kind() != DocumentKind.PDF) {
+            return aiDocument(ref);
+        }
+        byte[] bytes = load(ref);
+        String text = PdfText.extract(bytes, (int) Math.min(Integer.MAX_VALUE, appProps.files().textEditMaxBytes()));
+        return text != null ? AiDocument.text(ref.name(), text) : AiDocument.pdf(ref.name(), bytes);
     }
 
     private AiDocument aiDocument(DocumentRef ref) {

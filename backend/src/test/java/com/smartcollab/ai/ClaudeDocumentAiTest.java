@@ -260,8 +260,8 @@ class ClaudeDocumentAiTest {
     }
 
     /**
-     * [AI-12] 프롬프트를 고친 뒤에도 실측(같은 PDF 한국어 3회)에서 1회는 notes 만 쓰고 translation 이 빈 답이었습니다. 짧게 끝난 빈·불완전한
-     * 답은 한 번 더 요청하고, 두 요청의 사용량을 합쳐 정산합니다. 출력 한도 가까이 쓴 답이나 다시 보낸 요청의 실패는 다시 보내지 않습니다.
+     * [AI-12] 프롬프트를 고친 뒤에도 실측(같은 PDF 한국어 3회)에서 1회는 notes 만 쓰고 translation 이 빈 답이었습니다. 빈·불완전한
+     * 답은 한 번 더 요청하고, 두 요청의 사용량을 합쳐 정산합니다. 출력 한도에서 잘린 답이나 다시 보낸 요청의 실패는 다시 보내지 않습니다.
      */
     @Test
     @DisplayName("[AI-12] 빈·불완전한 번역은 한 번 다시 요청하고 두 요청의 토큰을 합쳐 알린다 — 실측 3회 중 1회 빈 번역")
@@ -282,11 +282,11 @@ class ClaudeDocumentAiTest {
         assertThatThrownBy(() -> ai.translate(pdf, TargetLanguage.KO, 64_000))
                 .isInstanceOfSatisfying(DocumentAi.BilledFailure.class, e -> assertThat(e.totalTokens()).isEqualTo(15_060L));
 
-        // 출력 한도의 1/4 넘게 쓰고도 불완전하면 다시 보내지 않음(비용)
+        // 출력 한도에서 잘린 답은 다시 보내지 않음(413) — 다시 보내도 같은 길이라 비용만 두 배
         server.requests.clear();
-        server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 15_000, 20_000, translationChunks("{\"a\": \"b\"}"))));
+        server.reply(Reply.sse(FakeAnthropicServer.stream("max_tokens", 15_000, 64_000, translationChunks("반복 반복"))));
         assertThatThrownBy(() -> ai.translate(pdf, TargetLanguage.KO, 64_000))
-                .isInstanceOfSatisfying(DocumentAi.BilledFailure.class, e -> assertThat(e.totalTokens()).isEqualTo(35_000L));
+                .isInstanceOfSatisfying(DocumentAi.BilledFailure.class, e -> assertThat(e.code()).isEqualTo(ErrorCode.PAYLOAD_TOO_LARGE));
         assertThat(server.requests).hasSize(1);
     }
 
@@ -336,7 +336,7 @@ class ClaudeDocumentAiTest {
     }
 
     @Test
-    @DisplayName("[AI-12] 번역 프롬프트는 이미 대상 언어인 부분도 빠짐없이 옮겨 문서 전체를 쓰고, 번역 칸에 용어표·JSON 을 넣지 않게 한다")
+    @DisplayName("[AI-12·AI-13] 번역 프롬프트는 이미 대상 언어인 부분도 빠짐없이 옮겨 문서 전체를 쓰고, 번역 칸에 용어표·JSON·원문 병기를 넣지 않게 한다")
     void translationPromptAsksForWholeDocument() {
         server.reply(Reply.sse(FakeAnthropicServer.stream("end_turn", 100, 50, translationChunks("안녕하세요"))));
         ai.translate(AiDocument.text("a.txt", "Hello"), TargetLanguage.KO, 64_000);
