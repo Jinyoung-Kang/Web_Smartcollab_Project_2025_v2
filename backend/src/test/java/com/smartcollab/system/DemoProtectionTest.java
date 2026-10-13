@@ -167,10 +167,10 @@ class DemoProtectionTest extends LimitedStorageIntegrationTest {
         Api.Session owner = api().signUp("h3owner");
         long[] team = owner.createTeam("일반 팀");
         long ownerFile = owner.uploadText(team[1], "팀 문서.txt", "keep me");
-        owner.postJson("/api/teams/{t}/invitations", Map.of("username", "demo2"), team[0]).andExpect(status().isCreated());
-        Api.Session visitor = demo("demo2");
-        long invitation = ((Number) Api.read(visitor.get("/api/notifications"), "$.items[0].invitationId")).longValue();
-        visitor.post("/api/invitations/{id}/accept", invitation).andExpect(status().isNoContent());
+        // 일반 팀은 이제 체험 계정을 초대할 수 없으므로(QA6-03), 그 전에 들어와 있던 멤버십으로 시작합니다
+        long demo2 = users.findByUsername("demo2").orElseThrow().getId();
+        jdbc.update("insert into team_members (team_id, user_id, is_team_leader, can_edit, can_delete, can_invite, joined_at) values (?, ?, 0, 1, 0, 0, ?)",
+                team[0], demo2, java.sql.Timestamp.from(java.time.Instant.now()));
 
         owner.post("/api/teams/{t}/leader/{m}", team[0], memberId(owner, team[0], "demo2"))
                 .andExpect(status().isForbidden())
