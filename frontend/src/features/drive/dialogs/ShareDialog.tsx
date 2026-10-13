@@ -125,7 +125,9 @@ function ShareLinks({ fileId }: { fileId: number }) {
       {links.isPending && <Spinner />}
       {links.isError && <p role="alert" className="text-sm text-red-600">링크 목록을 불러오지 못했습니다. {links.error.message}</p>}
       {links.data?.length === 0 && <p className="text-sm text-slate-500">아직 만든 링크가 없습니다.</p>}
-      <ul className="grid gap-2">
+      {/* 열 너비 하한을 0으로(grid-cols-1 = minmax(0, 1fr)) — 기본 하한(auto)이면 긴 주소가 칸을 대화상자 밖까지 밀어
+          복사·해제 단추가 잘렸습니다. 운영 도메인처럼 주소가 길 때만 드러났습니다 [DEP-04] */}
+      <ul className="grid grid-cols-1 gap-2">
         {links.data?.map((l) => (
           <li key={l.id} className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2.5">
             <div className="min-w-0 flex-1">
