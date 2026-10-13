@@ -1,0 +1,158 @@
+{
+  "tool": "lighthouse 13.5.0",
+  "summary": [
+    {
+      "page": "drive",
+      "preset": "desktop",
+      "runs": 3,
+      "performance": 99,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "fcpMs": 467.3,
+      "lcpMs": 912.2,
+      "tbtMs": 0,
+      "cls": 0.0,
+      "transferKb": 427.2,
+      "consoleErrors": 0,
+      "authMe401": 0,
+      "failedAudits(1회차)": [
+        "network-dependency-tree-insight"
+      ]
+    },
+    {
+      "page": "drive",
+      "preset": "mobile",
+      "runs": 3,
+      "performance": 87,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "fcpMs": 2426.9,
+      "lcpMs": 3759.6,
+      "tbtMs": 23,
+      "cls": 0,
+      "transferKb": 427.2,
+      "consoleErrors": 0,
+      "authMe401": 0,
+      "failedAudits(1회차)": [
+        "first-contentful-paint",
+        "largest-contentful-paint",
+        "network-dependency-tree-insight"
+      ]
+    },
+    {
+      "page": "editor",
+      "preset": "desktop",
+      "runs": 3,
+      "performance": 99,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "fcpMs": 453.5,
+      "lcpMs": 901.9,
+      "tbtMs": 0,
+      "cls": 0.0,
+      "transferKb": 432.7,
+      "consoleErrors": 0,
+      "authMe401": 0,
+      "failedAudits(1회차)": [
+        "network-dependency-tree-insight"
+      ]
+    },
+    {
+      "page": "editor",
+      "preset": "mobile",
+      "runs": 3,
+      "performance": 84,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "fcpMs": 2266.4,
+      "lcpMs": 4054.8,
+      "tbtMs": 0,
+      "cls": 0,
+      "transferKb": 432.7,
+      "consoleErrors": 0,
+      "authMe401": 0,
+      "failedAudits(1회차)": [
+        "first-contentful-paint",
+        "interactive",
+        "largest-contentful-paint",
+        "network-dependency-tree-insight"
+      ]
+    },
+    {
+      "page": "login",
+      "preset": "desktop",
+      "runs": 3,
+      "performance": 100,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "fcpMs": 486.8,
+      "lcpMs": 729.4,
+      "tbtMs": 0,
+      "cls": 0,
+      "transferKb": 493.2,
+      "consoleErrors": 0,
+      "authMe401": 0,
+      "failedAudits(1회차)": [
+        "network-dependency-tree-insight"
+      ]
+    },
+    {
+      "page": "login",
+      "preset": "mobile",
+      "runs": 3,
+      "performance": 92,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "fcpMs": 1993.9,
+      "lcpMs": 3043.8,
+      "tbtMs": 0,
+      "cls": 0,
+      "transferKb": 316.7,
+      "consoleErrors": 0,
+      "authMe401": 0,
+      "failedAudits(1회차)": [
+        "first-contentful-paint",
+        "largest-contentful-paint",
+        "network-dependency-tree-insight"
+      ]
+    },
+    {
+      "page": "share",
+      "preset": "desktop",
+      "runs": 3,
+      "performance": 100,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "fcpMs": 560.1,
+      "lcpMs": 676.1,
+      "tbtMs": 0,
+      "cls": 0.0,
+      "transferKb": 342.7,
+      "consoleErrors": 0,
+      "authMe401": 0,
+      "failedAudits(1회차)": [
+        "network-dependency-tree-insight"
+      ]
+    },
+    {
+      "page": "share",
+      "preset": "mobile",
+      "runs": 3,
+      "performance": 91,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "fcpMs": 2141.8,
+      "lcpMs": 3191.5,
+      "tbtMs": 0,
+      "cls": 0.0,
+      "transferKb": 342.7,
+      "consoleErrors": 0,
+      "authMe401": 0,
+      "failedAudits(1회차)": [
+        "first-contentful-paint",
+        "largest-contentful-paint",
+        "network-dependency-tree-insight"
+      ]
+    }
+  ]
+}

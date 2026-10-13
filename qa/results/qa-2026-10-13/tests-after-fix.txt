@@ -1,0 +1,7 @@
+# 6차 QA 결함 시험 — 수정 뒤 (2026-10-13T11:13:59Z, 브랜치 qa/2026-10-13 8b8d5d0)
+# cd backend && ./gradlew clean build --warning-mode all
+BUILD SUCCESSFUL in 4m 35s
+test: 407건(건너뜀 1) 실패 0 · singleCarrierTest: 2건 실패 0 · 경고 0
+결함 시험 12건(QA6-01~10) 모두 통과 — 수정 전 실패 내역은 failing-tests-before-fix.txt
+
+DB 헬스 체크(QA6-11): 빈 DB 를 띄운 직후 root 접속 — 수정 전 3회 중 1회 실패(2002), 백업 복원 스크립트 1045 / 수정 뒤 ok=5/5

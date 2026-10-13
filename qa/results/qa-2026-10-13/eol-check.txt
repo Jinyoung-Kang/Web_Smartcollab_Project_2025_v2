@@ -1,0 +1,6 @@
+spring-boot 4.1 → {'releaseDate': '2026-06-30', 'support': None, 'eol': '2027-07-31', 'extendedSupport': '2028-07-31', 'latest': '4.1.1', 'lts': False}
+eclipse-temurin 21 → {'releaseDate': '2023-10-10', 'support': None, 'eol': '2029-12-31', 'extendedSupport': None, 'latest': '21.0.12.1+1', 'lts': True}
+nodejs 24 → {'releaseDate': '2025-05-06', 'support': '2026-10-20', 'eol': '2028-04-30', 'extendedSupport': False, 'latest': '24.21.0', 'lts': '2025-10-28'}
+mysql 8.4 → {'releaseDate': '2024-04-30', 'support': '2029-04-30', 'eol': '2032-04-30', 'extendedSupport': None, 'latest': '8.4.11', 'lts': True}
+tomcat 11 → Traceback (most recent call last):
+react 19 → {'releaseDate': '2024-12-05', 'support': True, 'eol': False, 'extendedSupport': None, 'latest': '19.3.0', 'lts': False}

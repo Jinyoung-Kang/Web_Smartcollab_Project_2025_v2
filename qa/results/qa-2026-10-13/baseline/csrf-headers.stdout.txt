@@ -1,0 +1,15 @@
+csrf=72 fail=0 noSideEffect=true [true,true,true,true,true]
+| path | status | content-security-policy | x-content-type-options | x-frame-options | referrer-policy | permissions-policy | strict-transport-security | cache-control | server | x-powered-by | cross-origin-opener-policy | cross-origin-resource-policy |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| / | 200 | default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self | nosniff | SAMEORIGIN | same-origin | camera=(), microphone=(), geolocation=() | — | no-cache | — | — | — | — |
+| /login | 200 | default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self | nosniff | SAMEORIGIN | same-origin | camera=(), microphone=(), geolocation=() | — | no-cache | — | — | — | — |
+| /drive | 200 | default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self | nosniff | SAMEORIGIN | same-origin | camera=(), microphone=(), geolocation=() | — | no-cache | — | — | — | — |
+| /share/abc | 200 | default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self | nosniff | SAMEORIGIN | same-origin | camera=(), microphone=(), geolocation=() | — | no-cache | — | — | — | — |
+| /api/public/config | 200 | default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self | nosniff | SAMEORIGIN | same-origin | camera=(), microphone=(), geolocation=() | — | no-cache, no-store, max-age=0, must-revalidate | — | — | — | — |
+| /api/auth/me | 200 | default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self | nosniff | SAMEORIGIN | same-origin | camera=(), microphone=(), geolocation=() | — | no-cache, no-store, max-age=0, must-revalidate | — | — | — | — |
+| /api/files/5/download | 200 | default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self | nosniff | SAMEORIGIN | same-origin | camera=(), microphone=(), geolocation=() | — | no-store | — | — | — | — |
+| /api/files/5/view | 200 | default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self | nosniff | SAMEORIGIN | same-origin | camera=(), microphone=(), geolocation=() | — | no-store | — | — | — | — |
+| /actuator/health | 200 | default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self | nosniff | SAMEORIGIN | same-origin | camera=(), microphone=(), geolocation=() | — | no-cache, no-store, max-age=0, must-revalidate | — | — | — | — |
+| /favicon.svg | 200 | default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self | nosniff | SAMEORIGIN | same-origin | camera=(), microphone=(), geolocation=() | — | no-cache, no-store, max-age=0, must-revalidate | — | — | — | — |
+| /does-not-exist.js | 404 | default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self | nosniff | SAMEORIGIN | same-origin | camera=(), microphone=(), geolocation=() | — | no-cache, no-store, max-age=0, must-revalidate | — | — | — | — |
+| /assets/index-ZHHWfhnI.js | 200 | default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self | nosniff | SAMEORIGIN | same-origin | camera=(), microphone=(), geolocation=() | — | max-age=31536000, public, immutable | — | — | — | — |
