@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;
@@ -27,9 +28,13 @@ public class AccountDirectory {
         return users.findByRoleOrderByCreatedAtDescIdDesc(Role.USER, pageable);
     }
 
-    /** 일반 계정만 — 시스템·관리자 계정이나 없는 ID 는 비어 있음 */
-    public Optional<User> findMember(Long userId) {
-        return users.findById(userId).filter(u -> u.getRole() == Role.USER);
+    /**
+     * 일반 계정의 사용자 행을 잠급니다(SELECT … FOR UPDATE). 시스템·관리자 계정이나 없는 ID 는 비어 있습니다. 계정 삭제는 이 행부터 잠가 같은 계정의 동시 삭제·업로드와 차례로 처리하고,
+     * 잠근 뒤의 최신 상태로 존재 여부를 판단합니다 — ADR-0009 의 순서(사용자 행 → 팀 행) [QA6-06]
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Optional<User> lockMember(Long userId) {
+        return users.lockById(userId).filter(u -> u.getRole() == Role.USER);
     }
 
     /** 사용자 ID → 개인 저장 사용량(옛 버전·휴지통 포함, 한도에 세는 값) [IMP-01] */

@@ -13,7 +13,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
-import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -132,8 +131,8 @@ class AdminDeletionRaceTest extends IntegrationTest {
             Throwable u = upload.get(30, TimeUnit.SECONDS);
             Throwable d = deletion.get(30, TimeUnit.SECONDS);
 
-            assertThat(u).as("업로드 쪽").isNotInstanceOf(CannotAcquireLockException.class);
-            assertThat(d).as("삭제 쪽").isNotInstanceOf(CannotAcquireLockException.class);
+            // 수정 전에는 한쪽이 교착(CannotAcquireLockException, MySQL 1213)으로 실패했습니다
+            assertThat(u).as("업로드는 사용자 행을 먼저 잡았으므로 끝까지 진행").isNull();
             assertThat(d).as("삭제는 업로드가 끝난 뒤 그 폴더까지 지우고 성공").isNull();
             assertThat(jdbc.queryForObject("select count(*) from folders where owner_id = ?", Integer.class, victim.userId)).isZero();
         } finally {

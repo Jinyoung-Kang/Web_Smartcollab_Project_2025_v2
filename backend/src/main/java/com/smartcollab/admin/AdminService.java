@@ -4,6 +4,7 @@ import com.smartcollab.access.AccessPolicy;
 import com.smartcollab.file.StorageQuota;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.security.SecurityEventLog;
+import com.smartcollab.global.tx.TransactionRunner;
 import com.smartcollab.team.TeamService;
 import com.smartcollab.team.UserTeam;
 import com.smartcollab.user.AccountDirectory;
@@ -14,8 +15,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 import java.util.Map;
@@ -38,6 +40,7 @@ public class AdminService {
     private final TeamService teamService;
     private final StorageQuota storageQuota;
     private final DemoAccounts demoAccounts;
+    private final TransactionRunner tx;
 
     /** 일반 계정 목록 (가입일 최신순). 시스템 계정("탈퇴한 사용자")과 관리자 계정은 빠집니다. */
     @Transactional(readOnly = true)
@@ -45,7 +48,8 @@ public class AdminService {
         accessPolicy.requireAdmin(adminId);
         int p = page == null ? 0 : page;
         int s = size == null ? DEFAULT_SIZE : size;
-        if (p < 0 || s < 1 || s > MAX_SIZE) {
+        // 건너뛸 행 수(page × size)가 int 를 넘으면 Spring Data 가 예외를 던져 500 이었습니다 [QA6-08]
+        if (p < 0 || s < 1 || s > MAX_SIZE || (long) p * s > Integer.MAX_VALUE) {
             throw ApiException.badRequest("page 는 0 이상, size 는 1~" + MAX_SIZE + " 이어야 합니다.");
         }
         Page<User> users = accounts.members(PageRequest.of(p, s));
@@ -67,14 +71,33 @@ public class AdminService {
      * 팀에서 빼며, 커밋 뒤 그 계정의 로그인 토큰·실시간 연결을 끊습니다. 한 트랜잭션이라 중간에 실패하면 아무것도 바뀌지 않습니다.
      * <p>시스템·관리자 계정과 없는 ID 는 404, 체험 계정은 403 입니다(매일 초기화되며, 지우면 공개 데모가 깨짐).</p>
      */
-    @Transactional(isolation = Isolation.READ_COMMITTED)
     public AdminDtos.DeletionResult deleteAccount(Long userId, Long adminId) {
+        // 그 계정의 팀 업로드와 잠금 순서가 엇갈려 교착(1213)으로 롤백되면 처음부터 다시 합니다 [QA6-06]
+        return tx.writeReadCommittedRetryingLockConflicts(() -> delete(userId, adminId));
+    }
+
+    private AdminDtos.DeletionResult delete(Long userId, Long adminId) {
         accessPolicy.requireAdmin(adminId);
-        User target = accounts.findMember(userId).orElseThrow(() -> ApiException.notFound("계정"));
+        // 대상 사용자 행부터 잠그고 잠근 뒤의 상태로 판단합니다 — 잠그지 않고 읽으면 같은 계정의 동시 삭제가 둘 다 200 이었고, 그 계정의
+        // 업로드와 교착했습니다. 팀 행보다 먼저 잠가 ADR-0009 의 순서(사용자 → 팀)를 지킵니다 [QA6-06]
+        User target = accounts.lockMember(userId).orElseThrow(() -> ApiException.notFound("계정"));
         demoAccounts.forbidIfDemo(target, "체험 계정은 삭제할 수 없습니다.");
         TeamService.LedTeamsHandOver handOver = teamService.handOverLedTeams(userId);
         accountService.purgeAccount(userId);
-        SecurityEventLog.accountDeletedByAdmin(adminId, userId);
+        afterCommit(() -> SecurityEventLog.accountDeletedByAdmin(adminId, userId));   // 롤백된 삭제를 "삭제됨"으로 남기지 않게 [QA6-06]
         return new AdminDtos.DeletionResult(handOver.transferred(), handOver.deleted());
+    }
+
+    private static void afterCommit(Runnable action) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            action.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                action.run();
+            }
+        });
     }
 }
