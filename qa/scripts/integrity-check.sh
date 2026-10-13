@@ -1,15 +1,23 @@
 #!/bin/bash
 # QA 스택의 DB 와 저장소 파일의 정합성 — 유실(DB 에 있는데 파일 없음)·고아(파일만 있음)·해시 불일치·메타데이터 어긋남
-# 사용: qa/scripts/integrity-check.sh [프로젝트=sc-qa]   (비밀번호는 .env 의 DB_ROOT_PASSWORD 를 읽음, 출력하지 않음)
+# 사용: qa/scripts/integrity-check.sh [프로젝트=sc-qa]   (비밀번호는 환경 변수 DB_ROOT_PASSWORD, 없으면 .env 에서 읽음, 출력하지 않음)
+# Azure 저장소로 띄운 스택(qa/compose.azure.yml, <프로젝트>-azurite-1 이 있음)이면 저장소 목록을 Azurite 에서 읽습니다(az CLI 필요) [6차 QA]
 set -euo pipefail
 P=${1:-sc-qa}
 cd "$(dirname "$0")/../.."
-PW=$(grep -E '^DB_ROOT_PASSWORD=' .env | cut -d= -f2-)
+PW=${DB_ROOT_PASSWORD:-$(grep -E '^DB_ROOT_PASSWORD=' .env | cut -d= -f2-)}
+AZ_CS="DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=$(grep -oE 'AccountKey=[^;]+' qa/compose.azure.yml | cut -d= -f2-);BlobEndpoint=http://127.0.0.1:10010/devstoreaccount1;"
+AZURE=$(docker ps --format '{{.Names}}' | grep -qx "$P-azurite-1" && echo 1 || echo 0)
 sql() { docker exec -e MYSQL_PWD="$PW" "$P-db-1" mysql -uroot -N -B smartcollab -e "$1" 2>/dev/null; }
 T=$(mktemp -d)
 sql "SELECT stored_path, sha256 FROM file_versions" | sort > "$T/db"
-docker exec "$P-app-1" sh -c 'cd /data && find . -type f ! -name ".upload-*" | sed "s|^\./||" | sort' > "$T/fs"
-docker exec "$P-app-1" sh -c 'cd /data && find . -type f -name ".upload-*" | wc -l' > "$T/tmpcount"
+if [ "$AZURE" = 1 ]; then
+  az storage blob list --connection-string "$AZ_CS" -c smartcollab-qa --num-results '*' --query "[].name" -o tsv 2>/dev/null | sort > "$T/fs"
+  echo 0 > "$T/tmpcount"
+else
+  docker exec "$P-app-1" sh -c 'cd /data && find . -type f ! -name ".upload-*" | sed "s|^\./||" | sort' > "$T/fs"
+  docker exec "$P-app-1" sh -c 'cd /data && find . -type f -name ".upload-*" | wc -l' > "$T/tmpcount"
+fi
 cut -f1 "$T/db" | sort > "$T/dbkeys"
 missing=$(comm -23 "$T/dbkeys" "$T/fs" | wc -l | tr -d ' ')
 orphans=$(comm -13 "$T/dbkeys" "$T/fs" | wc -l | tr -d ' ')
@@ -18,7 +26,13 @@ bad=0; n=0
 while IFS=$'\t' read -r key sha; do
   [ -z "$key" ] && continue
   n=$((n+1)); [ $n -gt 300 ] && break
-  actual=$(docker exec "$P-app-1" sh -c "sha256sum '/data/$key' 2>/dev/null | cut -d' ' -f1" || true)
+  if [ "$AZURE" = 1 ]; then
+    [ $n -gt 30 ] && break   # Azure 는 내려받아 비교하므로 30개 표본
+    az storage blob download --connection-string "$AZ_CS" -c smartcollab-qa -n "$key" -f "$T/blob" -o none 2>/dev/null || true
+    actual=$( [ -f "$T/blob" ] && shasum -a 256 "$T/blob" | cut -d' ' -f1 || true); rm -f "$T/blob"
+  else
+    actual=$(docker exec "$P-app-1" sh -c "sha256sum '/data/$key' 2>/dev/null | cut -d' ' -f1" || true)
+  fi
   [ -n "$actual" ] && [ "$actual" != "$sha" ] && bad=$((bad+1))
 done < "$T/db"
 q() { sql "$1" | head -1; }

@@ -1,0 +1,4 @@
+[
+  { "name": "mysql", "listen": "0.0.0.0:13306", "upstream": "db:3306", "enabled": true },
+  { "name": "blob", "listen": "0.0.0.0:10000", "upstream": "azurite:10000", "enabled": true }
+]

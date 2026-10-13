@@ -5,7 +5,7 @@
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 MODE=${1:-host}
-R=qa/results/$MODE
+R=${QA_OUT:-qa/results/$MODE}   # 결과 폴더(qa/ 아래여야 Docker 의 k6 가 씀)
 mkdir -p $R
 k6run() {
   if [ "$MODE" = docker ]; then
@@ -14,7 +14,7 @@ k6run() {
     k6 run -q -e OUT=$R "$@" qa/k6/load.js
   fi
 }
-PW=$(grep -E '^DB_ROOT_PASSWORD=' .env | cut -d= -f2-)
+PW=${DB_ROOT_PASSWORD:-$(grep -E '^DB_ROOT_PASSWORD=' .env | cut -d= -f2-)}
 docker exec sc-qa-db-1 sh -c 'cp /var/lib/mysql/slow.log /var/lib/mysql/slow-before-load.log; : > /var/lib/mysql/slow.log'
 docker exec -e MYSQL_PWD="$PW" sc-qa-db-1 mysql -uroot -e "FLUSH SLOW LOGS" 2>/dev/null
 # 앱 메모리는 cgroup 의 anon(JVM 힙·네이티브)과 file(파일 캐시)을 나눠 기록합니다 — docker stats 의 사용량에는 파일 캐시도 들어감
