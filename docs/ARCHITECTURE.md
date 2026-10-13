@@ -54,7 +54,7 @@ com.smartcollab
 ├── signature   버전 서명(서명하기·버전별 서명 제공·내용이 바뀌면 무효화)
 ├── notification 알림
 ├── realtime    WebSocket 설정, STOMP 인가, 팀 구독 추적(접속 표시·권한 회수), 접속 현황 API, 커밋 후 이벤트 발행
-├── ai          문서 요약·번역 — Claude(토큰 예산·결과 캐시, ADR-0011), 키가 없으면 추출 요약·DeepL, Word 본문 추출
+├── ai          문서 요약·번역 — Claude(토큰 예산·결과 캐시, ADR-0011), 키가 없으면 추출 요약·DeepL, Word 본문·PDF 글자 추출(ADR-0016)
 ├── admin       관리 전용 계정의 계정 목록·삭제 — 각 모듈의 서비스만 거치고 파일·채팅은 읽지 않음 (ADR-0015)
 └── system      공개 설정, 데모 데이터
 ```

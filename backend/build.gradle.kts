@@ -43,6 +43,8 @@ dependencies {
     implementation("com.azure:azure-core-http-jdk-httpclient")
     // 문서 요약·번역(Claude). 공식 SDK 가 재시도(429·5xx)·타입 있는 오류·스트리밍·토큰 세기를 맡습니다 — ADR-0011
     implementation("com.anthropic:anthropic-java:2.71.0")
+    // PDF 번역은 서버가 뽑은 글자를 보냅니다 — PDF 를 통째로 보내면 결과가 원문 그대로인지 서버가 가려낼 수 없었습니다 [AI-13]
+    implementation("org.apache.pdfbox:pdfbox:3.0.8")
     runtimeOnly("com.mysql:mysql-connector-j")
 
     // Boot 4.1.1 이 관리하는 Tomcat 11.0.24 에는 CVE-2026-65905·65182·68525 가 있습니다(11.0.25 에서 수정).

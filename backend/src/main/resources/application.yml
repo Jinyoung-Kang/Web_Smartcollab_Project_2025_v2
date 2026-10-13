@@ -193,3 +193,5 @@ logging:
     correlation: "[%X{requestId:-}] "
   level:
     org.hibernate.SQL: ${SQL_LOG_LEVEL:warn}
+    # PDF 글자를 뽑을 때 PDFBox 는 대응 글자가 없는 글리프마다 WARN 을 남깁니다 — 사용자가 올린 PDF 하나로 로그가 수천 줄 쌓이지 않게 [AI-13]
+    org.apache.pdfbox: error

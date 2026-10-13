@@ -1,0 +1,158 @@
+{
+  "at": "2026-10-13",
+  "file": "사용자 신고 PDF (8쪽, 320KB, 한국어 + 영어 용어·C++ 코드). 공개 저장소라 결과 글은 남기지 않음",
+  "how": "서버와 같은 요청 형식(구조화 출력 notes·translation, effort medium)으로 API 를 직접 6번씩. 문서는 뽑은 글자(.txt)",
+  "note": "v0 = 수정 전 프롬프트, v1 = 원문 병기 금지를 더한 프롬프트. v0 은 실수로 두 번 실행해 호출 18회(기록은 마지막 6회)",
+  "results": [
+    {
+      "prompt": "v0",
+      "target": "EN",
+      "chars": 4434,
+      "hangulOfLetters": 0.0,
+      "sourceTranslationPairs": 0
+    },
+    {
+      "prompt": "v0",
+      "target": "EN",
+      "chars": 4418,
+      "hangulOfLetters": 0.0,
+      "sourceTranslationPairs": 0
+    },
+    {
+      "prompt": "v0",
+      "target": "EN",
+      "chars": 4312,
+      "hangulOfLetters": 0.0,
+      "sourceTranslationPairs": 0
+    },
+    {
+      "prompt": "v0",
+      "target": "EN",
+      "chars": 4390,
+      "hangulOfLetters": 0.0,
+      "sourceTranslationPairs": 0
+    },
+    {
+      "prompt": "v0",
+      "target": "EN",
+      "chars": 4392,
+      "hangulOfLetters": 0.0,
+      "sourceTranslationPairs": 0
+    },
+    {
+      "prompt": "v0",
+      "target": "EN",
+      "chars": 4317,
+      "hangulOfLetters": 0.0,
+      "sourceTranslationPairs": 0
+    },
+    {
+      "prompt": "v1",
+      "target": "EN",
+      "chars": 4376,
+      "hangulOfLetters": 0.0,
+      "sourceTranslationPairs": 0
+    },
+    {
+      "prompt": "v1",
+      "target": "EN",
+      "chars": 4338,
+      "hangulOfLetters": 0.0,
+      "sourceTranslationPairs": 0
+    },
+    {
+      "prompt": "v1",
+      "target": "EN",
+      "chars": 4395,
+      "hangulOfLetters": 0.0,
+      "sourceTranslationPairs": 0
+    },
+    {
+      "prompt": "v1",
+      "target": "EN",
+      "chars": 4358,
+      "hangulOfLetters": 0.0,
+      "sourceTranslationPairs": 0
+    },
+    {
+      "prompt": "v1",
+      "target": "EN",
+      "chars": 4408,
+      "hangulOfLetters": 0.0,
+      "sourceTranslationPairs": 0
+    },
+    {
+      "prompt": "v1",
+      "target": "EN",
+      "chars": 4455,
+      "hangulOfLetters": 0.0,
+      "sourceTranslationPairs": 0
+    }
+  ],
+  "usage": {
+    "v0": [
+      {
+        "in": 2962,
+        "out": 3981,
+        "ms": 14391
+      },
+      {
+        "in": 2962,
+        "out": 5661,
+        "ms": 18495
+      },
+      {
+        "in": 2962,
+        "out": 3683,
+        "ms": 13081
+      },
+      {
+        "in": 2962,
+        "out": 3038,
+        "ms": 11607
+      },
+      {
+        "in": 2962,
+        "out": 3561,
+        "ms": 13308
+      },
+      {
+        "in": 2962,
+        "out": 3544,
+        "ms": 12954
+      }
+    ],
+    "v1": [
+      {
+        "in": 3047,
+        "out": 2809,
+        "ms": 11094
+      },
+      {
+        "in": 3047,
+        "out": 2608,
+        "ms": 10715
+      },
+      {
+        "in": 3047,
+        "out": 3316,
+        "ms": 12895
+      },
+      {
+        "in": 3047,
+        "out": 3756,
+        "ms": 13161
+      },
+      {
+        "in": 3047,
+        "out": 4887,
+        "ms": 17444
+      },
+      {
+        "in": 3047,
+        "out": 5676,
+        "ms": 18629
+      }
+    ]
+  }
+}
