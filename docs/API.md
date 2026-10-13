@@ -45,7 +45,7 @@
 | POST | `/api/auth/signup` | 가입 후 바로 로그인 (201). 체험 계정용 아이디(`demo1~3`, 대소문자 무관)는 409 |
 | POST | `/api/auth/login` | 로그인 (IP 당 분당 10회 제한) |
 | POST | `/api/auth/logout` | 쿠키 삭제 |
-| GET | `/api/auth/me` | 내 정보 + 개인 루트 폴더 ID (로그인 전이면 401) |
+| GET | `/api/auth/me` | 내 정보(`role`: `USER`·`ADMIN`) + 개인 루트 폴더 ID — 관리 전용 계정은 드라이브가 없어 `rootFolderId` 가 없음 (로그인 전이면 401) |
 | GET | `/api/auth/session` | 로그인 여부 — 로그인 전에도 200. `{authenticated, user}`(`user` 는 `/me` 와 같은 모양, 로그인 전이면 `null`). 만료·위조된 쿠키는 지우고 `authenticated=false` |
 | POST | `/api/users/me/delete` | 회원 탈퇴 (`{password}` 재확인). 본문이 필요해 DELETE 대신 POST. 비밀번호 확인은 사용자당 10분 5회(넘으면 429) [L-1] |
 
@@ -158,6 +158,16 @@
 | GET | `/api/public/shares/{token}` | 불필요 | 파일명·크기·조건. 링크를 만든 사람이 그 파일을 더 이상 공유할 수 없으면 410(링크는 남아 권한이 돌아오면 다시 동작) |
 | POST | `/api/public/shares/{token}/unlock` | 불필요 | 비밀번호 확인 → 5분짜리 `grant` |
 | GET | `/api/public/shares/{token}/download?grant=` | 불필요 | 다운로드 (횟수 1 차감) |
+
+### 관리 (관리 전용 계정만, ADR-0015)
+
+관리 전용 계정(`ADMIN_USERNAME`·`ADMIN_PASSWORD` 로 켬)은 아래 두 API 와 `/api/auth/**` 만 쓸 수 있고, 그 밖의 API·WebSocket 은 403 입니다.
+일반 계정이 관리 API 를 부르면 403 입니다.
+
+| Method | Path | 설명 |
+|---|---|---|
+| GET | `/api/admin/users?page=&size=` | 일반 계정 목록(가입일 최신순, `page` 0부터, `size` 1~100·기본 20, 벗어나면 400). `{items: [{id, username, name, teams: [{name, leader}], storedBytes, quotaBytes, createdAt, demo}], page, size, totalElements, totalPages}` — `storedBytes` 는 개인 드라이브 사용량(옛 버전·휴지통 포함). 파일·채팅 정보는 없고, 시스템·관리자 계정은 빠짐 |
+| DELETE | `/api/admin/users/{id}` | 계정 삭제(탈퇴 처리) → `{transferredTeams, deletedTeams}`. 개인 드라이브를 영구 삭제하고 팀에서 빼며 그 계정의 토큰·실시간 연결을 끊음. 팀장인 팀은 가장 먼저 들어온 멤버(체험 계정 제외)에게 넘기고, 넘겨받을 멤버가 없으면 팀을 삭제. 팀에 올린 파일·대화는 팀에 남고 작성자는 "탈퇴한 사용자". 체험 계정 403, 시스템·관리자·없는 ID 404 |
 
 ### 기타
 

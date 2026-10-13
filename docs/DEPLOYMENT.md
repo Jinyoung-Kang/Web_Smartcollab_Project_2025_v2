@@ -65,6 +65,7 @@ open http://localhost:8080
 | `DEEPL_API_KEY` / `DEEPL_API_URL` | | – / `https://api-free.deepl.com` | AI 키가 없을 때의 텍스트 번역 (둘 다 없으면 번역 버튼 비활성) / 유료 요금제면 `https://api.deepl.com` |
 | `TRANSLATION_CHARS_PER_USER_PER_DAY` | | `100000` | 사용자별 24시간 번역 글자 수. DeepL 요금제의 월 한도에 맞춰 조정하세요 |
 | `DEMO_ENABLED` / `DEMO_PASSWORD` | | `false` | 체험 계정·데이터 생성. 비밀번호가 공개 설정 API 로 안내되므로 체험 전용 배포에서만 켜세요 |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | | – (끔) | 관리 전용 계정(계정 목록·삭제, ADR-0015). 아이디가 있으면 앱이 켜질 때 계정을 만들고, 비밀번호(12자 이상 — 짧으면 기동 거절)를 바꾸면 다음 기동 때 반영합니다. 같은 아이디의 일반 계정이 이미 있으면 관리자로 올리지 않습니다(오류 로그, 관리 기능 꺼짐). 설정을 지우거나 아이디를 바꾸면 예전 관리자 계정은 로그인할 수 없습니다 |
 | `GATE_CODES` | | – (끔) | 접근 코드 잠금. `이름:scrypt해시,이름:scrypt해시` — 있으면 코드를 맞힌 브라우저만 화면·API 에 닿습니다(헬스 체크 제외). 해시 만드는 법은 §3.2 (ADR-0013) |
 | `GATE_SECRET` | 잠금 시 ✔ | – | 잠금 해제 쿠키 서명 키(32바이트 이상). 바꾸면 모두 다시 코드를 입력합니다 |
 | `GATE_HOURS` / `GATE_COOKIE_TTL` | | – / `12h` | 잠금화면에 적을 운영 시간(비우면 줄을 감춤) / 잠금을 푼 뒤 다시 묻기까지의 시간 |
@@ -115,6 +116,13 @@ az webapp deploy -g <리소스그룹> -n <앱이름> --src-path backend/build/li
   print("scrypt.16384.8.1."+e(s)+"."+e(hashlib.scrypt(c,salt=s,n=16384,r=8,p=1,dklen=32)))'
   az webapp config appsettings set -g <리소스그룹> -n <앱이름> -o none --settings \
     GATE_CODES="recruit:<해시>" GATE_SECRET="$(openssl rand -base64 48)" GATE_HOURS="상시"
+  ```
+- 관리 전용 계정을 쓰려면 `ADMIN_USERNAME`·`ADMIN_PASSWORD` 를 넣으세요(ADR-0015). 비밀번호는 저장소·문서에 적지 말고 무작위로 만들어
+  권한 600 의 파일에만 둡니다. 아래는 화면에 비밀번호를 출력하지 않습니다.
+
+  ```bash
+  pw="$(openssl rand -base64 24)" && printf 'ADMIN_PASSWORD=%s\n' "$pw" >> ~/<비밀값 파일> && chmod 600 ~/<비밀값 파일>
+  az webapp config appsettings set -g <리소스그룹> -n <앱이름> -o none --settings ADMIN_USERNAME=admin ADMIN_PASSWORD="$pw"
   ```
 - 헬스 체크 경로: `/actuator/health/readiness` — DB 에 닿지 않으면 503 이 되어 트래픽을 받지 않습니다(liveness 는 그대로 200 이라 재시작되지 않음) [IMP-04]
 - 메모리: App Service 플랜의 메모리가 곧 한도입니다. 컨테이너 이미지는 그 75% 를 힙으로 씁니다(`JAVA_TOOL_OPTIONS` 의 `MaxRAMPercentage`). jar 배포라면 `JAVA_OPTS` 에 `-XX:MaxRAMPercentage=75` 를 더하세요.
