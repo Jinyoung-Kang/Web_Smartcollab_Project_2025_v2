@@ -36,7 +36,8 @@ export function Header({ onOpenMenu }: { onOpenMenu: () => void }) {
         <MenuIcon className="size-5" />
       </IconButton>
       {/* 좁은 화면에서는 글자가 숨어 이름 없는 링크가 되므로 이름을 직접 줍니다 [QA-11] */}
-      <Link to="/drive" aria-label="SmartCollab" className="flex items-center gap-2 font-bold text-slate-900">
+      {/* shrink-0: 긴 이름·검색 칸에 밀려 로고가 눌리지 않게 [UX-07] */}
+      <Link to="/drive" aria-label="SmartCollab" className="flex shrink-0 items-center gap-2 font-bold text-slate-900">
         <img src="/favicon.svg" alt="" className="size-7 rounded-lg" />
         <span className="hidden sm:inline">SmartCollab</span>
       </Link>
@@ -68,12 +69,12 @@ export function Header({ onOpenMenu }: { onOpenMenu: () => void }) {
           <button
             onClick={toggle}
             aria-expanded={open}
-            className="flex items-center gap-2 rounded-full p-0.5 hover:bg-slate-100 sm:pr-3"
+            className="flex min-w-0 items-center gap-2 rounded-full p-0.5 hover:bg-slate-100 sm:pr-3"
           >
             {/* 이름은 보이는 글자(사용자 이름) + 숨긴 "내 계정"으로 만듭니다. aria-label("내 계정")로 덮으면 보이는 이름이
                 빠져, 화면에 보이는 이름을 말해 누르는 음성 조작이 안 됩니다(WCAG 2.5.3) [QA-13] */}
             <Avatar name={me.name} />
-            <span className="hidden text-sm font-medium sm:inline">{me.name}</span>
+            <span className="hidden max-w-40 truncate text-sm font-medium sm:inline" title={me.name}>{me.name}</span>
             <span className="sr-only">내 계정</span>
           </button>
         )}
@@ -81,8 +82,8 @@ export function Header({ onOpenMenu }: { onOpenMenu: () => void }) {
         {(close) => (
           <>
             <div className="border-b border-slate-100 px-3 py-2.5">
-              <p className="text-sm font-semibold">{me.name}</p>
-              <p className="text-xs text-slate-500">@{me.username}</p>
+              <p className="text-sm font-semibold wrap-anywhere">{me.name}</p>
+              <p className="text-xs text-slate-500 wrap-anywhere">@{me.username}</p>
             </div>
             <MenuItem icon={LogOut} onClick={() => { close(); void logout() }}>
               로그아웃

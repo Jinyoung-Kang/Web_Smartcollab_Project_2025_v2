@@ -29,7 +29,9 @@ export function ChatMessageList({ rows, openingFileId, onOpenFile }: {
       <div className={cn('flex gap-2', mine ? 'flex-row-reverse' : '', grouped ? 'mt-1' : 'mt-3')}>
         {!mine && (grouped ? <span className="w-8 shrink-0" /> : <Avatar name={m.sender.name} />)}
         <div className={cn('flex max-w-[78%] flex-col', mine ? 'items-end' : 'items-start')}>
-          {!mine && !grouped && <span className="mb-1 text-xs font-medium text-slate-500">{m.sender.name}</span>}
+          {!mine && !grouped && (
+            <span className="mb-1 max-w-full truncate text-xs font-medium text-slate-500" title={m.sender.name}>{m.sender.name}</span>
+          )}
           <div className="flex items-end gap-1.5">
             {mine && <time className="text-[11px] whitespace-nowrap text-slate-500">{formatTime(m.createdAt)}</time>}
             {m.type === 'FILE_SHARE' && m.file ? (

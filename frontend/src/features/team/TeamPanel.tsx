@@ -183,15 +183,16 @@ function MembersTab({ team, online }: { team: TeamDetail; online: ReadonlySet<st
           <UserPlus className="size-4" /> 멤버 초대
         </Button>
       )}
-      <ul className="grid gap-1">
+      {/* grid-cols-1: 긴 이름이 줄을 팀 패널 밖으로 밀어 관리 단추가 가려졌습니다 [UX-07] */}
+      <ul className="grid grid-cols-1 gap-1">
         {team.members.map((m) => (
           <li key={m.memberId} className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-slate-50">
             <Avatar name={m.name} online={online.has(m.username)} />
             <div className="min-w-0 flex-1">
-              <p className="flex items-center gap-1.5 truncate text-sm font-medium">
-                {m.name}
-                {m.username === me.username && <span className="text-xs text-slate-500">(나)</span>}
-                {m.leader && <Crown aria-label="팀장" className="size-3.5 text-amber-500" />}
+              <p className="flex min-w-0 items-center gap-1.5 text-sm font-medium">
+                <span className="truncate" title={m.name}>{m.name}</span>
+                {m.username === me.username && <span className="shrink-0 text-xs text-slate-500">(나)</span>}
+                {m.leader && <Crown aria-label="팀장" className="size-3.5 shrink-0 text-amber-500" />}
               </p>
               <div className="mt-0.5 flex flex-wrap gap-1">
                 {m.leader ? <Badge tone="amber">팀장</Badge> : (

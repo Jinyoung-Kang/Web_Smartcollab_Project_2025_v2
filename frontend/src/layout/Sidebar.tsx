@@ -26,7 +26,9 @@ export function Sidebar() {
 
   return (
     <nav aria-label="주 메뉴" className="flex h-full flex-col overflow-y-auto px-3 py-4">
-      <div className="grid gap-0.5">
+      {/* 열 너비 하한을 0으로(grid-cols-1 = minmax(0, 1fr)) — 기본 하한(auto)이면 긴 팀 이름이 칸을 사이드바 밖까지 밀어
+          줄임표가 나오지 않고 인원 수가 가려졌습니다 [UX-07] */}
+      <div className="grid grid-cols-1 gap-0.5">
         <NavLink to="/drive" className={() => navClass(location.pathname.startsWith('/drive'))}>
           <HardDrive aria-hidden className="size-4" /> 내 드라이브
         </NavLink>
@@ -41,7 +43,7 @@ export function Sidebar() {
           <Plus className="size-4" />
         </IconButton>
       </div>
-      <div className="grid gap-0.5">
+      <div className="grid grid-cols-1 gap-0.5">
         {teams.data?.map((team) => (
           <NavLink
             key={team.id}
@@ -49,7 +51,7 @@ export function Sidebar() {
             className={() => navClass(location.pathname.startsWith(`/teams/${team.id}/`) || location.pathname === `/teams/${team.id}`)}
           >
             <Users aria-hidden className="size-4 shrink-0" />
-            <span className="min-w-0 flex-1 truncate">{team.name}</span>
+            <span className="min-w-0 flex-1 truncate" title={team.name}>{team.name}</span>
             {unread.has(team.id) ? (
               <span role="img" aria-label="새 채팅 메시지" className="size-2 rounded-full bg-red-500" />
             ) : (

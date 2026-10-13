@@ -15,7 +15,7 @@
 | **데이터·저장소** | MySQL 8 · Azure Blob Storage(또는 로컬 디스크) |
 | **AI** | Claude Haiku 5.5(Anthropic 공식 Java SDK) — 문서 요약·번역, 사용자별 토큰 한도. 키가 없으면 추출 요약·DeepL |
 | **배포** | Azure App Service(B1, jar) · Azure Database for MySQL(B1ms) · Azure Blob Storage 에 공개 데모로 배포 — 접근 코드가 있어야 들어갈 수 있음. 절차는 [DEPLOYMENT](docs/DEPLOYMENT.md) |
-| **CI·테스트** | GitHub Actions · JUnit 6 + Testcontainers(MySQL·Azurite) 397건 · Vitest 182건 · Playwright E2E 18건(접근성 자동 검사 포함) · ArchUnit 구조 규칙 |
+| **CI·테스트** | GitHub Actions · JUnit 6 + Testcontainers(MySQL·Azurite) 397건 · Vitest 182건 · Playwright E2E 19건(접근성 자동 검사 포함) · ArchUnit 구조 규칙 |
 
 ---
 
@@ -103,7 +103,7 @@ API 문서: <http://localhost:8080/swagger-ui.html> · 전체 목록 [docs/API.m
 ```bash
 cd backend && ./gradlew test          # 395건 (MySQL·Azurite 컨테이너 자동 실행), 커버리지 리포트 포함 — ./gradlew check 는 CPU 1개 시험 2건을 더 돌림
 cd frontend && npm test               # 182건
-docker compose up -d --wait && cd e2e && npm ci && npx playwright test   # E2E 18건 (접근성 자동 검사 포함)
+docker compose up -d --wait && cd e2e && npm ci && npx playwright test   # E2E 19건 (접근성 자동 검사 포함)
 ```
 
 백엔드 라인 커버리지 92.3%(분기 79.9%). 첫 완성본(v1)에서 찾은 결함마다 회귀 테스트가 있습니다 → [docs/TESTING.md](docs/TESTING.md)
