@@ -81,8 +81,14 @@ public class Api {
         if (result.getResponse().getStatus() != 200) {
             throw new AssertionError("login failed: " + body);
         }
+        Number root = (Number) JsonPath.<Map<String, Object>>read(body, "$").get("rootFolderId");   // 관리 전용 계정은 드라이브가 없어 빠짐 (ADR-0015)
         return new Session(username, ((Number) JsonPath.read(body, "$.id")).longValue(),
-                ((Number) JsonPath.read(body, "$.rootFolderId")).longValue(), result.getResponse().getCookie("SC_AUTH"));
+                root == null ? -1 : root.longValue(), result.getResponse().getCookie("SC_AUTH"));
+    }
+
+    /** 관리 전용 계정으로 로그인 */
+    public Session loginAdmin() {
+        return login(IntegrationTest.ADMIN_USERNAME, IntegrationTest.ADMIN_PASSWORD);
     }
 
     public ResultActions perform(org.springframework.test.web.servlet.RequestBuilder builder) {

@@ -10,6 +10,7 @@ import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.error.ErrorCode;
 import com.smartcollab.user.DemoAccounts;
+import com.smartcollab.user.Role;
 import com.smartcollab.user.User;
 import com.smartcollab.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,9 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -98,7 +102,7 @@ public class TeamService {
     public void invite(Long teamId, String inviteeUsername, Long userId) {
         TeamMember inviterMembership = accessPolicy.requireInvite(teamId, userId);
         User invitee = users.findByUsername(inviteeUsername.strip())
-                .filter(u -> !u.isSystem())
+                .filter(u -> u.getRole() == Role.USER)   // 시스템·관리 전용 계정은 팀에 들일 수 없음 (ADR-0015)
                 .orElseThrow(() -> ApiException.notFound("초대할 사용자"));
         if (members.existsByTeamIdAndUserId(teamId, invitee.getId())) {
             throw ApiException.conflict("이미 팀에 속한 사용자입니다.");
@@ -262,6 +266,61 @@ public class TeamService {
             notice(u.getId(), NoticeEvents.Type.TEAM_DELETED, "'" + teamName + "' 팀이 삭제되었습니다.", null, null);
         }
         events.publishEvent(new ChangeEvents.TeamChanged(teamId, ChangeEvents.TeamChangeType.TEAM_DELETED));
+    }
+
+    /** 관리 화면용: 사용자 ID → 소속 팀(이름순). 팀 이름과 팀장 여부만 읽고 팀의 파일·채팅은 읽지 않습니다 (ADR-0015) */
+    @Transactional(readOnly = true)
+    public Map<Long, List<UserTeam>> teamsOf(Collection<Long> userIds) {
+        if (userIds.isEmpty()) return Map.of();
+        return members.findTeamsOfUsers(userIds).stream()
+                .collect(Collectors.groupingBy(UserTeam::userId, LinkedHashMap::new, Collectors.toList()));
+    }
+
+    /**
+     * 관리자가 계정을 삭제하기 전에, 그 계정이 팀장인 팀을 정리합니다 (ADR-0015). <b>권한은 확인하지 않으므로</b> 호출하는 쪽이 확인해야
+     * 합니다. 탈퇴와 달리 관리자는 팀장을 대신 넘길 수 없어, 그대로 두면 팀장 계정은 지울 수 없었습니다.
+     * <ul>
+     *   <li>다른 멤버가 있으면 가장 먼저 들어온 멤버에게 팀장을 넘기고 알립니다. 체험 계정은 받지 않습니다 — 매일 초기화가 체험 계정이
+     *       이끄는 팀을 통째로 지우기 때문입니다 [H-3]. 팀장 팀 수 상한(S-10) 안의 멤버를 먼저 고르고, 모두 상한이면 가장 먼저 들어온
+     *       멤버에게 넘깁니다(팀 자료를 지우는 것보다 낫기 때문).</li>
+     *   <li>넘겨받을 멤버가 없으면 팀을 삭제합니다.</li>
+     * </ul>
+     */
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public LedTeamsHandOver handOverLedTeams(Long userId) {
+        int transferred = 0;
+        int deleted = 0;
+        int max = props.quota().teamsPerUser();
+        for (Long teamId : teams.findIdsOwnedBy(userId)) {
+            lockTeam(teamId);
+            List<TeamMember> all = members.findMembers(teamId);
+            List<TeamMember> candidates = all.stream()
+                    .filter(m -> !m.getUser().getId().equals(userId) && !demoAccounts.isDemo(m.getUser()))
+                    .sorted(Comparator.comparing(TeamMember::getJoinedAt).thenComparing(TeamMember::getId))
+                    .toList();
+            if (candidates.isEmpty()) {
+                purgeTeam(teamId, userId);
+                deleted++;
+                continue;
+            }
+            TeamMember next = candidates.stream()
+                    .filter(m -> teams.countByOwnerId(m.getUser().getId()) < max)
+                    .findFirst()
+                    .orElse(candidates.getFirst());
+            Team team = teams.findWithOwner(teamId).orElseThrow(() -> ApiException.notFound("팀"));
+            all.stream().filter(m -> m.getUser().getId().equals(userId)).findFirst().ifPresent(TeamMember::demoteFromLeader);
+            next.promoteToLeader();
+            team.changeOwner(next.getUser());
+            notice(next.getUser().getId(), NoticeEvents.Type.LEADERSHIP_TRANSFERRED,
+                    "'" + team.getName() + "' 팀의 팀장 계정이 삭제되어 새 팀장이 되었습니다.", null, teamId);
+            events.publishEvent(new ChangeEvents.TeamChanged(teamId, ChangeEvents.TeamChangeType.MEMBERS_CHANGED));
+            transferred++;
+        }
+        return new LedTeamsHandOver(transferred, deleted);
+    }
+
+    /** @param transferred 팀장을 넘긴 팀 수 @param deleted 넘겨받을 멤버가 없어 삭제한 팀 수 */
+    public record LedTeamsHandOver(int transferred, int deleted) {
     }
 
     /** 알림은 알림 모듈이 같은 트랜잭션 안에서 저장합니다 [A-01] */

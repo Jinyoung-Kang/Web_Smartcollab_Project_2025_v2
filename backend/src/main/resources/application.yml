@@ -168,6 +168,11 @@ app:
     # 체험 데이터 초기화 시각 [SEC-06]
     reset-cron: ${DEMO_RESET_CRON:0 0 5 * * *}
     reset-zone: ${DEMO_RESET_ZONE:Asia/Seoul}
+  # 관리 전용 계정 — 계정 목록(아이디·이름·소속 팀·사용량·가입일)을 보고 계정을 삭제. 아이디가 비어 있으면 끔 (ADR-0015)
+  admin:
+    username: ${ADMIN_USERNAME:}
+    # 12자 이상. 앱이 켜질 때 해시해 저장하고, 바꾸면 다음 기동 때 반영
+    password: ${ADMIN_PASSWORD:}
   # 접근 코드 잠금 — 코드를 받은 사람만 화면·API 에 닿게 함(포트폴리오 데모). GATE_CODES 가 비어 있으면 끔 [GATE-01, ADR-0013]
   gate:
     # "이름:scrypt해시,이름:scrypt해시" — 해시 만드는 법은 docs/DEPLOYMENT.md §3.2

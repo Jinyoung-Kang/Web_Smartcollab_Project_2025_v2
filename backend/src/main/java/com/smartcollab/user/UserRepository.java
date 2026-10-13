@@ -1,12 +1,16 @@
 package com.smartcollab.user;
 
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
@@ -38,4 +42,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByEmail(String email);
 
     Optional<User> findFirstByRole(Role role);
+
+    /** 관리 화면의 계정 목록 — 가입일 최신순 (ADR-0015) */
+    Page<User> findByRoleOrderByCreatedAtDescIdDesc(Role role, Pageable pageable);
+
+    /** 여러 사용자의 개인 저장 사용량 집계 [IMP-01] — [user_id, stored_bytes] */
+    @Query(value = "SELECT user_id, stored_bytes FROM users WHERE user_id IN (:ids)", nativeQuery = true)
+    List<Object[]> storedBytesOf(@Param("ids") Collection<Long> ids);
 }

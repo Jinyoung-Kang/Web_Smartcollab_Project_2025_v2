@@ -41,6 +41,11 @@ public final class SecurityEventLog {
         LOG.warn("security-event rate-limited scope=account-delete user={}", userId);
     }
 
+    /** 관리자가 계정을 삭제함 (ADR-0015) */
+    public static void accountDeletedByAdmin(Long adminId, Long userId) {
+        LOG.warn("security-event account-deleted-by-admin admin={} user={}", adminId, userId);
+    }
+
     /** @param codeName 맞힌 접근 코드의 이름(코드 원문이 아님) — 누가 열었는지 알 수 있게 [GATE-01] */
     public static void gateUnlocked(String codeName, String clientIp) {
         LOG.info("security-event gate-unlocked code={} ip={}", codeName, clientIp);

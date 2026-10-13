@@ -56,4 +56,13 @@ public class User {
     public boolean isSystem() {
         return role == Role.SYSTEM;
     }
+
+    public boolean isAdmin() {
+        return role == Role.ADMIN;
+    }
+
+    /** 관리자 계정의 비밀번호를 환경 변수 값으로 맞출 때만 씁니다 ({@link AdminAccountInitializer}) */
+    void changePassword(String encodedPassword) {
+        this.password = encodedPassword;
+    }
 }

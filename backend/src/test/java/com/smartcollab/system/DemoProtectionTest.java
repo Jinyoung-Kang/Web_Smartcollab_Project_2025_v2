@@ -60,6 +60,23 @@ class DemoProtectionTest extends LimitedStorageIntegrationTest {
     }
 
     @Test
+    @DisplayName("[ADM-11] 관리자는 체험 계정을 삭제할 수 없고(403), 목록에는 체험 계정과 체험 한도로 표시된다")
+    void adminCannotDeleteDemoAccounts() throws Exception {
+        Api.Session admin = api().loginAdmin();
+        long demo1 = users.findByUsername("demo1").orElseThrow().getId();
+
+        admin.delete("/api/admin/users/{id}", demo1).andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.detail").value(containsString("체험 계정")));
+
+        String page = Api.body(admin.get("/api/admin/users?size=100"));
+        List<Boolean> demoFlags = com.jayway.jsonpath.JsonPath.read(page, "$.items[?(@.username == 'demo1')].demo");
+        List<Number> quotas = com.jayway.jsonpath.JsonPath.read(page, "$.items[?(@.username == 'demo1')].quotaBytes");
+        assertThat(demoFlags).containsExactly(true);
+        assertThat(quotas).extracting(Number::longValue).containsExactly(32L * 1024);
+        assertThat(users.findByUsername("demo1")).isPresent();
+    }
+
+    @Test
     @DisplayName("[SEC-06] 체험 계정은 탈퇴·팀 삭제·팀장 위임·팀 나가기·체험 계정 내보내기를 할 수 없다")
     void destructiveActionsAreBlocked() throws Exception {
         Api.Session leader = demo("demo1");

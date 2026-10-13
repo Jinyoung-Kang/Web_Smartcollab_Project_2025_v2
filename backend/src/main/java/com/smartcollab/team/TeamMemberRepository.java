@@ -34,6 +34,14 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember, Long> {
     List<TeamMember> findMembershipsOf(@Param("userId") Long userId);
 
     @Query("""
+            select new com.smartcollab.team.UserTeam(m.user.id, t.name, m.teamLeader)
+            from TeamMember m join m.team t
+            where m.user.id in :userIds
+            order by t.name asc, t.id asc
+            """)
+    List<UserTeam> findTeamsOfUsers(@Param("userIds") Collection<Long> userIds);
+
+    @Query("""
             select new com.smartcollab.team.TeamSize(m.team.id, count(m))
             from TeamMember m where m.team.id in :teamIds group by m.team.id
             """)
