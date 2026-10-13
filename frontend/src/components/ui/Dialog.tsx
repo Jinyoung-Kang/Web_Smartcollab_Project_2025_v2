@@ -69,8 +69,9 @@ export function Dialog({ open, onClose, title, description, children, footer, si
               <h2 id={titleId} className="truncate text-base font-semibold">
                 {title}
               </h2>
+              {/* wrap-anywhere: 띄어쓰기 없는 긴 이름도 대화상자 안에서 줄바꿈 [UX-07] */}
               {description && (
-                <p id={descId} className="mt-0.5 text-sm text-slate-500">
+                <p id={descId} className="mt-0.5 text-sm text-slate-500 wrap-anywhere">
                   {description}
                 </p>
               )}
