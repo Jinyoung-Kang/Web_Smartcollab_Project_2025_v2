@@ -13,7 +13,7 @@ final class GatePage {
 
     static final String TITLE = "SmartCollab";
     static final List<String> DESCRIPTION = List.of("팀용 클라우드 파일 협업", "드라이브 · 권한 · 버전·서명 · 팀 채팅 · 외부 공유");
-    static final List<String> INTRO = List.of("포트폴리오 데모입니다.", "접근 코드는 포트폴리오 문서에 있습니다.");
+    static final List<String> INTRO = List.of("포트폴리오 데모입니다.", "접근 코드는 따로 전달합니다.");
     static final List<String> DEMO_NOTE = List.of("잠금을 푼 뒤 로그인 화면의 체험 계정으로 둘러볼 수 있습니다.", "체험 데이터는 매일 초기화됩니다.");
     private static final String ITEM_SEPARATOR = " · ";
 
