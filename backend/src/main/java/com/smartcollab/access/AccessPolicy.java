@@ -5,6 +5,7 @@ import com.smartcollab.folder.Folder;
 import com.smartcollab.global.error.ApiException;
 import com.smartcollab.team.TeamMember;
 import com.smartcollab.team.TeamMemberRepository;
+import com.smartcollab.user.AdminAccounts;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -27,6 +28,17 @@ import java.util.Objects;
 public class AccessPolicy {
 
     private final TeamMemberRepository members;
+    private final AdminAccounts adminAccounts;
+
+    /**
+     * 관리 API (ADR-0015). 경로 규칙(토큰의 역할)에 더해, 지금 설정된 관리자 계정인지 DB 로 다시 확인합니다 — 관리자 아이디를 바꾸거나
+     * 설정을 지운 뒤에도 예전 관리자 토큰이 만료 전까지 관리 API 를 쓰지 못하게 합니다.
+     */
+    public void requireAdmin(Long userId) {
+        if (!adminAccounts.isActiveAdmin(userId)) {
+            throw ApiException.forbidden("관리자만 쓸 수 있습니다.");
+        }
+    }
 
     public Access accessTo(Folder folder, Long userId) {
         if (folder.getTeam() == null) {

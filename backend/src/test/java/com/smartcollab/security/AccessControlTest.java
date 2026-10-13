@@ -10,6 +10,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import java.util.List;
 import java.util.Map;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -125,9 +126,13 @@ class AccessControlTest extends IntegrationTest {
         owner.delete("/api/notifications/{id}", notificationId).andExpect(status().isNotFound());
     }
 
+    /** v1 의 관리자 API 는 로그인한 누구에게나 비밀번호 해시가 담긴 User 엔티티를 그대로 주었습니다. 지금의 관리 API 는 ADR-0015. */
     @Test
-    @DisplayName("[v1 보안] 관리자 API(비밀번호 해시가 담긴 User 엔티티 노출)는 제거되었다")
-    void adminEndpointsRemoved() throws Exception {
-        owner.get("/api/admin/users").andExpect(status().isNotFound());
+    @DisplayName("[v1 보안] 관리 API 는 관리 전용 계정만 쓰고(일반 사용자 403), 비밀번호 해시·이메일을 주지 않는다")
+    void adminApiIsRestricted() throws Exception {
+        owner.get("/api/admin/users").andExpect(status().isForbidden());
+
+        String body = Api.body(api().loginAdmin().get("/api/admin/users?size=100"));
+        assertThat(body).contains(owner.username).doesNotContain("$2a$").doesNotContain("password").doesNotContain("email");
     }
 }

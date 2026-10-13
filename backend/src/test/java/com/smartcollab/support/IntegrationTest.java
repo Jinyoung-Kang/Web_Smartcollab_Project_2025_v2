@@ -22,6 +22,9 @@ import java.nio.file.Path;
 public abstract class IntegrationTest {
 
     public static final String JWT_SECRET = "test-secret-test-secret-test-secret-1234";
+    /** 관리 전용 계정 (ADR-0015) — 모든 통합 시험이 같은 컨텍스트를 쓰도록 공통 설정에 둡니다 */
+    public static final String ADMIN_USERNAME = "it_admin";
+    public static final String ADMIN_PASSWORD = "admin-password-for-tests";
     static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.4")
             .withDatabaseName("smartcollab")
             .withCommand("--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci");
@@ -43,6 +46,8 @@ public abstract class IntegrationTest {
         r.add("spring.datasource.password", MYSQL::getPassword);
         r.add("spring.jpa.properties.hibernate.generate_statistics", () -> "true");
         r.add("app.jwt.secret", () -> JWT_SECRET);
+        r.add("app.admin.username", () -> ADMIN_USERNAME);
+        r.add("app.admin.password", () -> ADMIN_PASSWORD);
         r.add("app.storage.type", () -> "local");
         r.add("app.storage.local-root", STORAGE_ROOT::toString);
         r.add("app.rate-limit.login-per-minute", () -> 1000);

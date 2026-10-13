@@ -2,13 +2,56 @@
 
 export type PreviewKind = 'IMAGE' | 'PDF' | 'TEXT' | 'OFFICE' | 'NONE'
 
-export interface Me {
+interface MeBase {
   id: number
   username: string
   name: string
   email?: string
-  rootFolderId: number
   createdAt: string
+}
+
+/** 일반 계정 — 내 드라이브가 있습니다 */
+export interface UserMe extends MeBase {
+  role: 'USER'
+  rootFolderId: number
+}
+
+/** 관리 전용 계정 — 드라이브·팀이 없고 관리 화면만 씁니다 (ADR-0015) */
+export interface AdminMe extends MeBase {
+  role: 'ADMIN'
+}
+
+export type Me = UserMe | AdminMe
+
+export interface AdminTeam {
+  name: string
+  leader: boolean
+}
+
+/** 관리 화면의 계정 한 줄 — 파일·채팅 정보는 없습니다 */
+export interface AdminAccount {
+  id: number
+  username: string
+  name: string
+  teams: AdminTeam[]
+  storedBytes: number
+  quotaBytes: number
+  createdAt: string
+  /** 체험 계정 — 매일 초기화되어 삭제할 수 없음 */
+  demo: boolean
+}
+
+export interface AdminAccountPage {
+  items: AdminAccount[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+}
+
+export interface AdminDeletionResult {
+  transferredTeams: number
+  deletedTeams: number
 }
 
 export interface Permissions {

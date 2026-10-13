@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
 import { ApiError, onUnauthorized } from '@/api/http'
 import { authApi, configApi } from '@/api/endpoints'
-import type { Me, PublicConfig } from '@/api/types'
+import type { Me, PublicConfig, UserMe } from '@/api/types'
 import { queryKeys } from '@/api/queryKeys'
 import { useToast } from '@/components/ui/Toast'
 
@@ -111,10 +111,11 @@ export function useAuth(): AuthState {
   return ctx
 }
 
-/** 로그인이 필요한 화면에서 사용 (AppShell 아래에서만 호출) */
-export function useMe(): Me {
+/** 로그인이 필요한 화면에서 사용 (AppShell 아래에서만 호출 — 관리 전용 계정은 AppShell 에 오지 않음) */
+export function useMe(): UserMe {
   const { me } = useAuth()
   if (!me) throw new Error('not authenticated')
+  if (me.role === 'ADMIN') throw new Error('admin account has no drive')
   return me
 }
 

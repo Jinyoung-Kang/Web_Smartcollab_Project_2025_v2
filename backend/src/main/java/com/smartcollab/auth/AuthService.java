@@ -9,6 +9,7 @@ import com.smartcollab.global.tx.TransactionRunner;
 import com.smartcollab.global.security.JwtTokenService;
 import com.smartcollab.global.security.SecurityEventLog;
 import com.smartcollab.global.security.SlidingWindowRateLimiter;
+import com.smartcollab.user.AdminAccounts;
 import com.smartcollab.user.DemoAccounts;
 import com.smartcollab.user.Role;
 import com.smartcollab.user.User;
@@ -35,6 +36,7 @@ public class AuthService {
     private final SlidingWindowRateLimiter rateLimiter;
     private final AppProperties props;
     private final TransactionRunner tx;
+    private final AdminAccounts adminAccounts;
 
     /** 존재하지 않는 아이디로 로그인할 때도 BCrypt 비교를 수행해 응답 시간으로 계정 존재 여부를 추측하지 못하게 합니다. */
     private static final Pattern USERNAME = Pattern.compile(AuthDtos.USERNAME_REGEX);
@@ -104,13 +106,18 @@ public class AuthService {
         User user = users.findByUsername(username).orElse(null);
         String hash = user == null ? dummyHash() : user.getPassword();
         boolean matches = passwordEncoder.matches(password, hash);
-        if (user == null || !matches || user.isSystem()) {
+        if (user == null || !matches || !canLogIn(user)) {
             SecurityEventLog.loginFailed(clientIp);
             throw new ApiException(ErrorCode.INVALID_CREDENTIALS);
         }
         rateLimiter.reset(accountKey);
         SecurityEventLog.loginSucceeded(user.getId(), clientIp);
         return Account.of(user);
+    }
+
+    /** 시스템 계정은 로그인할 수 없고, 관리자 계정은 지금 설정된 관리자 아이디일 때만 됩니다 (ADR-0015) */
+    private boolean canLogIn(User user) {
+        return user.getRole() == Role.USER || adminAccounts.isActiveAdmin(user);
     }
 
     private String dummyHash() {
@@ -121,13 +128,13 @@ public class AuthService {
     }
 
     public String issueToken(Account account) {
-        return tokens.issue(account.id(), account.username());
+        return tokens.issue(account.id(), account.username(), account.role().name());
     }
 
     /** 가입·로그인한 계정. 컨트롤러에는 엔티티 대신 이것을 돌려줍니다 [A-05]. */
-    public record Account(Long id, String username) {
+    public record Account(Long id, String username, Role role) {
         static Account of(User user) {
-            return new Account(user.getId(), user.getUsername());
+            return new Account(user.getId(), user.getUsername(), user.getRole());
         }
     }
 
@@ -138,10 +145,14 @@ public class AuthService {
     @Transactional
     public AuthDtos.MeResponse me(Long userId) {
         User user = users.findById(userId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
+        if (user.isAdmin()) {   // 관리 전용 계정에는 드라이브가 없습니다 (ADR-0015)
+            return new AuthDtos.MeResponse(user.getId(), user.getUsername(), user.getName(), user.getEmail(), null,
+                    user.getCreatedAt(), user.getRole().name());
+        }
         // 루트 폴더가 없는 계정(과거 데이터)은 이 시점에 만들어 줍니다.
         Folder root = rootFolders.personalOf(user);
         return new AuthDtos.MeResponse(user.getId(), user.getUsername(), user.getName(), user.getEmail(), root.getId(),
-                user.getCreatedAt());
+                user.getCreatedAt(), user.getRole().name());
     }
 
     /** 로그인 여부와 내 정보 [IMP-10]. 토큰은 유효한데 계정이 없으면 익명입니다. */

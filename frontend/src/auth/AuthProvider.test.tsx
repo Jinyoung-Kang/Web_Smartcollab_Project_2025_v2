@@ -41,7 +41,7 @@ beforeAll(async () => {
   await import('@/layout/AppShell')
 })
 
-const me: Me = { id: 1, username: 'demo1', name: '김하늘', rootFolderId: 10, createdAt: '2026-09-01T00:00:00Z' }
+const me: Me = { id: 1, username: 'demo1', name: '김하늘', role: 'USER', rootFolderId: 10, createdAt: '2026-09-01T00:00:00Z' }
 const config: PublicConfig = {
   translationEnabled: false, officePreviewEnabled: false, maxUploadBytes: 0, demo: { enabled: false, accounts: [] }, aiEnabled: false,
 }

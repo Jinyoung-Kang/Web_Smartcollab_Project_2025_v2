@@ -37,6 +37,9 @@ import java.time.Instant;
 public class JwtTokenService {
 
     public static final String CLAIM_USERNAME = "username";
+    /** 계정 역할(USER·ADMIN). 이 클레임이 없는 토큰(역할을 넣기 전에 발급)은 일반 사용자로 봅니다 (ADR-0015) */
+    public static final String CLAIM_ROLE = "role";
+    public static final String DEFAULT_ROLE = "USER";
     private static final String ISSUER = "smartcollab";
 
     private final JwtEncoder encoder;
@@ -70,12 +73,13 @@ public class JwtTokenService {
         return random;
     }
 
-    public String issue(Long userId, String username) {
+    public String issue(Long userId, String username, String role) {
         Instant now = Instant.now();
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer(ISSUER)
                 .subject(String.valueOf(userId))
                 .claim(CLAIM_USERNAME, username)
+                .claim(CLAIM_ROLE, role)
                 .issuedAt(now)
                 .expiresAt(now.plus(ttl))
                 .build();
@@ -99,6 +103,12 @@ public class JwtTokenService {
     /** 인증 객체의 사용자 ID. JWT 인증이 아니면 null. */
     public static Long userIdOf(Principal principal) {
         return principal instanceof JwtAuthenticationToken token ? RevokedUsers.subjectOf(token.getToken()) : null;
+    }
+
+    /** 토큰의 역할. 클레임이 없으면 일반 사용자입니다. */
+    public static String roleOf(Jwt jwt) {
+        String role = jwt.getClaimAsString(CLAIM_ROLE);
+        return role == null || role.isBlank() ? DEFAULT_ROLE : role;
     }
 
     /** 인증 객체(HTTP·STOMP 공통)에서 사용자 정보를 꺼냅니다. */

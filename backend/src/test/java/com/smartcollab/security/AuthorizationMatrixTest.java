@@ -180,6 +180,31 @@ class AuthorizationMatrixTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("[ADM-02] 관리 전용 계정은 남의 파일·폴더·팀·채팅에 닿지 못하고, 일반 사용자는 관리 API 를 쓰지 못한다 (403, 부수 효과 없음)")
+    void adminAndUserRolesAreSeparated() throws Exception {
+        Api.Session admin = api().loginAdmin();
+        verify(List.of(
+                call(admin, HttpMethod.GET, "/api/folders/" + a.rootFolderId, FORBIDDEN),
+                call(admin, HttpMethod.GET, "/api/folders/" + aFolder, FORBIDDEN),
+                call(admin, HttpMethod.GET, "/api/files/" + aFile, FORBIDDEN),
+                call(admin, HttpMethod.GET, "/api/files/" + aFile + "/download", FORBIDDEN),
+                call(admin, HttpMethod.GET, "/api/files/" + aFile + "/content", FORBIDDEN),
+                call(admin, HttpMethod.GET, "/api/files/" + aFile + "/versions", FORBIDDEN),
+                call(admin, HttpMethod.PATCH, "/api/files/" + aFile, Map.of("name", "hacked.txt"), FORBIDDEN, ""),
+                call(admin, HttpMethod.DELETE, "/api/share-links/" + aLink, FORBIDDEN),
+                call(admin, HttpMethod.GET, "/api/teams/" + t1, FORBIDDEN),
+                call(admin, HttpMethod.GET, "/api/teams/" + t1 + "/messages", FORBIDDEN),
+                call(admin, HttpMethod.POST, "/api/teams/" + t1 + "/messages", Map.of("content", "hi"), FORBIDDEN, ""),
+                call(admin, HttpMethod.DELETE, "/api/teams/" + t1, FORBIDDEN),
+                call(admin, HttpMethod.GET, "/api/files/" + t1File + "/download", FORBIDDEN),
+                call(admin, HttpMethod.GET, "/api/files/search?q=team&teamId=" + t1, FORBIDDEN),
+                call(b, HttpMethod.GET, "/api/admin/users", FORBIDDEN),
+                call(b, HttpMethod.DELETE, "/api/admin/users/" + a.userId, FORBIDDEN),
+                call(c, HttpMethod.DELETE, "/api/admin/users/" + a.userId, FORBIDDEN)));
+        assertNothingChanged();
+    }
+
+    @Test
     @DisplayName("[IMP-09] 경로의 앞 ID 는 내 것, 뒤 ID·본문은 남의 것인 요청은 거절한다 (부수 효과 없음)")
     void mixedIdsAreRejected() throws Exception {
         verify(List.of(

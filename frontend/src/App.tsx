@@ -15,6 +15,7 @@ const TrashPage = lazy(() => import('@/features/drive/TrashPage'))
 const SearchPage = lazy(() => import('@/features/drive/SearchPage'))
 const EditorPage = lazy(() => import('@/features/editor/EditorPage'))
 const SharePage = lazy(() => import('@/features/share/SharePage'))
+const AdminPage = lazy(() => import('@/features/admin/AdminPage'))
 
 /** 화면 코드를 받는 동안의 화면 — 이것만 보이는 순간에도 main·h1 이 있어야 합니다(지연 로딩 뒤 접근성 검사에서 발견) */
 function FullScreenSpinner() {
@@ -37,6 +38,16 @@ function RequireAuth({ children }: { children: ReactNode }) {
   }, [])
   if (loading) return <FullScreenSpinner />
   if (!me) return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />
+  // 관리 전용 계정에는 드라이브·팀이 없어 관리 화면으로만 보냅니다 (ADR-0015)
+  if (me.role === 'ADMIN') return <Navigate to="/admin" replace />
+  return <>{children}</>
+}
+
+function RequireAdmin({ children }: { children: ReactNode }) {
+  const { me, loading } = useAuth()
+  if (loading) return <FullScreenSpinner />
+  if (!me) return <Navigate to="/login" replace state={{ from: '/admin' }} />
+  if (me.role !== 'ADMIN') return <Navigate to="/drive" replace />
   return <>{children}</>
 }
 
@@ -47,6 +58,14 @@ export function App() {
         <Route path="/share/:token" element={<SharePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<LoginPage initialMode="signup" />} />
+        <Route
+          path="/admin"
+          element={
+            <RequireAdmin>
+              <AdminPage />
+            </RequireAdmin>
+          }
+        />
         <Route
           element={
             <RequireAuth>

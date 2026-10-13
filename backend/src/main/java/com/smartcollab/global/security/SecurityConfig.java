@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.JwtClaimNames;
@@ -31,7 +32,8 @@ import java.util.List;
  *   <li>인증: JWT(HS256)를 HttpOnly 쿠키로 전달 — {@link CookieAuthenticationFilter} 가 Nimbus JwtDecoder 로 검증.
  *       Authorization 헤더 토큰은 OAuth2 Resource Server 가 처리.</li>
  *   <li>CSRF: 쿠키 인증이므로 SPA 방식 CSRF 토큰(XSRF-TOKEN 쿠키 → X-XSRF-TOKEN 헤더)을 요구.</li>
- *   <li>인가: 경로 단위는 "로그인 여부"까지만, 파일·팀 단위 권한은 서비스 계층의 AccessPolicy 가 판단.</li>
+ *   <li>인가: 경로 단위는 "로그인 여부"와 계정 역할까지만 — 관리 API 는 관리자, 나머지 API·WebSocket 은 일반 사용자 (ADR-0015).
+ *       파일·팀 단위 권한과 관리자 확인은 서비스 계층의 AccessPolicy 가 판단.</li>
  *   <li>보안 헤더: CSP(외부 스크립트·eval 금지), Referrer-Policy, Permissions-Policy.</li>
  * </ul>
  */
@@ -52,6 +54,8 @@ public class SecurityConfig {
             "form-action 'self'",
             "frame-ancestors 'self'");
 
+    static final String ROLE_MISMATCH = "이 계정으로는 쓸 수 없는 기능입니다.";
+
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, JwtTokenService tokens, AuthCookies cookies,
                                             ObjectMapper mapper, AppProperties props) throws Exception {
@@ -59,6 +63,7 @@ public class SecurityConfig {
         // 인증 이름(STOMP 사용자 목적지의 키)은 아이디가 아니라 사용자 ID — 아이디는 탈퇴 뒤 다시 쓸 수 있어,
         // 탈퇴한 사용자의 열린 연결이 같은 아이디로 새로 가입한 사람의 알림을 받았습니다 [L-2]
         converter.setPrincipalClaimName(JwtClaimNames.SUB);
+        converter.setJwtGrantedAuthoritiesConverter(jwt -> List.of(new SimpleGrantedAuthority("ROLE_" + JwtTokenService.roleOf(jwt))));
 
         http
                 // 세션 없이 요청마다 인증하므로, 기본 CSRF 인증 전략은 "새로 인증됨"으로 보고 요청마다 토큰을 교체합니다.
@@ -76,7 +81,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/public/**").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers("/api/**", "/ws", "/ws/**").authenticated()
+                        .requestMatchers("/api/auth/**").authenticated()
+                        // 관리 전용 계정은 관리 API 만, 일반 계정은 관리 API 를 뺀 나머지만 씁니다 (ADR-0015)
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/**", "/ws", "/ws/**").hasRole("USER")
                         // 나머지는 SPA 정적 리소스와 화면 경로
                         .anyRequest().permitAll())
                 // 브라우저: HttpOnly 쿠키 → CookieAuthenticationFilter (CSRF 검사 대상)
@@ -88,9 +96,14 @@ public class SecurityConfig {
                         .authenticationEntryPoint((request, response, ex) -> ProblemWriter.write(response, mapper, ErrorCode.UNAUTHORIZED)))
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint((request, response, ex) -> ProblemWriter.write(response, mapper, ErrorCode.UNAUTHORIZED))
-                        // 필터 단계의 접근 거부는 CSRF 토큰 문제뿐입니다 (경로 규칙은 로그인 여부만 봄).
-                        .accessDeniedHandler((request, response, ex) -> ProblemWriter.write(response, mapper,
-                                ex instanceof CsrfException ? ErrorCode.CSRF_INVALID : ErrorCode.FORBIDDEN)))
+                        // 필터 단계의 접근 거부는 CSRF 토큰 문제이거나, 계정 역할에 맞지 않는 경로입니다(관리자 ↔ 일반 기능).
+                        .accessDeniedHandler((request, response, ex) -> {
+                            if (ex instanceof CsrfException) {
+                                ProblemWriter.write(response, mapper, ErrorCode.CSRF_INVALID);
+                            } else {
+                                ProblemWriter.write(response, mapper, ErrorCode.FORBIDDEN, ROLE_MISMATCH);
+                            }
+                        }))
                 .headers(h -> h
                         .contentSecurityPolicy(csp -> csp.policyDirectives(CSP))
                         .referrerPolicy(r -> r.policy(ReferrerPolicy.SAME_ORIGIN))

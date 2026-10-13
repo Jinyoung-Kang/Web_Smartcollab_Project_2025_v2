@@ -47,8 +47,12 @@ public final class AuthDtos {
     ) {
     }
 
+    /**
+     * @param rootFolderId 내 드라이브 최상위 폴더 — 관리자 계정은 드라이브가 없어 null
+     * @param role         USER 또는 ADMIN (관리 전용 계정, ADR-0015)
+     */
     public record MeResponse(Long id, String username, String name, String email, Long rootFolderId,
-                             Instant createdAt) {
+                             Instant createdAt, String role) {
     }
 
     public record CsrfResponse(String headerName, String token) {
