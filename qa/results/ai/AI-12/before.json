@@ -1,0 +1,29 @@
+{
+  "at": "2026-10-13T12:42:09.367Z",
+  "file": "사용자 신고 PDF (8쪽, 320KB, 한국어 + 영어 용어·C++ 코드). 공개 저장소라 결과 글은 남기지 않음",
+  "results": [
+    {
+      "run": 1,
+      "target": "KO",
+      "status": 200,
+      "ms": 4438,
+      "kind": "JSON(문서 아님)",
+      "chars": 90,
+      "hangulRatio": 0,
+      "inputTokens": 15265,
+      "outputTokens": 255,
+      "note": "결과 전체가 모델이 쓴 영어 한 줄짜리 JSON {\"pages\": \"...\"} (문서 글 없음)"
+    },
+    {
+      "run": 2,
+      "target": "KO",
+      "status": 413,
+      "ms": 135124,
+      "kind": "실패",
+      "chars": 0,
+      "hangulRatio": 0,
+      "billedTokens": 65156,
+      "error": "결과가 너무 길어 끝까지 만들지 못했습니다. 문서를 나눠서 시도하세요."
+    }
+  ]
+}

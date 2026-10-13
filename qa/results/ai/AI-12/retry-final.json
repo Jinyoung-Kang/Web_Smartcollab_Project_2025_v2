@@ -1,0 +1,73 @@
+{
+  "at": "2026-10-13T12:49:06.381Z",
+  "file": "사용자 신고 PDF (8쪽, 320KB, 한국어 + 영어 용어·C++ 코드). 공개 저장소라 결과 글은 남기지 않음",
+  "results": [
+    {
+      "run": 1,
+      "target": "KO",
+      "status": 200,
+      "ms": 10439,
+      "kind": "문서 전체",
+      "chars": 2676,
+      "hangulRatio": 0.38,
+      "inputTokens": 15374,
+      "outputTokens": 2658
+    },
+    {
+      "run": 2,
+      "target": "KO",
+      "status": 200,
+      "ms": 9826,
+      "kind": "문서 전체",
+      "chars": 2872,
+      "hangulRatio": 0.39,
+      "inputTokens": 15374,
+      "outputTokens": 2788
+    },
+    {
+      "run": 3,
+      "target": "KO",
+      "status": 200,
+      "ms": 9008,
+      "kind": "문서 전체",
+      "chars": 2701,
+      "hangulRatio": 0.38,
+      "inputTokens": 15374,
+      "outputTokens": 2614
+    },
+    {
+      "run": 4,
+      "target": "KO",
+      "status": 200,
+      "ms": 8819,
+      "kind": "문서 전체",
+      "chars": 2639,
+      "hangulRatio": 0.39,
+      "inputTokens": 15374,
+      "outputTokens": 2593,
+      "note": "결과가 2쪽(개정 이력)부터 시작 — 1쪽 표지 머리글(약 100자)이 빠진 것으로 보임. 나머지 본문·끝은 다른 실행과 같음"
+    },
+    {
+      "run": 5,
+      "target": "EN",
+      "status": 200,
+      "ms": 11502,
+      "kind": "문서 전체",
+      "chars": 5590,
+      "hangulRatio": 0.01,
+      "inputTokens": 15349,
+      "outputTokens": 2524
+    },
+    {
+      "run": 6,
+      "target": "JA",
+      "status": 200,
+      "ms": 10182,
+      "kind": "문서 전체",
+      "chars": 2688,
+      "hangulRatio": 0,
+      "inputTokens": 15378,
+      "outputTokens": 2357
+    }
+  ]
+}

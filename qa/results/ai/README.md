@@ -23,6 +23,7 @@
 | AI-09 | 번역 전체가 코드 울타리(```` ``` ````)에 싸임 | [live-measurement-before-AI-09.md](live-measurement-before-AI-09.md) | 프롬프트 + 울타리를 벗김 |
 | AI-11 | 한국어 요약에 일본어 조사가 섞임("증가분の 대부분은") — 개인·팀 드라이브 기능 점검에서 발견 | [summary-script-before-AI-11.txt](summary-script-before-AI-11.txt) 5/10(프롬프트 4/10, effort medium 2/10) | 한글 바로 뒤의 "の"를 "의"로 → [after](summary-script-after-AI-11.txt) 0/10 |
 | AI-10 | 번역 첫 줄에 옮긴 파일 이름("週次会議メモ.txt")이 붙음 — 화면 확인에서 발견 | [title-before-AI-10.txt](title-before-AI-10.txt) 1/10 | 번역 요청에 파일 이름을 보내지 않음 → [title-after-AI-10.json](title-after-AI-10.json) 0/10 |
+| AI-12 | 거의 한국어인 PDF 의 한국어 번역이 문서 대신 용어표 `{"e-Friend Expert": "e-Friend Expert"}` 하나 — 운영 사용자 신고 | [AI-12/before.json](AI-12/before.json) 2/2 실패(JSON 한 줄 · 출력 한도까지 반복 413) | 프롬프트 + 불완전 판정 → [prompt-guard](AI-12/prompt-guard.json) 3번 중 1번 빈 번역(502) → + 한 번 다시 요청 → [retry-final](AI-12/retry-final.json) 6/6 |
 
 ### AI-07 — 한국어 → 일본어·중국어 번역 (CSV·Word 각 10번, `qa/scripts/ai-translate-repeat.mjs`)
 
@@ -49,9 +50,22 @@ effort 를 올려도 줄지 않았고, 어려운 낱말을 먼저 정할 자리(
 runs-1~3 에서 요약 effort medium 이 low 보다 자주 연도를 적어(9번 중 5번 대 9번 중 1번) 요약은 low 로 두었습니다.
 연도를 떼는 처리는 원문 글자를 아는 텍스트·Word 에만 적용됩니다(PDF 는 원본을 그대로 보내므로 남는 한계).
 
+### AI-12 — 거의 한국어인 PDF(8쪽, 한국어 + 영어 용어·C++ 코드) 번역 (`qa/scripts/ai-translate-pdf.mjs`)
+
+| 단계 | 한국어 | 영어·일본어 | 비고 |
+|---|---|---|---|
+| 수정 전 | 0/2 (JSON 한 줄 90자 · 413 은 65,156 토큰 과금, 135초) | — (신고자 확인: 영어 정상) | |
+| 프롬프트 + 불완전 판정 | 2/3 (2,758 · 3,471자) | — | 실패 1번은 notes 만 쓰고 translation 이 빔 → 502 |
+| **+ 짧게 끝난 빈·불완전 답 한 번 다시 요청(최종)** | **4/4** (2,639~2,872자, 출력 2,593~2,788 토큰, 8.3~9.2초) | 영어 1/1 (5,590자) · 일본어 1/1 (2,688자) | 다시 요청은 일어나지 않음 |
+
+같은 PDF 의 입력은 약 15,370 토큰, 번역 1번 약 $0.003. 최종 한국어 4번 중 1번은 결과가 2쪽부터 시작해 1쪽 표지 머리글(약 100자)이 빠진 것으로 보입니다 —
+본문·끝은 다른 실행과 같았습니다(결과 글 전체를 남기지 않아 확정하지 못함). 원문 PDF·결과 글은 사용자 문서라 공개 저장소에 남기지 않고 길이·한글 비율·결과 유형만 적었습니다.
+실측 원자료는 처음에 결과 앞뒤 글까지 적는 임시 스크립트로 모은 뒤 글을 지웠고, 같은 측정을 다시 하는 스크립트(결과 글을 남기지 않음)를 `qa/scripts` 에 두었습니다.
+
 ## 파일
 
 - `runs-*/`: `qa/scripts/ai-live.mjs` 를 effort 설정마다 여러 번 돌린 원자료와 `comparison.md`(`qa/scripts/ai-effort-compare.mjs`)
 - `live-measurement-before-AI-0n.*`: 각 결함을 찾은 실행
 - `dates-*.json`, `translate-*.json`: 반복 확인 원자료(결과 글 포함)
+- `AI-12/`: 거의 한국어인 PDF 번역 — 수정 전·중간·최종(결과 글 없음)
 - `failing-tests-before-fix.txt`, `frontend-failing-before-fix.txt`: 구현 전 시험 결과
