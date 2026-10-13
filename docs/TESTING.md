@@ -2,17 +2,17 @@
 
 | 층 | 도구 | 개수 | 실행 |
 |---|---|---:|---|
-| 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 395 | `cd backend && ./gradlew test` |
+| 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 407 | `cd backend && ./gradlew test` |
 | 백엔드 — CPU 1개 JVM | 같은 도구, `-XX:ActiveProcessorCount=1`(운영 App Service B1 과 같은 조건) · HTTPS Azurite | 2 | `cd backend && ./gradlew singleCarrierTest` (`check` 에 포함, CI 백엔드 작업에서도 실행) |
 | 프론트엔드 단위·컴포넌트 | Vitest · Testing Library · jsdom | 182 | `cd frontend && npm test` |
 | E2E (전체 스택) | Playwright · Docker Compose · axe-core | 19 (시나리오 10 + 관리자 1 + 대화상자 초점 2 + 배치 2 + 접근성 3·탭 제목 1) | `docker compose up -d --wait && cd e2e && npx playwright test` |
 
-백엔드 라인 커버리지 **92.3%**, 분기 커버리지 **79.9%** (JaCoCo, `backend/build/reports/jacoco/test/html`).
+백엔드 라인 커버리지 **92.3%**, 분기 커버리지 **80.0%** (JaCoCo, `backend/build/reports/jacoco/test/html`).
 
 ## 원칙
 
 - **H2 대신 실제 MySQL** 로 통합 테스트합니다. 재귀 CTE·`ON DELETE SET NULL`·조건부 UPDATE 처럼 DB 동작에 기대는 로직이 많아, 운영과 다른 DB 로 테스트하면 통과해도 믿을 수 없기 때문입니다.
-- 테스트마다 무작위 사용자 이름을 써서 데이터를 분리하고, 컨테이너와 Spring 컨텍스트는 한 번만 띄웁니다(전체 395건, `./gradlew clean build` 는 CPU 1개 시험·커버리지 포함 4분 33초 — 관리 전용 계정 추가 뒤 측정). 테스트 JVM 은 운영 컨테이너·CI 와 같은 UTC 로 실행합니다.
+- 테스트마다 무작위 사용자 이름을 써서 데이터를 분리하고, 컨테이너와 Spring 컨텍스트는 한 번만 띄웁니다(전체 407건, `./gradlew clean build` 는 CPU 1개 시험·커버리지 포함 4분 35초 — 6차 QA 뒤 측정). 테스트 JVM 은 운영 컨테이너·CI 와 같은 UTC 로 실행합니다.
 - v1 에서 찾은 결함마다 이름에 `[v1 …]` 을, 2026-09 코드 리뷰 항목에는 `[SEC-01]`·`[BUG-02]` 처럼 항목 ID 를 붙인 회귀 테스트가 있습니다 → [REFACTORING_REPORT.md](REFACTORING_REPORT.md), [REVIEW_2026-09.md](REVIEW_2026-09.md)
 - 인증은 실제 브라우저처럼 HttpOnly 쿠키 + CSRF 토큰으로 요청합니다(`support/Api`). CSRF 는 Spring Security 의 `csrf()` 도우미 대신 같은 토큰을 쿠키·헤더로 보내는 `Api.xsrf()` 를 씁니다 — `csrf()` 는 공유 CSRF 필터의 저장소를 바꿔, 같은 컨텍스트의 실제 HTTP 시험이 실행 순서에 따라 실패했습니다.
 
@@ -63,6 +63,7 @@
 | `HealthReadinessTest` · `TransactionTimeoutTest` · `OrphanBlobCleanerTest` | readiness 에 DB 포함·liveness 제외, DB 연결 실패는 503 + Retry-After (IMP-04) / 시간 제한을 넘는 쿼리는 DB 에서 취소 (IMP-08) / 유예 시간보다 오래된 고아·임시 파일만 지움 (IMP-05) |
 | `AuthorizationMatrixTest` | 출시 기준 QA 의 인가 행렬을 CI 로 — 외부인 42요청·남의 ID 섞기 8요청·읽기 전용 멤버 17요청이 모두 404·403 이고, 주인이 다시 조회해 부수 효과가 없는지 (IMP-09) / 관리 전용 계정의 남의 파일·폴더·팀·채팅 요청 14건과 일반 사용자의 관리 API 요청 3건이 모두 403 (ADM-02) |
 | `AdminAccountTest` · `AdminAccountInitializerTest` | 관리 전용 계정(ADR-0015) — 역할 ADMIN·드라이브 없음, 드라이브·팀·채팅·알림·검색·탈퇴 API 403, 일반 사용자는 관리 API 403·로그인 전 401, 목록은 아이디·이름·소속 팀(팀장 여부)·사용량·한도·가입일만이고 시스템·관리자 계정은 없음, 삭제하면 개인 파일(저장소 포함)이 지워지고 팀에서 빠지며 토큰 거절·보안 로그, 팀장 계정은 가장 먼저 들어온 멤버에게 위임·알림하고 혼자인 팀은 삭제, 시스템·관리자·없는 ID 404·잘못된 쪽 400, 관리자는 초대 불가, 설정과 다른 아이디의 예전 관리자는 로그인 불가 (ADM-01~09) / 아이디가 없으면 꺼짐, 12자 미만 비밀번호·체험 아이디는 기동 거절, 해시만 저장, 같은 아이디의 일반 계정은 올리지 않음, 비밀번호를 바꾸면 다음 기동 때 반영 (ADM-10) |
+| 6차 QA 결함 시험 — `AzureShutdownTest`, `ShareLinkTest`·`DemoProtectionTest`·`FolderConcurrencyTest`·`AdminDeletionRaceTest`·`DemoSeedRecoveryTest`·`TeamMembershipRaceTest`·`TransactionRunnerTest` | 별도 JVM 의 종료 훅 안에서도 Azure 저장소에 쓸 수 있음 (QA6-01) / 대소문자 변형 공유 토큰은 다른 링크 (QA6-02) / 일반 팀은 체험 계정을 초대할 수 없고 남아 있는 체험 계정은 내보낼 수 있음 (QA6-03) / 휴지통으로 옮겨지는 폴더에 업로드·저장 불가 (QA6-04) / 관리자 삭제와 위임이 겹쳐도 팀장 하나 (QA6-05) / 동시 삭제 두 번째 404·보안 로그 한 번·업로드와 교착 없음·교착이면 다시 실행 (QA6-06) / 초기화 중간 실패 뒤 체험 팀 다시 만듦 (QA6-07) / 동시 중복 초대 409 (QA6-10). 관리 목록 큰 쪽 번호 400 (QA6-08)·로그인할 수 없는 관리자 아이디 기동 거절 (QA6-09)은 기존 시험에 단언 추가 |
 | `PreRoutingErrorFormatTest` · `ProblemWriterTest` | 실제 Tomcat 에서 라우팅 전에 거절된 주소(`%00`·`%2F`)와 방화벽이 거절한 주소(`//`·`;`)도 problem+json·추적 ID, `/error` 를 직접 부르면 404, 상태별 오류 코드 (QA-08) |
 | `EventOriginTest`, 프론트 `teamEvents.test` · `http.test` | 요청의 탭 ID 가 폴더 변경 이벤트에 실리고 형식이 틀리면 버림, 자기 탭의 이벤트는 다시 불러오지 않음, 모든 요청에 탭 ID 헤더 (IMP-03) |
 | E2E `a11y.spec.ts` | 로그인·드라이브·팀(내가 보낸 채팅 파일 카드 포함)·선택 작업 바·버전 기록·알림·휴지통을 axe(WCAG 2.1 AA·모범 사례)로 검사 — 위반이 하나라도 있으면 실패, 화면별 탭 제목 (UX-01·02) / 팀 멤버·팀 메뉴·없는 폴더·공유 받기·375 폭, 보이는 글자를 포함하는 이름(실험 규칙) (QA-09~13) |
@@ -106,4 +107,4 @@ CI 와 별도로, QA 스택(`docker compose -f docker-compose.yml -f qa/compose.
 - 개인·팀 드라이브 기능 점검(브라우저, 과금): 임시 스택 `sc-test` 에 `qa/scripts/feature-walkthrough.mjs` — PDF·Word·CSV·Markdown·JSON·PNG 의 미리보기·내려받기·요약·번역·편집·공유 링크·팀 채팅 전송·권한 63개 항목 → [qa/results/walkthrough](../qa/results/walkthrough/README.md)
 - 화면: 화면 크롤·접근성 확장 점검(`e2e/qa`, `npx playwright test -c playwright.qa.config.ts`)
 
-방법과 결과는 [QA_2026-10-03](QA_2026-10-03.md) 에 있습니다.
+방법과 결과는 [QA_2026-10-03](QA_2026-10-03.md) 에 있습니다. 6차 QA 는 같은 스택을 Azure 저장소 경로(`qa/compose.azure.yml`)·B1 자원(`qa/compose.b1.yml`)으로 넓혀 다시 돌렸습니다([QA_2026-10-13](QA_2026-10-13.md)).

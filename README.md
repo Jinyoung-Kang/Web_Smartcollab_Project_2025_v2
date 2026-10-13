@@ -15,7 +15,7 @@
 | **데이터·저장소** | MySQL 8 · Azure Blob Storage(또는 로컬 디스크) |
 | **AI** | Claude Haiku 5.5(Anthropic 공식 Java SDK) — 문서 요약·번역, 사용자별 토큰 한도. 키가 없으면 추출 요약·DeepL |
 | **배포** | Azure App Service(B1, jar) · Azure Database for MySQL(B1ms) · Azure Blob Storage 에 공개 데모로 배포 — 접근 코드가 있어야 들어갈 수 있음. 절차는 [DEPLOYMENT](docs/DEPLOYMENT.md) |
-| **CI·테스트** | GitHub Actions · JUnit 6 + Testcontainers(MySQL·Azurite) 397건 · Vitest 182건 · Playwright E2E 19건(접근성 자동 검사 포함) · ArchUnit 구조 규칙 |
+| **CI·테스트** | GitHub Actions · JUnit 6 + Testcontainers(MySQL·Azurite) 409건 · Vitest 182건 · Playwright E2E 19건(접근성 자동 검사 포함) · ArchUnit 구조 규칙 |
 
 ---
 
@@ -33,6 +33,7 @@
 | **3차 점검** | **43건** 처리 + 독립 검토 4건 — 폴더 구조 동시 변경 경합(휴지통 표시 유실·순환 이동)을 행 잠금으로 막음, Delete 키가 이전 선택을 지우던 문제, 모듈 양방향 의존 17 → 5쌍 | [REVIEW_2026-10-03](docs/REVIEW_2026-10-03.md) |
 | **출시 기준 QA** | 결함 **13건**(높음 2) 재현·수정 — 위임과 나가기가 겹치면 팀장이 사라지던 경합, 서로 다른 사용자의 동시 업로드 교착(쓰기 10명 실패율 **7.18% → 0%**), DB 장애 시 30초 대기 → 5초 안에 503 | [QA_2026-10-03](docs/QA_2026-10-03.md) |
 | **4차 점검** | **20건**(높음 4) — Word 압축 폭탄 하나로 요약 때 힙 1GB 이상(→ 413), 과금된 실패에도 AI 토큰 예약을 돌려주던 정산, 체험 계정에게 팀장을 넘기면 다음 날 팀이 영구 삭제되던 문제, 커밋 결과를 모를 때 파일을 지우던 문제 | [REVIEW_2026-10-12](docs/REVIEW_2026-10-12.md) |
+| **6차 QA** | **12건**(중간 6·낮음 6) — 배포 때 진행 중인 Azure 업로드가 500, 휴지통으로 옮겨지는 폴더에 업로드가 성공, 공유 토큰 대소문자 변형으로 비밀번호 시도 한도 우회 등. 운영과 같은 Azure 저장소 경로·B1 자원으로 검증 | [QA_2026-10-13](docs/QA_2026-10-13.md) |
 | **5차 점검** | **19건**(치명 1) — Azure B1(CPU 1개)에서 큰 파일 한 건으로 서버 전체가 멈추던 문제(가상 스레드 끔, [ADR-0014](docs/adr/0014-platform-threads-on-java21.md)), 응답 없는 저장소 **284.3초 → 94.9초·503**, 파일 100개 업로드 동안 화면 요청 **200 → 14** | [REVIEW_2026-10-12b](docs/REVIEW_2026-10-12b.md) |
 
 모든 수치는 저장소의 테스트·스크립트로 측정한 값입니다 (원자료: [docs/measurements](docs/measurements)).
@@ -101,12 +102,12 @@ API 문서: <http://localhost:8080/swagger-ui.html> · 전체 목록 [docs/API.m
 ## 테스트
 
 ```bash
-cd backend && ./gradlew test          # 395건 (MySQL·Azurite 컨테이너 자동 실행), 커버리지 리포트 포함 — ./gradlew check 는 CPU 1개 시험 2건을 더 돌림
+cd backend && ./gradlew test          # 407건 (MySQL·Azurite 컨테이너 자동 실행), 커버리지 리포트 포함 — ./gradlew check 는 CPU 1개 시험 2건을 더 돌림
 cd frontend && npm test               # 182건
 docker compose up -d --wait && cd e2e && npm ci && npx playwright test   # E2E 19건 (접근성 자동 검사 포함)
 ```
 
-백엔드 라인 커버리지 92.3%(분기 79.9%). 첫 완성본(v1)에서 찾은 결함마다 회귀 테스트가 있습니다 → [docs/TESTING.md](docs/TESTING.md)
+백엔드 라인 커버리지 92.3%(분기 80.0%). 첫 완성본(v1)에서 찾은 결함마다 회귀 테스트가 있습니다 → [docs/TESTING.md](docs/TESTING.md)
 GitHub Actions 가 PR 과 main 푸시마다 백엔드·프론트엔드·E2E(Docker 이미지)·비밀값 검사(gitleaks)를 실행합니다.
 E2E 를 1분 안에 여러 번 돌리면 로그인 요청 제한에 걸리므로, 반복 실행 방법은 [TESTING](docs/TESTING.md) 을 참고하세요.
 
@@ -128,6 +129,7 @@ E2E 를 1분 안에 여러 번 돌리면 로그인 요청 제한에 걸리므로
 | [QA_2026-10-03](docs/QA_2026-10-03.md) | 출시 기준 QA — 보안·신뢰성·경계값·화면·성능(k6·Lighthouse)·접근성 검증, 결함 13건(높음 2)의 재현·수정·출시 판단, 후속 개선(사용량 집계·목록 페이지·DB 장애 503·고아 파일 정리 등)의 같은 스택 비교 |
 | [REVIEW_2026-10-12](docs/REVIEW_2026-10-12.md) | 4차 점검 — AI 문서 기능·데모 모드·커밋 실패 처리, 발견 20건(높음 4)의 재현·수정·측정 |
 | [REVIEW_2026-10-12b](docs/REVIEW_2026-10-12b.md) | 5차 점검 — Azure 운영 기준(CPU 1개·저장소 장애·배포 뒤 점검), 발견 19건(치명 1)의 재현·수정·측정과 처음 보는 리뷰어 검토 |
+| [QA_2026-10-13](docs/QA_2026-10-13.md) | 6차 QA — 운영 반영본의 출시 기준 검증(Azure 저장소 경로·B1 흉내·운영 익명 점검), 결함 12건(중간 6)의 재현·수정, 성능·접근성 측정과 독립 검토 |
 
 ## 폴더 구조
 
