@@ -22,6 +22,10 @@ public final class AzureShutdownProbe {
                 System.out.println("PROBE OK");
             } catch (Throwable e) {
                 System.out.println("PROBE FAIL " + e);
+                for (Throwable c = e.getCause(); c != null; c = c.getCause()) {
+                    System.out.println("PROBE CAUSE " + c);
+                }
+                e.printStackTrace(System.out);
             }
         }));
         System.exit(0);
