@@ -74,7 +74,8 @@ class StorageCleanupTest {
             ((Runnable) inv.getArgument(1)).run();
             throw ApiException.notFound("폴더");
         });
-        FileService service = new FileService(files, versions, folders, users, accessPolicy, blobLifecycle, storage, events, tx, quota);
+        FileService service = new FileService(files, versions, folders, users, accessPolicy, blobLifecycle, storage, events, tx, quota,
+                mock(com.smartcollab.folder.FolderStructureLock.class));
 
         assertThatThrownBy(() -> service.upload(10L, UploadSource.of("a.txt", "hello".getBytes()), 1L))
                 .isInstanceOf(ApiException.class);

@@ -1,0 +1,88 @@
+{
+  "C1_doubleAccept": {
+    "statuses": {
+      "204": 1,
+      "409": 4
+    },
+    "memberRows": 1
+  },
+  "C2_teamCap": {
+    "statuses": {
+      "201": 1,
+      "409": 5
+    },
+    "teams": 10
+  },
+  "C3_concurrentSave": {
+    "statuses": {
+      "200": 1,
+      "409": 9
+    },
+    "versions": 2
+  },
+  "C4_delegateVsLeave": {
+    "outcomes": {
+      "위임404/나가기204→팀장A,멤버1": 8,
+      "위임204/나가기400→팀장C,멤버2": 2
+    }
+  },
+  "C5_crossMove": {
+    "statuses": {
+      "204/400": 7,
+      "400/204": 3
+    },
+    "treeStatus": 200
+  },
+  "C6_uploadVsAccountDeletion": {
+    "upload": 404,
+    "deletion": 204
+  },
+  "C7_uploadVsMembership": {
+    "upload": 404,
+    "kick": 204,
+    "uploadIntoDeletedTeam": 404,
+    "teamDelete": 204
+  },
+  "C8_acceptVsReject": {
+    "수락204/거절409→멤버true,초대ACCEPTED": 5,
+    "수락409/거절204→멤버false,초대REJECTED": 1
+  },
+  "C9_downloadLimit": {
+    "200": 1,
+    "410": 9
+  },
+  "C10_emptyTrashRace": {
+    "statuses": [
+      200,
+      200,
+      200,
+      404
+    ],
+    "usage": {
+      "fileCount": 0,
+      "totalBytes": 0,
+      "storedBytes": 0,
+      "quotaBytes": 1073741824
+    }
+  },
+  "integrity": {
+    "versions": 3,
+    "blobs": 3,
+    "missingBlobs": 0,
+    "orphanBlobs": 0,
+    "tempUploads": 0,
+    "hashMismatch(sample<=300)": 0,
+    "filesWithoutActiveVersion": 0,
+    "activeVersionOfOtherFile": 0,
+    "fileSizeMismatch": 0,
+    "childScopeMismatch": 0,
+    "trashRootNotTrashed": 0,
+    "childOfTrashedNotTrashed": 0,
+    "teamsWithoutOneLeader": 0,
+    "duplicateMembers": 0,
+    "usageCounterDrift": {
+      "users": 0,
+      "teams": 0
+    }
+  }
+}

@@ -10,7 +10,6 @@ import com.smartcollab.user.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -24,9 +23,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 폴더를 참조해 폴더 삭제가 FK 오류로 실패했습니다(409, 데이터 손실 없음).
  * <ul>
  *   <li>팀 삭제: 업로드는 저장 한도 확인에서 팀 행을 가장 먼저 잠그므로, 팀 삭제도 팀 행을 먼저 잠가 업로드가 끝난 뒤의 목록으로 지웁니다.</li>
- *   <li>탈퇴: 같은 방식(사용자 행을 먼저 잠금)은 같은 사용자의 <b>팀</b> 업로드와 교착(MySQL 1213)을 일으켰습니다 — 팀 업로드는 팀 행·폴더를
- *   쥔 채 작성자(사용자 행) 외래 키 확인에서 기다리고, 탈퇴는 사용자 행을 쥔 채 그 폴더의 작성자를 바꾸려 기다립니다(임시 실험으로 확인).
- *   잠그지 않으면 그 경우는 둘 다 성공하므로, 탈퇴는 바꾸지 않고 "드문 409 — 다시 하면 지워짐"을 그대로 둡니다.</li>
+ *   <li>탈퇴: 처음에는 사용자 행을 잠그지 않고 "드문 409 — 다시 하면 지워짐"을 알려진 한계로 두었습니다. 사용자 행을 먼저 잠그면 같은 사용자의
+ *   <b>팀</b> 업로드와 교착(MySQL 1213)할 수 있었기 때문입니다(팀 업로드는 팀 행·폴더를 쥔 채 작성자 외래 키 확인에서, 탈퇴는 사용자 행을 쥔 채
+ *   그 폴더의 작성자를 바꾸려 기다림). 6차 QA 에서 잠그지 않는 방식이 내 드라이브 업로드와도 교착(503)하고 같은 계정의 동시 삭제를 둘 다 성공시키는 것을
+ *   확인해, 사용자 행을 먼저 잠그고 교착으로 롤백되면 처음부터 다시 하도록 바꿨습니다 [QA6-06].</li>
  * </ul>
  */
 class DeletionUploadRaceTest extends IntegrationTest {
@@ -72,8 +72,8 @@ class DeletionUploadRaceTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("[L-6] 내 드라이브 업로드와 겹친 탈퇴는 409(무결성)로 거절되고 아무것도 지워지지 않으며, 다시 하면 지워진다 (알려진 한계)")
-    void deleteAccountWhileUploadingFailsCleanly() throws Exception {
+    @DisplayName("[L-6][QA6-06] 내 드라이브 업로드와 겹친 탈퇴는 업로드가 끝난 뒤 그 파일까지 지우고 성공한다 (예전: 드문 409 — 알려진 한계)")
+    void deleteAccountWhileUploadingWaitsForUpload() throws Exception {
         Api.Session leaving = api().signUp("l6a");
 
         Throwable result;
@@ -83,11 +83,8 @@ class DeletionUploadRaceTest extends IntegrationTest {
                     () -> accountService.purgeAccount(leaving.userId));
         }
 
-        assertThat(result).as("탈퇴 결과").isInstanceOf(DataIntegrityViolationException.class);
-        assertThat(users.findById(leaving.userId)).isPresent();
-        assertThat(files.findIdsInFolders(List.of(leaving.rootFolderId))).hasSize(1);
-
-        accountService.purgeAccount(leaving.userId);
+        assertThat(result).as("탈퇴 결과").isNull();
         assertThat(users.findById(leaving.userId)).isEmpty();
+        assertThat(files.findIdsInFolders(List.of(leaving.rootFolderId))).isEmpty();
     }
 }

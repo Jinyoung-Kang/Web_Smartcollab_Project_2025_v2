@@ -1,0 +1,6 @@
+[19:15:47] 1) 임시 스택 시작
+created 6 files
+[19:16:11] 2) 백업 — 앱 정지 → DB 덤프 → 파일 저장소 tar → 앱 시작
+[19:16:15]    덤프  40K, 파일  10M, 쓰기 중지 4초
+[19:16:15] 3) 볼륨까지 삭제 후 새 스택에 복원
+ERROR 1045 (28000): Access denied for user 'root'@'localhost' (using password: YES)

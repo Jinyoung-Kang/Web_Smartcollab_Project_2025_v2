@@ -1,0 +1,21 @@
+# QA 스택을 운영과 같은 Azure 저장소 경로로 돌립니다 [6차 QA]:
+#   docker compose -f docker-compose.yml -f qa/compose.qa.yml -f qa/compose.azure.yml -p sc-qa up -d --wait
+# - Azurite(Azure Storage 에뮬레이터) 앞에 Toxiproxy("blob", 10000)를 두어 저장소 지연·끊김·무응답을 주입합니다.
+# - 계정 키는 Microsoft 문서에 공개된 Azurite 개발용 고정 값입니다(실제 비밀값 아님, .gitleaks.toml 예외).
+services:
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    command: ["azurite-blob", "--blobHost", "0.0.0.0", "--blobPort", "10000", "--skipApiVersionCheck", "--loose"]
+    ports:
+      - "127.0.0.1:10010:10000"   # 정합성 검사(integrity-check.sh)가 호스트에서 blob 목록을 읽음 — Toxiproxy 를 거치지 않음
+  toxiproxy:
+    volumes:
+      - ./qa/toxiproxy.azure.json:/config/toxiproxy.json:ro
+    depends_on:
+      azurite:
+        condition: service_started
+  app:
+    environment:
+      STORAGE_TYPE: azure
+      AZURE_STORAGE_CONTAINER: smartcollab-qa
+      AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://toxiproxy:10000/devstoreaccount1;"

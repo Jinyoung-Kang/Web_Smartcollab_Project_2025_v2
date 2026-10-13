@@ -5,13 +5,12 @@ import com.smartcollab.global.error.ApiException;
 import com.smartcollab.global.error.ErrorCode;
 import com.smartcollab.global.security.SecurityEventLog;
 import com.smartcollab.global.security.SlidingWindowRateLimiter;
+import com.smartcollab.global.tx.TransactionRunner;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Duration;
 
@@ -36,7 +35,7 @@ public class AccountService {
     private final ApplicationEventPublisher events;
     private final DemoAccounts demoAccounts;
     private final SlidingWindowRateLimiter rateLimiter;
-    private final PlatformTransactionManager transactionManager;
+    private final TransactionRunner tx;
 
     static final int DELETE_ATTEMPTS = 5;
     static final Duration DELETE_WINDOW = Duration.ofMinutes(10);
@@ -57,8 +56,12 @@ public class AccountService {
             SecurityEventLog.accountDeleteFailed(userId);
             throw new ApiException(ErrorCode.FORBIDDEN, "비밀번호가 일치하지 않습니다.");
         }
-        // 같은 객체 안의 호출이라 @Transactional 이 듣지 않으므로 직접 트랜잭션을 엽니다(기본 격리·시간 제한)
-        new TransactionTemplate(transactionManager).executeWithoutResult(status -> purgeAccount(userId));
+        // 같은 객체 안의 호출이라 @Transactional 이 듣지 않으므로 직접 트랜잭션을 엽니다. 사용자 행부터 잠그므로(purgeAccount) 그 사람의
+        // 팀 업로드와 잠금 순서가 엇갈려 교착으로 롤백되면 처음부터 다시 합니다 [QA6-06]
+        tx.writeReadCommittedRetryingLockConflicts(() -> {
+            purgeAccount(userId);
+            return null;
+        });
     }
 
     /**
@@ -67,6 +70,9 @@ public class AccountService {
      */
     @Transactional
     public void purgeAccount(Long userId) {
+        // 사용자 행을 먼저 잠급니다. 개인 폴더를 먼저 지우고(X 잠금) 커밋 때 사용자 행을 지우면, 사용자 행을 먼저 잠그고 폴더를 참조하는
+        // 그 계정의 업로드와 잠금 순서가 반대라 교착(1213)이 났고, 같은 계정의 동시 삭제는 둘 다 성공했습니다 [QA6-06]
+        users.lockById(userId).orElseThrow(() -> ApiException.notFound("계정"));
         User system = users.findFirstByRole(Role.SYSTEM)
                 .orElseThrow(() -> new IllegalStateException("시스템 계정이 없습니다."));
         events.publishEvent(new DeletionEvents.AccountDeleting(userId, system.getId()));

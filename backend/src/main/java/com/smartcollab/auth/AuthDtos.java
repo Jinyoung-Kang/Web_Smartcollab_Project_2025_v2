@@ -11,7 +11,7 @@ import java.time.Instant;
 public final class AuthDtos {
 
     /** 아이디 형식 — 가입과 로그인이 함께 씁니다(로그인은 형식이 다르면 사용자 조회·시도 기록 없이 실패) [S-02·S-03] */
-    public static final String USERNAME_REGEX = "^[A-Za-z0-9_.-]{4,20}$";
+    public static final String USERNAME_REGEX = com.smartcollab.user.User.USERNAME_REGEX;
 
     private AuthDtos() {
     }

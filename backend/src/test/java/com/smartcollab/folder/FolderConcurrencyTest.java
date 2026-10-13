@@ -42,6 +42,10 @@ class FolderConcurrencyTest extends IntegrationTest {
     PlatformTransactionManager txManager;
     @Autowired
     TransactionTemplate tx;
+    @Autowired
+    com.smartcollab.file.FileService fileService;
+    @Autowired
+    com.smartcollab.file.FileContentService fileContentService;
 
     /** 다른 트랜잭션이 저장 공간 행을 잠근 채 change 를 실행해 붙든 동안 action 을 보냅니다 ({@link TransactionRace}). */
     private Throwable raceAgainst(long userId, Runnable change, Runnable action) throws Exception {
@@ -121,6 +125,42 @@ class FolderConcurrencyTest extends IntegrationTest {
 
         assertThat(result).isInstanceOf(ApiException.class);
         assertThat(jdbc.queryForObject("select count(*) from folders where parent_folder_id = ?", Integer.class, c)).isZero();
+    }
+
+    /**
+     * [QA6-04] 업로드·텍스트 저장의 마지막 단계가 저장 공간을 잠그기 <b>전에</b> 폴더(휴지통 여부)를 읽어, 휴지통으로 옮겨지는 중인 폴더에
+     * 201 로 저장했습니다. 올린 사람은 성공을 받지만 파일은 휴지통 폴더 안에 있어 보이지 않고, 30일 뒤 폴더와 함께 영구 삭제됩니다.
+     * 폴더 만들기·복사(S-06)는 잠근 뒤 읽게 고쳤지만 업로드·저장은 빠져 있었습니다.
+     */
+    @Test
+    @DisplayName("[QA6-04] 휴지통에 들어가는 폴더에는 동시에 파일을 올릴 수 없다 — 성공으로 답하고 휴지통 안에 저장되던 문제")
+    void cannotUploadIntoFolderBeingTrashed() throws Exception {
+        Api.Session s = api().signUp("cupload");
+        long p = s.createFolder(s.rootFolderId, "상위");
+        long c = s.createFolder(p, "하위");
+
+        Throwable result = raceAgainst(s.userId,
+                () -> folderTrash.moveToTrash(folders.findById(p).orElseThrow(), s.userId),
+                () -> fileService.upload(c, com.smartcollab.file.UploadSource.of("late.txt", "늦게 온 업로드".getBytes()), s.userId));
+
+        assertThat(result).isInstanceOf(ApiException.class);
+        assertThat(jdbc.queryForObject("select count(*) from files where folder_id = ?", Integer.class, c)).isZero();
+    }
+
+    @Test
+    @DisplayName("[QA6-04] 휴지통에 들어가는 폴더 안의 문서는 동시에 저장할 수 없다 — 성공으로 답하고 휴지통 안의 문서에 새 버전이 쌓이던 문제")
+    void cannotSaveTextInFolderBeingTrashed() throws Exception {
+        Api.Session s = api().signUp("csave");
+        long p = s.createFolder(s.rootFolderId, "상위");
+        long file = s.uploadText(p, "문서.txt", "처음");
+        long base = jdbc.queryForObject("select active_version_id from files where file_id = ?", Long.class, file);
+
+        Throwable result = raceAgainst(s.userId,
+                () -> folderTrash.moveToTrash(folders.findById(p).orElseThrow(), s.userId),
+                () -> fileContentService.saveText(file, "휴지통에 들어간 뒤 저장", base, s.userId));
+
+        assertThat(result).isInstanceOf(ApiException.class);
+        assertThat(jdbc.queryForObject("select count(*) from file_versions where file_id = ?", Integer.class, file)).isOne();
     }
 
     @Test

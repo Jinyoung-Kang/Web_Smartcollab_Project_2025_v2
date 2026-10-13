@@ -1,0 +1,7 @@
+# 앱 컨테이너를 Azure App Service B1 과 같은 자원으로 제한합니다(CPU 1개·메모리 1.75GB) [6차 QA]:
+#   docker compose … -f qa/compose.azure.yml -f qa/compose.b1.yml -p sc-qa up -d --wait --force-recreate app
+# JVM 은 이 한도를 보고 CPU 1개·힙 75%(약 1.3GB)로 잡습니다 — 운영 기동 로그의 availableProcessors=1, maxHeap 과 비교하세요.
+services:
+  app:
+    cpus: 1.0
+    mem_limit: 1792m

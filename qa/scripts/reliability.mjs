@@ -161,20 +161,25 @@ await run('missing-blob', async () => {
 // R7. 외부 API(DeepL 목) 지연 35초·5xx·끊김 — 응답, 분량 반환, 다른 요청 영향
 await run('deepl', async () => {
   const mode = (m) => fetch(`${MOCK}/__mode`, { method: 'POST', body: JSON.stringify(m) })
+  // 같은 버전·같은 언어의 번역은 결과 캐시로 답하므로(AI-03) 경우마다 새 문서를 씁니다 [6차 QA]
+  const fresh = async (label) => (await U.upload(root, `deepl-${label}-${Date.now()}.txt`, `${label} 번역할 문장입니다. 두 번째 문장입니다.`, 'text/plain')).data.id
+  const translate = (id) => timed(() => U.post(`/api/files/${id}/translation?target=EN`))
   await mode({})
-  const ok = await timed(() => U.post(`/api/files/${doc.id}/translation?target=EN`))
+  const ok = await translate(await fresh('ok'))
   await mode({ status: 500 })
-  const err500 = await timed(() => U.post(`/api/files/${doc.id}/translation?target=EN`))
+  const err500 = await translate(await fresh('err500'))
   await mode({ drop: true })
-  const dropped = await timed(() => U.post(`/api/files/${doc.id}/translation?target=EN`))
+  const dropped = await translate(await fresh('dropped'))
   await mode({ delayMs: 35_000 })
   // 느린 번역 15개를 동시에 걸어 두고, 그동안 다른 API 응답 시간
-  const slow = Array.from({ length: 15 }, () => timed(() => U.post(`/api/files/${doc.id}/translation?target=EN`)))
+  const slowIds = []
+  for (let i = 0; i < 15; i++) slowIds.push(await fresh(`slow${i}`))
+  const slow = slowIds.map((id) => translate(id))
   await sleep(2000)
   const others = await Promise.all(Array.from({ length: 10 }, () => timed(() => U.get(`/api/folders/${root}`))))
   const slowResults = await Promise.all(slow)
   await mode({})
-  const afterOk = await timed(() => U.post(`/api/files/${doc.id}/translation?target=EN`))
+  const afterOk = await translate(await fresh('after'))
   return { ok, err500, dropped, slow: slowResults.slice(0, 3), slowStatuses: slowResults.map((r) => r.status), othersMaxMs: Math.max(...others.map((o) => o.ms)), afterOk }
 })
 

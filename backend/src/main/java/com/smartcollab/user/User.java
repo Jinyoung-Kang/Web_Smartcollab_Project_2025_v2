@@ -20,6 +20,9 @@ import java.time.Instant;
 @Table(name = "users")
 public class User {
 
+    /** 가입·로그인 아이디 규칙 — 관리자 아이디도 이 규칙에 맞아야 로그인할 수 있습니다 [QA6-09] */
+    public static final String USERNAME_REGEX = "^[A-Za-z0-9_.-]{4,20}$";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "user_id")

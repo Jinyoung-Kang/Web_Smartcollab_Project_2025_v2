@@ -98,12 +98,21 @@ public class TeamService {
                 PermissionsResponse.of(Access.of(me)), list);
     }
 
-    @Transactional
+    /**
+     * 초대. 팀 행을 먼저 잠가 같은 사람을 동시에 두 번 초대해도 대기 중 초대가 하나만 생기게 합니다 — 초대 표에는 유일 제약이 없어,
+     * 확인한 뒤 넣는 사이에 다른 초대가 들어오면 둘 다 성공했습니다 [QA6-10]. (잠근 뒤의 읽기가 최신 커밋을 보도록 READ COMMITTED)
+     */
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void invite(Long teamId, String inviteeUsername, Long userId) {
+        lockTeam(teamId);
         TeamMember inviterMembership = accessPolicy.requireInvite(teamId, userId);
         User invitee = users.findByUsername(inviteeUsername.strip())
                 .filter(u -> u.getRole() == Role.USER)   // 시스템·관리 전용 계정은 팀에 들일 수 없음 (ADR-0015)
                 .orElseThrow(() -> ApiException.notFound("초대할 사용자"));
+        // 체험 계정은 비밀번호가 공개돼 누구나 초대를 수락할 수 있으므로, 체험 계정이 이끄는 팀(체험 데이터)에만 들입니다 [QA6-03]
+        if (!demoAccounts.isDemo(inviterMembership.getTeam().getOwner())) {
+            demoAccounts.forbidIfDemo(invitee, "체험 계정은 초대할 수 없습니다(비밀번호가 공개된 계정이라 누구나 수락할 수 있음).");
+        }
         if (members.existsByTeamIdAndUserId(teamId, invitee.getId())) {
             throw ApiException.conflict("이미 팀에 속한 사용자입니다.");
         }
@@ -177,7 +186,10 @@ public class TeamService {
         if (target.isTeamLeader()) {
             throw ApiException.badRequest("팀장은 내보낼 수 없습니다.");
         }
-        demoAccounts.forbidIfDemo(target.getUser(), "체험 계정은 팀에서 내보낼 수 없습니다.");
+        // 체험 팀(체험 계정이 팀장)의 구성만 보호합니다 — 일반 팀에 남아 있는 체험 계정은 팀장이 내보낼 수 있어야 합니다 [QA6-03]
+        if (demoAccounts.isDemo(target.getTeam().getOwner())) {
+            demoAccounts.forbidIfDemo(target.getUser(), "체험 계정은 팀에서 내보낼 수 없습니다.");
+        }
         Team team = target.getTeam();
         User removed = target.getUser();
         members.delete(target);
@@ -194,7 +206,9 @@ public class TeamService {
         if (me.isTeamLeader()) {
             throw ApiException.badRequest("팀장은 팀을 나갈 수 없습니다. 팀장을 위임하거나 팀을 삭제하세요.");
         }
-        demoAccounts.forbidIfDemo(me.getUser(), "체험 계정은 팀을 나갈 수 없습니다.");
+        if (demoAccounts.isDemo(me.getTeam().getOwner())) {   // 체험 팀만 보호 [QA6-03]
+            demoAccounts.forbidIfDemo(me.getUser(), "체험 계정은 팀을 나갈 수 없습니다.");
+        }
         members.delete(me);
         events.publishEvent(new ChangeEvents.MembershipRevoked(teamId, userId));
         events.publishEvent(new ChangeEvents.TeamChanged(teamId, ChangeEvents.TeamChangeType.MEMBERS_CHANGED));
@@ -293,6 +307,12 @@ public class TeamService {
         int max = props.quota().teamsPerUser();
         for (Long teamId : teams.findIdsOwnedBy(userId)) {
             lockTeam(teamId);
+            // 목록은 잠그기 전에 읽었으므로, 그 사이 팀장이 바뀌었거나(위임) 팀이 지워졌으면 건너뜁니다 — 다시 보지 않으면 위임받은 팀장을
+            // 그대로 둔 채 다른 멤버를 또 팀장으로 올려 팀장 표시가 둘인 팀이 남았습니다 [QA6-05]
+            Team locked = teams.findWithOwner(teamId).orElse(null);
+            if (locked == null || !locked.getOwner().getId().equals(userId)) {
+                continue;
+            }
             List<TeamMember> all = members.findMembers(teamId);
             List<TeamMember> candidates = all.stream()
                     .filter(m -> !m.getUser().getId().equals(userId) && !demoAccounts.isDemo(m.getUser()))
@@ -307,8 +327,8 @@ public class TeamService {
                     .filter(m -> teams.countByOwnerId(m.getUser().getId()) < max)
                     .findFirst()
                     .orElse(candidates.getFirst());
-            Team team = teams.findWithOwner(teamId).orElseThrow(() -> ApiException.notFound("팀"));
-            all.stream().filter(m -> m.getUser().getId().equals(userId)).findFirst().ifPresent(TeamMember::demoteFromLeader);
+            Team team = locked;
+            all.stream().filter(TeamMember::isTeamLeader).filter(m -> !m.getId().equals(next.getId())).forEach(TeamMember::demoteFromLeader);
             next.promoteToLeader();
             team.changeOwner(next.getUser());
             notice(next.getUser().getId(), NoticeEvents.Type.LEADERSHIP_TRANSFERRED,

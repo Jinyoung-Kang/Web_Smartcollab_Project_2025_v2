@@ -38,11 +38,16 @@ class AdminAccountInitializerTest {
     }
 
     @Test
-    @DisplayName("[ADM-10] 비밀번호가 12자보다 짧거나 체험 계정 아이디면 기동을 멈춘다")
+    @DisplayName("[ADM-10][QA6-09] 비밀번호가 12자보다 짧거나, 체험 계정 아이디이거나, 로그인할 수 없는 형식의 아이디면 기동을 멈춘다")
     void rejectsWeakConfiguration() {
         assertThatThrownBy(() -> initializer("admin", "short-pass").run(null)).isInstanceOf(IllegalStateException.class);
         assertThatThrownBy(() -> initializer("admin", "").run(null)).isInstanceOf(IllegalStateException.class);
         assertThatThrownBy(() -> initializer("demo1", PASSWORD).run(null)).isInstanceOf(IllegalStateException.class);
+        // [QA6-09] 로그인은 가입 아이디 규칙(영문·숫자·_ . - 4~20자)에 맞지 않는 아이디를 DB 조회 없이 거절하므로, 이런 관리자 아이디로는
+        // 계정은 만들어지는데 로그인할 수 없었음(기동은 성공해 원인을 알기 어려움)
+        for (String unusable : new String[]{"adm", "admin@example.com", "관리자", "a".repeat(21), "admin user"}) {
+            assertThatThrownBy(() -> initializer(unusable, PASSWORD).run(null)).as(unusable).isInstanceOf(IllegalStateException.class);
+        }
         verifyNoInteractions(users);
     }
 

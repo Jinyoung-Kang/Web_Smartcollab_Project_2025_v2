@@ -102,6 +102,8 @@ public class FileContentService {
 
         // READ COMMITTED: 저장 한도 확인이 잠금 읽기 없이 최신 값을 보게 합니다(다른 사용자와의 교착 방지) [QA-06]
         return tx.writeReadCommitted(() -> {
+            // 저장 공간을 먼저 잠근 뒤 파일·폴더를 읽습니다 — 그사이 폴더가 휴지통으로 옮겨졌으면 404 [QA6-04]
+            fileService.lockScopeOfFile(fileId);
             FileEntity file = requireSavable(fileId, baseVersionId, userId);
             User editor = users.findById(userId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
             // 새 버전은 저장 공간을 더 차지하므로 한도를 확인합니다 (반복 저장으로 버전을 한없이 쌓지 못하게) [SEC-05]

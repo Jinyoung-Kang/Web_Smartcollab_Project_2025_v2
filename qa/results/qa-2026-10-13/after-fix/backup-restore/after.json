@@ -1,0 +1,19 @@
+{
+  "login": 200,
+  "files": 6,
+  "mismatched": [],
+  "trashedStillInTrash": true,
+  "teamVisible": 200,
+  "usageBefore": {
+    "fileCount": 5,
+    "totalBytes": 9503761,
+    "storedBytes": 9503801,
+    "quotaBytes": 1073741824
+  },
+  "usageAfter": {
+    "fileCount": 5,
+    "totalBytes": 9503761,
+    "storedBytes": 9503801,
+    "quotaBytes": 1073741824
+  }
+}

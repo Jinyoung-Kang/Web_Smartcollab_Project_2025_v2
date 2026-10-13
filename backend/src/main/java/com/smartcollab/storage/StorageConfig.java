@@ -1,6 +1,7 @@
 package com.smartcollab.storage;
 
 import com.azure.core.http.jdk.httpclient.JdkHttpClientBuilder;
+import com.azure.core.util.SharedExecutorService;
 import com.azure.storage.blob.BlobContainerClientBuilder;
 import com.azure.storage.common.policy.RequestRetryOptions;
 import com.azure.storage.common.policy.RetryPolicyType;
@@ -11,6 +12,9 @@ import org.springframework.util.StringUtils;
 
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 @Configuration
 public class StorageConfig {
@@ -37,6 +41,25 @@ public class StorageConfig {
     static final Duration RETRY_DELAY = Duration.ofSeconds(1);
     static final Duration MAX_RETRY_DELAY = Duration.ofSeconds(4);
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(10);
+
+    /*
+     * Azure SDK 공용 실행기를 이 앱이 관리하는 실행기로 바꿉니다 [QA6-01]. SDK 가 만든 공용 실행기(SharedExecutorService)는 자기 JVM 종료 훅으로
+     * 먼저 닫히는데, HTTP 클라이언트의 비동기 작업과 응답 시간 상한(읽기·응답 시간 초과 예약)이 모두 이 실행기를 씁니다. 그래서 정상 종료
+     * (배포·설정 변경마다)가 진행 중인 요청을 기다리는 동안 그 요청의 저장소 호출이 "Shutdown in progress"(500)로 실패하거나 응답을 받지 못했습니다.
+     * SDK 가 정해 둔 교체 방법(setExecutorService)으로 바꾸면 종료 훅이 걸리지 않습니다. 나머지는 SDK 기본값과 같게 둡니다 — 크기 CPU 수 × 10
+     * (내려받기의 읽기 하나가 스레드 하나를 씀), 유지 60초, 가상 스레드(Java 21 의 SDK 기본값. 플랫폼 스레드로 바꾸면 스레드마다 4MB 임시 직접
+     * 버퍼를 붙들어 128MB 힙 시험[H-1]에서 직접 메모리가 바닥남). 가상 스레드는 데몬이라 JVM 종료를 막지 않습니다.
+     */
+    static final ScheduledExecutorService AZURE_SDK_EXECUTOR = azureSdkExecutor();
+
+    private static ScheduledExecutorService azureSdkExecutor() {
+        ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(10 * Runtime.getRuntime().availableProcessors(),
+                Thread.ofVirtual().name("azure-sdk-", 0).factory());
+        executor.setKeepAliveTime(60, TimeUnit.SECONDS);
+        executor.allowCoreThreadTimeOut(true);
+        SharedExecutorService.getInstance().setExecutorService(executor);
+        return executor;
+    }
 
     /** Azure 저장소 — 시험도 이 메서드로 만들어 운영과 같은 클라이언트 설정을 씁니다. */
     static AzureBlobStorage azure(String connectionString, String containerName) {

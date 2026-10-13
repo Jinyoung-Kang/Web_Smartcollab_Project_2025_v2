@@ -161,7 +161,7 @@ class AdminAccountTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("[ADM-07] 시스템·관리자 계정과 없는 ID 는 삭제할 수 없고(404), 잘못된 page·size 는 400 이다")
+    @DisplayName("[ADM-07][QA6-08] 시스템·관리자 계정과 없는 ID 는 삭제할 수 없고(404), 잘못된 page·size 는 400 이다(쪽 번호가 아주 커도 500 이 아님)")
     void invalidTargetsAndParameters() throws Exception {
         Api.Session admin = api().loginAdmin();
         long system = jdbc.queryForObject("select user_id from users where role = 'SYSTEM'", Long.class);
@@ -173,6 +173,9 @@ class AdminAccountTest extends IntegrationTest {
         admin.get("/api/admin/users?size=101").andExpect(status().isBadRequest());
         admin.get("/api/admin/users?page=-1").andExpect(status().isBadRequest());
         admin.get("/api/admin/users?page=abc").andExpect(status().isBadRequest());
+        // [QA6-08] 쪽 번호 × 크기가 int 를 넘으면 Spring Data 가 예외(Page offset exceeds Integer.MAX_VALUE)를 던져 500 이었음
+        admin.get("/api/admin/users?page=2147483647").andExpect(status().isBadRequest());
+        admin.get("/api/admin/users?page=21474837&size=100").andExpect(status().isBadRequest());
         assertThat(jdbc.queryForObject("select count(*) from users where user_id in (?, ?)", Integer.class, system, admin.userId)).isEqualTo(2);
     }
 

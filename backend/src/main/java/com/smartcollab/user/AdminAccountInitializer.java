@@ -42,8 +42,9 @@ public class AdminAccountInitializer implements ApplicationRunner {
             throw new IllegalStateException("ADMIN_USERNAME 을 쓰려면 ADMIN_PASSWORD 가 " + AdminProperties.MIN_PASSWORD_LENGTH
                     + "자 이상이어야 합니다.");
         }
-        if (props.username().length() > 50 || DemoAccounts.isReserved(props.username())) {
-            throw new IllegalStateException("ADMIN_USERNAME 은 50자 이하이고 체험 계정 아이디가 아니어야 합니다.");
+        // 로그인은 가입 아이디 규칙에 맞지 않는 아이디를 조회 없이 거절하므로, 규칙에 맞지 않으면 계정은 만들어져도 로그인할 수 없었습니다 [QA6-09]
+        if (!props.username().matches(User.USERNAME_REGEX) || DemoAccounts.isReserved(props.username())) {
+            throw new IllegalStateException("ADMIN_USERNAME 은 영문·숫자·_ . - 조합 4~20자이고 체험 계정 아이디가 아니어야 합니다.");
         }
         User existing = users.findByUsername(props.username()).orElse(null);
         if (existing == null) {

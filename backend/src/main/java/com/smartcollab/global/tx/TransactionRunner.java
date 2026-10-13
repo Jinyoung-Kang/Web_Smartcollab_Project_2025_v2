@@ -1,9 +1,11 @@
 package com.smartcollab.global.tx;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.function.Supplier;
@@ -56,6 +58,30 @@ public class TransactionRunner {
                         e.getClass().getSimpleName());
             }
             throw e;
+        }
+    }
+
+    static final int MAX_LOCK_CONFLICT_ATTEMPTS = 3;
+
+    /**
+     * {@link #writeReadCommitted(Supplier)} 와 같고, 교착(MySQL 1213)·잠금 대기 초과로 롤백되면 처음부터 다시 실행합니다(최대 3번) [QA6-06].
+     * 교착은 DB 가 한쪽 트랜잭션을 통째로 롤백하므로 다시 해도 안전합니다. 계정 삭제처럼 여러 표를 지우며 다른 요청(그 사람의 팀 업로드 —
+     * 팀 행 → 사용자 행 외래 키 순서)과 잠금 순서가 엇갈릴 수 있는 쓰기에만 씁니다. 이미 바깥 트랜잭션 안이면 다시 할 수 없어 한 번만 실행합니다.
+     */
+    public <T> T writeReadCommittedRetryingLockConflicts(Supplier<T> work) {
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            return work.get();
+        }
+        for (int attempt = 1; ; attempt++) {
+            try {
+                return writeReadCommitted.execute(status -> work.get());
+            } catch (PessimisticLockingFailureException e) {
+                if (attempt >= MAX_LOCK_CONFLICT_ATTEMPTS) {
+                    throw e;
+                }
+                log.warn("Write transaction rolled back by a lock conflict ({}); retrying ({}/{})",
+                        e.getClass().getSimpleName(), attempt + 1, MAX_LOCK_CONFLICT_ATTEMPTS);
+            }
         }
     }
 

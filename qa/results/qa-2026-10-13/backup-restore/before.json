@@ -1,0 +1,123 @@
+{
+  "username": "qa_s8zirb",
+  "files": [
+    {
+      "type": "file",
+      "id": 58,
+      "name": "파일-0.bin",
+      "size": 1024,
+      "extension": "bin",
+      "ownerName": "qa_s8zirb",
+      "createdAt": "2026-10-13T10:16:10.444533255Z",
+      "updatedAt": "2026-10-13T10:16:10.446854921Z",
+      "previewKind": "NONE",
+      "textEditable": false
+    },
+    {
+      "type": "file",
+      "id": 59,
+      "name": "파일-1.bin",
+      "size": 65536,
+      "extension": "bin",
+      "ownerName": "qa_s8zirb",
+      "createdAt": "2026-10-13T10:16:10.473253171Z",
+      "updatedAt": "2026-10-13T10:16:10.475135963Z",
+      "previewKind": "NONE",
+      "textEditable": false
+    },
+    {
+      "type": "file",
+      "id": 60,
+      "name": "파일-2.bin",
+      "size": 2097152,
+      "extension": "bin",
+      "ownerName": "qa_s8zirb",
+      "createdAt": "2026-10-13T10:16:10.532646338Z",
+      "updatedAt": "2026-10-13T10:16:10.535350546Z",
+      "previewKind": "NONE",
+      "textEditable": false
+    },
+    {
+      "type": "file",
+      "id": 61,
+      "name": "파일-3.bin",
+      "size": 7340032,
+      "extension": "bin",
+      "ownerName": "qa_s8zirb",
+      "createdAt": "2026-10-13T10:16:10.732650671Z",
+      "updatedAt": "2026-10-13T10:16:10.740807963Z",
+      "previewKind": "NONE",
+      "textEditable": false
+    },
+    {
+      "type": "file",
+      "id": 62,
+      "name": "문서.txt",
+      "size": 10,
+      "extension": "txt",
+      "ownerName": "qa_s8zirb",
+      "createdAt": "2026-10-13T10:16:10.783869338Z",
+      "updatedAt": "2026-10-13T10:16:10.787182880Z",
+      "previewKind": "TEXT",
+      "textEditable": true
+    },
+    {
+      "type": "file",
+      "id": 63,
+      "name": "팀 파일.bin",
+      "size": 307200,
+      "extension": "bin",
+      "ownerName": "qa_s8zirb",
+      "createdAt": "2026-10-13T10:16:11.050464380Z",
+      "updatedAt": "2026-10-13T10:16:11.053372338Z",
+      "previewKind": "NONE",
+      "textEditable": false
+    }
+  ],
+  "trashedId": 64,
+  "teamId": 3,
+  "snapshot": {
+    "58": {
+      "name": "파일-0.bin",
+      "status": 200,
+      "sha256": "617ff6d1b8acf511528f74dd90705d939b03f1d14f9e8ec532c315e343f9cb63",
+      "versions": 1
+    },
+    "59": {
+      "name": "파일-1.bin",
+      "status": 200,
+      "sha256": "7e80460b37dfb3f1c26b89436ef97724976fabcb722f1ba7deab1258ff008ffc",
+      "versions": 1
+    },
+    "60": {
+      "name": "파일-2.bin",
+      "status": 200,
+      "sha256": "e02bd1937d0bd1ec2499af11d45aa0c3684e0d603845d02655d62b82346d91b6",
+      "versions": 1
+    },
+    "61": {
+      "name": "파일-3.bin",
+      "status": 200,
+      "sha256": "93e7ccf3443aa1f440bf066ca76cae52598de2264ae59f8b30c03b276edd2065",
+      "versions": 1
+    },
+    "62": {
+      "name": "문서.txt",
+      "status": 200,
+      "sha256": "82536d9b9a9354575716a3162bfe5dc8cfc929875837abbce65a5f3359568f74",
+      "versions": 3
+    },
+    "63": {
+      "name": "팀 파일.bin",
+      "status": 200,
+      "sha256": "3f2d3e6cf03937df27dd18037d637a5f6945e4481160794788863ec79c7ce676",
+      "versions": 1
+    }
+  },
+  "usage": {
+    "fileCount": 5,
+    "totalBytes": 9503761,
+    "storedBytes": 9503801,
+    "quotaBytes": 1073741824
+  }
+}

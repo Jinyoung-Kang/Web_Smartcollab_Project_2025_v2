@@ -2,6 +2,7 @@ package com.smartcollab.global.tx;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionStatus;
@@ -44,6 +45,40 @@ class TransactionRunnerTest {
     void returnsResult() {
         assertThat(new TransactionRunner(new Manager(false)).writeReadCommitted(() -> "결과", cleanups::incrementAndGet)).isEqualTo("결과");
         assertThat(cleanups).hasValue(0);
+    }
+
+    @Test
+    @DisplayName("[QA6-06] 교착으로 롤백된 쓰기는 처음부터 다시 실행해 성공하고, 계속 교착이면 세 번째 실패를 그대로 던진다")
+    void retriesLockConflicts() {
+        TransactionRunner tx = new TransactionRunner(new Manager(false));
+        AtomicInteger attempts = new AtomicInteger();
+
+        String result = tx.writeReadCommittedRetryingLockConflicts(() -> {
+            if (attempts.incrementAndGet() == 1) throw new CannotAcquireLockException("Deadlock found when trying to get lock");
+            return "삭제됨";
+        });
+        assertThat(result).isEqualTo("삭제됨");
+        assertThat(attempts).hasValue(2);
+
+        attempts.set(0);
+        assertThatThrownBy(() -> tx.writeReadCommittedRetryingLockConflicts(() -> {
+            attempts.incrementAndGet();
+            throw new CannotAcquireLockException("Deadlock");
+        })).isInstanceOf(CannotAcquireLockException.class);
+        assertThat(attempts).hasValue(TransactionRunner.MAX_LOCK_CONFLICT_ATTEMPTS);
+    }
+
+    @Test
+    @DisplayName("[QA6-06] 잠금 충돌이 아닌 실패는 다시 실행하지 않는다")
+    void doesNotRetryOtherFailures() {
+        TransactionRunner tx = new TransactionRunner(new Manager(false));
+        AtomicInteger attempts = new AtomicInteger();
+
+        assertThatThrownBy(() -> tx.writeReadCommittedRetryingLockConflicts(() -> {
+            attempts.incrementAndGet();
+            throw new IllegalStateException("다른 실패");
+        })).hasMessage("다른 실패");
+        assertThat(attempts).hasValue(1);
     }
 
     /** 실제 DB 없이 트랜잭션 흐름만 — commitFails 면 커밋에서 예외 */

@@ -1,0 +1,43 @@
+[20:16:34] 1) 임시 스택 시작
+created 6 files
+[20:17:03] 2) 백업 — 앱 정지 → DB 덤프 → 파일 저장소 tar → 앱 시작
+[20:17:05]    덤프  40K, 파일 9.5M, 쓰기 중지 2초
+[20:17:05] 3) 볼륨까지 삭제 후 새 스택에 복원
+[20:17:30] 4) 복원 확인
+{
+  "login": 200,
+  "files": 6,
+  "mismatched": [],
+  "trashedStillInTrash": true,
+  "teamVisible": 200,
+  "usageBefore": {
+    "fileCount": 5,
+    "totalBytes": 9503761,
+    "storedBytes": 9503801,
+    "quotaBytes": 1073741824
+  },
+  "usageAfter": {
+    "fileCount": 5,
+    "totalBytes": 9503761,
+    "storedBytes": 9503801,
+    "quotaBytes": 1073741824
+  }
+}
+{
+  "versions": 68,
+  "blobs": 68,
+  "missingBlobs": 0,
+  "orphanBlobs": 0,
+  "tempUploads": 0,
+  "hashMismatch(sample<=300)": 0,
+  "filesWithoutActiveVersion": 0,
+  "activeVersionOfOtherFile": 0,
+  "fileSizeMismatch": 0,
+  "childScopeMismatch": 0,
+  "trashRootNotTrashed": 0,
+  "childOfTrashedNotTrashed": 0,
+  "teamsWithoutOneLeader": 0,
+  "duplicateMembers": 0,
+  "usageCounterDrift": { "users": 0, "teams": 0 }
+}
+[20:17:36] 완료

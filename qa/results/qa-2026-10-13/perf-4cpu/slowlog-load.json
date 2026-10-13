@@ -1,0 +1,99 @@
+{
+  "entries": 81815,
+  "shapes": 5,
+  "slowShapes(max>=50ms)": 4,
+  "topByTotal": [
+    {
+      "shape": "WITH RECURSIVE ancestors (folder_id, name, parent_folder_id, depth) AS ( SELECT folder_id, name, parent_folder_id, ? FROM folders WHERE folder_id = ? UNION ALL SELECT f.folder_id, f.name, f.parent_folder_id, a.depth + ? FROM folders f JOIN ancestors a ON f.folder_id = a.parent_folder_id ) SELECT folder_id AS id, name AS name, parent_folder_id AS parentId FROM ancestors ORDER BY depth DESC",
+      "count": 81801,
+      "total": 24.353756999999874,
+      "max": 0.034527,
+      "rows_examined": 327204,
+      "rows_sent": 163602,
+      "example": "WITH RECURSIVE ancestors (folder_id, name, parent_folder_id, depth) AS (\n    SELECT folder_id, name, parent_folder_id, 0 FROM folders WHERE folder_id = 149\n    UNION ALL\n    SELECT f.folder_id, f.name, f.parent_folder_id, a.depth + 1\n    FROM folders f JOIN ancestors a ON f.folder_id = a.parent_folder_id\n)\nSELECT folder_id AS id, name AS name, parent_folder_id AS parentId FROM ancestors ORDER BY depth DESC",
+      "avg_examined": 4
+    },
+    {
+      "shape": "COMMIT",
+      "count": 9,
+      "total": 0.577905,
+      "max": 0.081231,
+      "rows_examined": 0,
+      "rows_sent": 0,
+      "example": "COMMIT",
+      "avg_examined": 0
+    },
+    {
+      "shape": "select fe1_0.file_id,fe1_0.active_version_id,fe1_0.created_at,fe1_0.is_deleted,fe1_0.deleted_at,fe1_0.deleted_by,fe1_0.folder_id,fe1_0.original_name,fe1_0.owner_id,o1_0.user_id,o1_0.created_at,o1_0.email,o1_0.name,o1_0.password,o1_0.role,o1_0.username,fe1_0.size,fe1_0.updated_at,fe1_0.version from files fe1_0 join users o1_0 on o1_0.user_id=fe1_0.owner_id where fe1_0.folder_id in (?, …) and fe1_0.",
+      "count": 3,
+      "total": 0.188113,
+      "max": 0.067226,
+      "rows_examined": 36570,
+      "rows_sent": 33,
+      "example": "select fe1_0.file_id,fe1_0.active_version_id,fe1_0.created_at,fe1_0.is_deleted,fe1_0.deleted_at,fe1_0.deleted_by,fe1_0.folder_id,fe1_0.original_name,fe1_0.owner_id,o1_0.user_id,o1_0.created_at,o1_0.email,o1_0.name,o1_0.password,o1_0.role,o1_0.username,fe1_0.size,fe1_0.updated_at,fe1_0.version from files fe1_0 join users o1_0 on o1_0.user_id=fe1_0.owner_id where fe1_0.folder_id in (258,135,141) and fe1_0.is_deleted=false and lower(fe1_0.original_name) like '%문서-1%' escape '!' order by fe1_0.original_name limit 100",
+      "avg_examined": 12190
+    },
+    {
+      "shape": "select fv1_0.stored_path from file_versions fv1_0 where fv1_0.stored_path in (?, …)",
+      "count": 1,
+      "total": 0.063615,
+      "max": 0.063615,
+      "rows_examined": 500,
+      "rows_sent": 500,
+      "example": "select fv1_0.stored_path from file_versions fv1_0 where fv1_0.stored_path in ('files/cf350920-6e10-490b-87ea-d56fdeca0873','files/cf37f41e-2264-4963-9578-3d429444ec3b','files/cf3e0e9f-6fa0-4e96-a6d7-2229cea98f9e','files/cf3f6ff7-1d60-4f07-89f6-efb58823d3f6','files/cf417c34-fcd6-4f6f-bcf0-09e0e58d6a26','files/cf42afba-90e8-466f-906c-b02b46f3ac8a','files/cf46c9a2-dc95-4025-a040-958bdbff7549','files/cf49cd7b-96d5-469d-b9e0-5c45164f10e3','files/cf51b19d-bb60-4b23-b388-fa1ec1f07e05','files/cf53bd04-b889-4891-ba0b-ed17b3255385','files/cf596d55-e8ce-46a4-ac7a-2c963d43a4d7','files/cf59d5e5-fd85-4f39-9",
+      "avg_examined": 500
+    },
+    {
+      "shape": "select f1_0.folder_id,f1_0.name,o1_0.name,f1_0.created_at from folders f1_0 join users o1_0 on o1_0.user_id=f1_0.owner_id where f1_0.parent_folder_id=? and f1_0.trash_root_id is null",
+      "count": 1,
+      "total": 0.055646,
+      "max": 0.055646,
+      "rows_examined": 0,
+      "rows_sent": 0,
+      "example": "select f1_0.folder_id,f1_0.name,o1_0.name,f1_0.created_at from folders f1_0 join users o1_0 on o1_0.user_id=f1_0.owner_id where f1_0.parent_folder_id=211 and f1_0.trash_root_id is null",
+      "avg_examined": 0
+    }
+  ],
+  "slow": [
+    {
+      "shape": "COMMIT",
+      "count": 9,
+      "total": 0.577905,
+      "max": 0.081231,
+      "rows_examined": 0,
+      "rows_sent": 0,
+      "example": "COMMIT",
+      "avg_examined": 0
+    },
+    {
+      "shape": "select fe1_0.file_id,fe1_0.active_version_id,fe1_0.created_at,fe1_0.is_deleted,fe1_0.deleted_at,fe1_0.deleted_by,fe1_0.folder_id,fe1_0.original_name,fe1_0.owner_id,o1_0.user_id,o1_0.created_at,o1_0.email,o1_0.name,o1_0.password,o1_0.role,o1_0.username,fe1_0.size,fe1_0.updated_at,fe1_0.version from files fe1_0 join users o1_0 on o1_0.user_id=fe1_0.owner_id where fe1_0.folder_id in (?, …) and fe1_0.",
+      "count": 3,
+      "total": 0.188113,
+      "max": 0.067226,
+      "rows_examined": 36570,
+      "rows_sent": 33,
+      "example": "select fe1_0.file_id,fe1_0.active_version_id,fe1_0.created_at,fe1_0.is_deleted,fe1_0.deleted_at,fe1_0.deleted_by,fe1_0.folder_id,fe1_0.original_name,fe1_0.owner_id,o1_0.user_id,o1_0.created_at,o1_0.email,o1_0.name,o1_0.password,o1_0.role,o1_0.username,fe1_0.size,fe1_0.updated_at,fe1_0.version from files fe1_0 join users o1_0 on o1_0.user_id=fe1_0.owner_id where fe1_0.folder_id in (258,135,141) and fe1_0.is_deleted=false and lower(fe1_0.original_name) like '%문서-1%' escape '!' order by fe1_0.original_name limit 100",
+      "avg_examined": 12190
+    },
+    {
+      "shape": "select fv1_0.stored_path from file_versions fv1_0 where fv1_0.stored_path in (?, …)",
+      "count": 1,
+      "total": 0.063615,
+      "max": 0.063615,
+      "rows_examined": 500,
+      "rows_sent": 500,
+      "example": "select fv1_0.stored_path from file_versions fv1_0 where fv1_0.stored_path in ('files/cf350920-6e10-490b-87ea-d56fdeca0873','files/cf37f41e-2264-4963-9578-3d429444ec3b','files/cf3e0e9f-6fa0-4e96-a6d7-2229cea98f9e','files/cf3f6ff7-1d60-4f07-89f6-efb58823d3f6','files/cf417c34-fcd6-4f6f-bcf0-09e0e58d6a26','files/cf42afba-90e8-466f-906c-b02b46f3ac8a','files/cf46c9a2-dc95-4025-a040-958bdbff7549','files/cf49cd7b-96d5-469d-b9e0-5c45164f10e3','files/cf51b19d-bb60-4b23-b388-fa1ec1f07e05','files/cf53bd04-b889-4891-ba0b-ed17b3255385','files/cf596d55-e8ce-46a4-ac7a-2c963d43a4d7','files/cf59d5e5-fd85-4f39-9",
+      "avg_examined": 500
+    },
+    {
+      "shape": "select f1_0.folder_id,f1_0.name,o1_0.name,f1_0.created_at from folders f1_0 join users o1_0 on o1_0.user_id=f1_0.owner_id where f1_0.parent_folder_id=? and f1_0.trash_root_id is null",
+      "count": 1,
+      "total": 0.055646,
+      "max": 0.055646,
+      "rows_examined": 0,
+      "rows_sent": 0,
+      "example": "select f1_0.folder_id,f1_0.name,o1_0.name,f1_0.created_at from folders f1_0 join users o1_0 on o1_0.user_id=f1_0.owner_id where f1_0.parent_folder_id=211 and f1_0.trash_root_id is null",
+      "avg_examined": 0
+    }
+  ]
+}

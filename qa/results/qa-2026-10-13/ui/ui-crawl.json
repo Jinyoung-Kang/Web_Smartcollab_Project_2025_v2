@@ -1,0 +1,414 @@
+{
+  "when": "2026-10-13T10:22:41.522Z",
+  "clickedCount": {
+    "drive": 27,
+    "drive-folder": 102,
+    "team": 27,
+    "trash": 11,
+    "team-trash": 9,
+    "search": 11,
+    "editor": 14
+  },
+  "clicked": {
+    "drive": [
+      "SmartCollab",
+      "알림 2개 읽지 않음",
+      "알림 2개 읽지 않음 → 모두 읽음",
+      "알림 2개 읽지 않음 → 수락",
+      "Q QA 사용자 <b>굵게</b> 내 계정",
+      "내 드라이브",
+      "휴지통",
+      "새 팀 만들기",
+      "QA 팀 <script>alert(1)</script> 2명",
+      "초대한 팀 2명",
+      "업로드",
+      "새 폴더",
+      "모두 선택",
+      "삭제",
+      "모두 선택",
+      "수정한 날짜",
+      "크기",
+      "QA 폴더 <img src=x onerror=alert(1)> 선택",
+      "QA 폴더 <img src=x onerror=alert(1)>",
+      "QA 폴더 <img src=x onerror=alert(1)> 작업 메뉴",
+      "QA 폴더 <img src=x onerror=alert(1)> 작업 메뉴 → 열기",
+      "스케치.png 선택",
+      "스케치.png",
+      "스케치.png 작업 메뉴",
+      "스케치.png 작업 메뉴 → 미리보기",
+      "회의록.txt 선택",
+      "회의록.txt"
+    ],
+    "drive-folder": [
+      "SmartCollab",
+      "알림 0개 읽지 않음",
+      "알림 0개 읽지 않음 → 모두 읽음",
+      "Q QA 사용자 <b>굵게</b> 내 계정",
+      "내 드라이브",
+      "휴지통",
+      "새 팀 만들기",
+      "QA 팀 <script>alert(1)</script> 2명",
+      "초대한 팀 2명",
+      "내 드라이브",
+      "업로드",
+      "새 폴더",
+      "모두 선택",
+      "삭제",
+      "모두 선택",
+      "수정한 날짜",
+      "크기",
+      "하위 폴더 선택",
+      "하위 폴더",
+      "하위 폴더 작업 메뉴",
+      "하위 폴더 작업 메뉴 → 열기",
+      "데이터-00.csv 선택",
+      "데이터-00.csv",
+      "데이터-00.csv 작업 메뉴",
+      "데이터-00.csv 작업 메뉴 → 미리보기",
+      "데이터-01.csv 선택",
+      "데이터-01.csv",
+      "데이터-01.csv 작업 메뉴",
+      "데이터-01.csv 작업 메뉴 → 미리보기",
+      "데이터-02.csv 선택",
+      "데이터-02.csv",
+      "데이터-02.csv 작업 메뉴",
+      "데이터-02.csv 작업 메뉴 → 미리보기",
+      "데이터-03.csv 선택",
+      "데이터-03.csv",
+      "데이터-03.csv 작업 메뉴",
+      "데이터-03.csv 작업 메뉴 → 미리보기",
+      "데이터-04.csv 선택",
+      "데이터-04.csv",
+      "데이터-04.csv 작업 메뉴",
+      "데이터-04.csv 작업 메뉴 → 미리보기",
+      "데이터-05.csv 선택",
+      "데이터-05.csv",
+      "데이터-05.csv 작업 메뉴",
+      "데이터-05.csv 작업 메뉴 → 미리보기",
+      "데이터-06.csv 선택",
+      "데이터-06.csv",
+      "데이터-06.csv 작업 메뉴",
+      "데이터-06.csv 작업 메뉴 → 미리보기",
+      "데이터-07.csv 선택",
+      "데이터-07.csv",
+      "데이터-07.csv 작업 메뉴",
+      "데이터-07.csv 작업 메뉴 → 미리보기",
+      "데이터-08.csv 선택",
+      "데이터-08.csv",
+      "데이터-08.csv 작업 메뉴",
+      "데이터-08.csv 작업 메뉴 → 미리보기",
+      "데이터-09.csv 선택",
+      "데이터-09.csv",
+      "데이터-09.csv 작업 메뉴",
+      "데이터-09.csv 작업 메뉴 → 미리보기",
+      "데이터-10.csv 선택",
+      "데이터-10.csv",
+      "데이터-10.csv 작업 메뉴",
+      "데이터-10.csv 작업 메뉴 → 미리보기",
+      "데이터-11.csv 선택",
+      "데이터-11.csv",
+      "데이터-11.csv 작업 메뉴",
+      "데이터-11.csv 작업 메뉴 → 미리보기",
+      "데이터-12.csv 선택",
+      "데이터-12.csv",
+      "데이터-12.csv 작업 메뉴",
+      "데이터-12.csv 작업 메뉴 → 미리보기",
+      "데이터-13.csv 선택",
+      "데이터-13.csv",
+      "데이터-13.csv 작업 메뉴",
+      "데이터-13.csv 작업 메뉴 → 미리보기",
+      "데이터-14.csv 선택",
+      "데이터-14.csv",
+      "데이터-14.csv 작업 메뉴",
+      "데이터-14.csv 작업 메뉴 → 미리보기",
+      "데이터-15.csv 선택",
+      "데이터-15.csv",
+      "데이터-15.csv 작업 메뉴",
+      "데이터-15.csv 작업 메뉴 → 미리보기",
+      "데이터-16.csv 선택",
+      "데이터-16.csv",
+      "데이터-16.csv 작업 메뉴",
+      "데이터-16.csv 작업 메뉴 → 미리보기",
+      "데이터-17.csv 선택",
+      "데이터-17.csv",
+      "데이터-17.csv 작업 메뉴",
+      "데이터-17.csv 작업 메뉴 → 미리보기",
+      "데이터-18.csv 선택",
+      "데이터-18.csv",
+      "데이터-18.csv 작업 메뉴",
+      "데이터-18.csv 작업 메뉴 → 미리보기",
+      "데이터-19.csv 선택",
+      "데이터-19.csv",
+      "데이터-19.csv 작업 메뉴",
+      "데이터-19.csv 작업 메뉴 → 미리보기",
+      "데이터-20.csv 선택"
+    ],
+    "team": [
+      "SmartCollab",
+      "알림 0개 읽지 않음",
+      "알림 0개 읽지 않음 → 모두 읽음",
+      "Q QA 사용자 <b>굵게</b> 내 계정",
+      "내 드라이브",
+      "휴지통",
+      "새 팀 만들기",
+      "QA 팀 <script>alert(1)</script> 2명",
+      "초대한 팀 2명",
+      "업로드",
+      "새 폴더",
+      "모두 선택",
+      "이동",
+      "복사",
+      "공유",
+      "버전 기록",
+      "삭제",
+      "모두 선택",
+      "팀 문서.txt 작업 메뉴",
+      "팀 문서.txt 작업 메뉴 → 미리보기",
+      "팀 메뉴",
+      "팀 메뉴 → 팀 휴지통",
+      "채팅",
+      "멤버 2",
+      "멤버 초대",
+      "팀원 \"따옴표\" 관리",
+      "팀원 \"따옴표\" 관리 → 권한 변경"
+    ],
+    "trash": [
+      "SmartCollab",
+      "알림 0개 읽지 않음",
+      "알림 0개 읽지 않음 → 모두 읽음",
+      "Q QA 사용자 <b>굵게</b> 내 계정",
+      "내 드라이브",
+      "휴지통",
+      "새 팀 만들기",
+      "QA 팀 <script>alert(1)</script> 2명",
+      "초대한 팀 2명",
+      "복원",
+      "닫기"
+    ],
+    "team-trash": [
+      "SmartCollab",
+      "알림 0개 읽지 않음",
+      "알림 0개 읽지 않음 → 모두 읽음",
+      "Q QA 사용자 <b>굵게</b> 내 계정",
+      "내 드라이브",
+      "휴지통",
+      "새 팀 만들기",
+      "QA 팀 <script>alert(1)</script> 2명",
+      "초대한 팀 2명"
+    ],
+    "search": [
+      "SmartCollab",
+      "알림 0개 읽지 않음",
+      "알림 0개 읽지 않음 → 모두 읽음",
+      "Q QA 사용자 <b>굵게</b> 내 계정",
+      "내 드라이브",
+      "휴지통",
+      "새 팀 만들기",
+      "QA 팀 <script>alert(1)</script> 2명",
+      "초대한 팀 2명",
+      "회의록.txt",
+      "최상위 폴더"
+    ],
+    "editor": [
+      "SmartCollab",
+      "알림 0개 읽지 않음",
+      "알림 0개 읽지 않음 → 모두 읽음",
+      "Q QA 사용자 <b>굵게</b> 내 계정",
+      "내 드라이브",
+      "휴지통",
+      "새 팀 만들기",
+      "QA 팀 <script>alert(1)</script> 2명",
+      "초대한 팀 2명",
+      "편집기 닫기",
+      "버전",
+      "핵심 문장",
+      "번역 언어",
+      "번역"
+    ]
+  },
+  "issues": [
+    {
+      "kind": "duplicate-request",
+      "page": "desktop http://localhost:8080/drive",
+      "detail": "GET /api/auth/session (392ms 간격)",
+      "after": "(처음)"
+    },
+    {
+      "kind": "requestfailed",
+      "page": "desktop http://localhost:8080/drive",
+      "detail": "POST http://localhost:8080/api/notifications/read-all net::ERR_ABORTED",
+      "after": "drive: \"알림 2개 읽지 않음\" → \"모두 읽음\""
+    },
+    {
+      "kind": "duplicate-request",
+      "page": "desktop http://localhost:8080/drive",
+      "detail": "GET /api/notifications (367ms 간격)",
+      "after": "drive: \"알림 2개 읽지 않음\" → \"수락\""
+    },
+    {
+      "kind": "requestfailed",
+      "page": "desktop http://localhost:8080/teams/33",
+      "detail": "POST http://localhost:8080/api/invitations/22/accept net::ERR_ABORTED",
+      "after": "drive: \"알림 2개 읽지 않음\" → \"수락\""
+    },
+    {
+      "kind": "duplicate-request",
+      "page": "desktop http://localhost:8080/teams/33",
+      "detail": "GET /api/notifications (32ms 간격)",
+      "after": "drive: \"알림 2개 읽지 않음\" → \"수락\""
+    },
+    {
+      "kind": "requestfailed",
+      "page": "desktop http://localhost:8080/teams/33",
+      "detail": "POST http://localhost:8080/api/notifications/56/read net::ERR_ABORTED",
+      "after": "drive: \"알림 2개 읽지 않음\" → \"수락\""
+    },
+    {
+      "kind": "duplicate-request",
+      "page": "w375 http://localhost:8080/drive",
+      "detail": "GET /api/auth/session (332ms 간격)",
+      "after": "editor: \"저장\""
+    },
+    {
+      "kind": "duplicate-request",
+      "page": "w375 http://localhost:8080/drive",
+      "detail": "GET /api/notifications (387ms 간격)",
+      "after": "editor: \"저장\""
+    },
+    {
+      "kind": "duplicate-request",
+      "page": "w375 http://localhost:8080/drive",
+      "detail": "GET /api/teams (387ms 간격)",
+      "after": "editor: \"저장\""
+    },
+    {
+      "kind": "duplicate-request",
+      "page": "w375 http://localhost:8080/drive",
+      "detail": "GET /api/files/usage (387ms 간격)",
+      "after": "editor: \"저장\""
+    },
+    {
+      "kind": "duplicate-request",
+      "page": "w375 http://localhost:8080/drive",
+      "detail": "GET /api/folders/113?sort=name&order=asc&limit=500 (388ms 간격)",
+      "after": "editor: \"저장\""
+    },
+    {
+      "kind": "duplicate-request",
+      "page": "w768 http://localhost:8080/drive",
+      "detail": "GET /api/auth/session (335ms 간격)",
+      "after": "w375: 팀 패널 열기"
+    },
+    {
+      "kind": "duplicate-request",
+      "page": "w768 http://localhost:8080/drive",
+      "detail": "GET /api/notifications (368ms 간격)",
+      "after": "w375: 팀 패널 열기"
+    },
+    {
+      "kind": "duplicate-request",
+      "page": "w768 http://localhost:8080/drive",
+      "detail": "GET /api/teams (369ms 간격)",
+      "after": "w375: 팀 패널 열기"
+    },
+    {
+      "kind": "duplicate-request",
+      "page": "w768 http://localhost:8080/drive",
+      "detail": "GET /api/files/usage (369ms 간격)",
+      "after": "w375: 팀 패널 열기"
+    },
+    {
+      "kind": "duplicate-request",
+      "page": "w768 http://localhost:8080/drive",
+      "detail": "GET /api/folders/113?sort=name&order=asc&limit=500 (369ms 간격)",
+      "after": "w375: 팀 패널 열기"
+    },
+    {
+      "kind": "duplicate-request",
+      "page": "w1024 http://localhost:8080/drive",
+      "detail": "GET /api/auth/session (341ms 간격)",
+      "after": "w768: 팀 패널 열기"
+    },
+    {
+      "kind": "duplicate-request",
+      "page": "w1024 http://localhost:8080/drive",
+      "detail": "GET /api/notifications (384ms 간격)",
+      "after": "w768: 팀 패널 열기"
+    },
+    {
+      "kind": "duplicate-request",
+      "page": "w1024 http://localhost:8080/drive",
+      "detail": "GET /api/teams (385ms 간격)",
+      "after": "w768: 팀 패널 열기"
+    },
+    {
+      "kind": "duplicate-request",
+      "page": "w1024 http://localhost:8080/drive",
+      "detail": "GET /api/files/usage (384ms 간격)",
+      "after": "w768: 팀 패널 열기"
+    },
+    {
+      "kind": "duplicate-request",
+      "page": "w1024 http://localhost:8080/drive",
+      "detail": "GET /api/folders/113?sort=name&order=asc&limit=500 (385ms 간격)",
+      "after": "w768: 팀 패널 열기"
+    },
+    {
+      "kind": "http.403",
+      "page": "share http://localhost:8080/share/v3qlxY1Wz-TDyB3gS-uTjgrxituCUamP",
+      "detail": "POST /api/public/shares/v3qlxY1Wz-TDyB3gS-uTjgrxituCUamP/unlock",
+      "after": "share: 틀린 비밀번호"
+    },
+    {
+      "kind": "console.error",
+      "page": "share http://localhost:8080/share/v3qlxY1Wz-TDyB3gS-uTjgrxituCUamP",
+      "detail": "Failed to load resource: the server responded with a status of 403 ()",
+      "after": "share: 틀린 비밀번호"
+    },
+    {
+      "kind": "duplicate-request",
+      "page": "share http://localhost:8080/share/v3qlxY1Wz-TDyB3gS-uTjgrxituCUamP",
+      "detail": "POST /api/public/shares/v3qlxY1Wz-TDyB3gS-uTjgrxituCUamP/unlock (164ms 간격)",
+      "after": "share: 맞는 비밀번호"
+    },
+    {
+      "kind": "http.404",
+      "page": "share http://localhost:8080/share/does-not-exist-token",
+      "detail": "GET /api/public/shares/does-not-exist-token",
+      "after": "share: 맞는 비밀번호"
+    },
+    {
+      "kind": "console.error",
+      "page": "share http://localhost:8080/share/does-not-exist-token",
+      "detail": "Failed to load resource: the server responded with a status of 404 ()",
+      "after": "share: 맞는 비밀번호"
+    },
+    {
+      "kind": "info.tab-order",
+      "page": "login",
+      "detail": "button[로그인] → button[회원가입] → input[] → input[] → button[로그인] → body[SmartCollab팀을 위](초점 표시 없음) → button[로그인] → button[회원가입] → input[] → input[] → button[로그인] → button[로그인]"
+    },
+    {
+      "kind": "duplicate-request",
+      "page": "flow http://localhost:8080/drive",
+      "detail": "GET /api/folders/113?sort=name&order=asc&limit=500 (164ms 간격)",
+      "after": "flow: 새 폴더 만들기"
+    },
+    {
+      "kind": "duplicate-request",
+      "page": "flow http://localhost:8080/drive",
+      "detail": "GET /api/files/usage (164ms 간격)",
+      "after": "flow: 새 폴더 만들기"
+    },
+    {
+      "kind": "info.unsaved-guard",
+      "page": "editor",
+      "detail": "저장 안 한 변경이 있을 때 앱 안 이동을 취소하면 편집기에 남음: true"
+    },
+    {
+      "kind": "info.xss-text",
+      "page": "team",
+      "detail": "스크립트 문자열이 글자로 보인 곳 1곳, alert 0번"
+    }
+  ]
+}

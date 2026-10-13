@@ -138,7 +138,7 @@
 | GET / POST | `/api/teams` | 내 팀 목록 / 팀 만들기 (팀장인 팀이 10개면 409, 체험 계정은 403) |
 | GET / DELETE | `/api/teams/{id}` | 팀 상세(멤버·내 권한·루트 폴더) / 팀 삭제 |
 | GET | `/api/teams/{id}/presence` | 접속 중인 멤버 |
-| POST | `/api/teams/{id}/invitations` | 초대 `{username}` |
+| POST | `/api/teams/{id}/invitations` | 초대 `{username}`. 이미 대기 중인 초대가 있으면 409(동시에 보내도 하나만, QA6-10). 데모 모드에서 일반 팀은 체험 계정을 초대할 수 없음 — 403(QA6-03) |
 | POST | `/api/invitations/{id}/accept` · `/reject` | 초대 응답. 편집 권한은 초대한 사람이 편집할 수 있을 때만 받음. 초대한 사람이 더 이상 초대할 수 없으면 수락은 409(거절로 정리) |
 | PUT | `/api/teams/{id}/members/{memberId}/permissions` | 권한 변경 (팀장) |
 | DELETE | `/api/teams/{id}/members/{memberId}` | 내보내기 (팀장) |

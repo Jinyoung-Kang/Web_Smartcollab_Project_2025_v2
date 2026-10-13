@@ -38,6 +38,9 @@ class DemoSeedRecoveryTest extends IntegrationTest {
     @MockitoSpyBean
     TeamService teamService;
 
+    @MockitoSpyBean
+    com.smartcollab.user.AccountService accountService;
+
     @Test
     @DisplayName("[M-4] 시드가 끝부분에서 실패하면 일부만 만든 체험 계정을 지워, 다음 시드가 빠진 것 없이 다시 만든다")
     void partialSeedIsDiscarded() throws Exception {
@@ -55,5 +58,31 @@ class DemoSeedRecoveryTest extends IntegrationTest {
         Api.Session editor = api().login("demo2", PASSWORD);
         List<String> teams = Api.read(editor.get("/api/teams"), "$[*].name");
         assertThat(teams).as("마지막 단계(디자인 리뷰 팀)까지 만들어졌는지").contains("디자인 리뷰");
+    }
+
+    /**
+     * [QA6-07] 초기화는 체험 계정이 이끄는 팀을 먼저 지우고(커밋) 계정을 지우는데, 계정 지우기가 실패하면(교착·일시적 DB 오류 — 방문자가 그 계정으로
+     * 업로드 중이면 6차 QA 의 교착이 남) 다시 만들지 않고 끝났습니다. 계정 셋은 남아 있으므로 다음 기동의 시드도 "이미 있음"으로 건너뛰어,
+     * 다음 날 초기화까지 체험 팀이 없는 공개 데모가 됐습니다.
+     */
+    @Test
+    @DisplayName("[QA6-07] 초기화 중 체험 계정 지우기가 실패해도 체험 팀이 없는 채로 남지 않는다 — 다음 시드가 빠진 팀을 알아보고 다시 만든다")
+    void failedPurgeDoesNotLeaveDemoWithoutTeams() throws Exception {
+        seeder.reset();
+        doThrow(new org.springframework.dao.CannotAcquireLockException("주입한 교착"))
+                .doThrow(new org.springframework.dao.CannotAcquireLockException("주입한 교착"))
+                .doCallRealMethod()
+                .when(accountService).purgeAccount(anyLong());
+
+        try {
+            seeder.reset();
+        } catch (RuntimeException ignored) {
+            // 초기화 실패는 로그로만 남음
+        }
+        seeder.seedOnStartup();   // 다음 기동
+
+        Api.Session editor = api().login("demo2", PASSWORD);
+        List<String> teams = Api.read(editor.get("/api/teams"), "$[*].name");
+        assertThat(teams).contains("SmartCollab 데모 팀", "디자인 리뷰");
     }
 }

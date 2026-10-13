@@ -59,6 +59,27 @@ class DemoProtectionTest extends LimitedStorageIntegrationTest {
         return ids.getFirst().longValue();
     }
 
+    /**
+     * [QA6-03] 일반 팀이 체험 계정을 초대하면, 체험 비밀번호는 공개되어 있어 누구나 그 계정으로 수락해 팀 파일을 보고 받을 수 있었습니다.
+     * 수락한 뒤에는 체험 계정 보호(내보내기·나가기 금지) 때문에 팀장이 내보낼 수도 없어, 다음 초기화까지 팀 자료가 열려 있었습니다.
+     */
+    @Test
+    @DisplayName("[QA6-03] 일반 팀은 체험 계정을 초대할 수 없고, 이미 들어와 있는 체험 계정은 일반 팀의 팀장이 내보낼 수 있다")
+    void regularTeamCannotInviteDemoAccount() throws Exception {
+        Api.Session leader = api().signUp("qa603");
+        long team = leader.createTeam("qa603-team")[0];
+
+        leader.postJson("/api/teams/{t}/invitations", Map.of("username", "demo2"), team)
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.detail").value(containsString("체험 계정")));
+
+        // 이 수정 전에 들어온 체험 계정(남아 있는 데이터)은 일반 팀의 팀장이 내보낼 수 있어야 합니다
+        long demo2 = users.findByUsername("demo2").orElseThrow().getId();
+        jdbc.update("insert into team_members (team_id, user_id, is_team_leader, can_edit, can_delete, can_invite, joined_at) values (?, ?, 0, 1, 0, 0, ?)",
+                team, demo2, java.sql.Timestamp.from(java.time.Instant.now()));
+        leader.delete("/api/teams/{t}/members/{m}", team, memberId(leader, team, "demo2")).andExpect(status().isNoContent());
+    }
+
     @Test
     @DisplayName("[ADM-11] 관리자는 체험 계정을 삭제할 수 없고(403), 목록에는 체험 계정과 체험 한도로 표시된다")
     void adminCannotDeleteDemoAccounts() throws Exception {
@@ -146,10 +167,10 @@ class DemoProtectionTest extends LimitedStorageIntegrationTest {
         Api.Session owner = api().signUp("h3owner");
         long[] team = owner.createTeam("일반 팀");
         long ownerFile = owner.uploadText(team[1], "팀 문서.txt", "keep me");
-        owner.postJson("/api/teams/{t}/invitations", Map.of("username", "demo2"), team[0]).andExpect(status().isCreated());
-        Api.Session visitor = demo("demo2");
-        long invitation = ((Number) Api.read(visitor.get("/api/notifications"), "$.items[0].invitationId")).longValue();
-        visitor.post("/api/invitations/{id}/accept", invitation).andExpect(status().isNoContent());
+        // 일반 팀은 이제 체험 계정을 초대할 수 없으므로(QA6-03), 그 전에 들어와 있던 멤버십으로 시작합니다
+        long demo2 = users.findByUsername("demo2").orElseThrow().getId();
+        jdbc.update("insert into team_members (team_id, user_id, is_team_leader, can_edit, can_delete, can_invite, joined_at) values (?, ?, 0, 1, 0, 0, ?)",
+                team[0], demo2, java.sql.Timestamp.from(java.time.Instant.now()));
 
         owner.post("/api/teams/{t}/leader/{m}", team[0], memberId(owner, team[0], "demo2"))
                 .andExpect(status().isForbidden())
