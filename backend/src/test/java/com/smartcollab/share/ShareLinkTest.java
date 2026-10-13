@@ -117,6 +117,31 @@ class ShareLinkTest extends IntegrationTest {
                 .andExpect(status().isTooManyRequests());
     }
 
+    /**
+     * [QA6-02] 토큰 열의 콜레이션(utf8mb4_0900_ai_ci)이 대소문자·악센트를 무시해, 한 글자만 대소문자를 바꾼 토큰도 같은 링크로 찾았습니다.
+     * 요청 제한 키는 받은 토큰 문자열 그대로라, 변형마다 비밀번호 시도 한도가 새로 생겼습니다(32자 중 영문 약 26자 → 변형 약 2^26개).
+     */
+    @Test
+    @DisplayName("[QA6-02] 대소문자만 바꾼 공유 토큰은 다른 링크 — 비밀번호 시도 한도를 다 쓴 링크를 변형 토큰으로 다시 시도할 수 없다")
+    void caseVariantTokenIsNotTheSameLink() throws Exception {
+        Api.Session s = api().signUp("sharecase");
+        long file = s.uploadText(s.rootFolderId, "case-link.txt", "x");
+        String token = createLink(s, file, Map.of("password", "pa55word"));
+        while (rateLimiter.tryAcquire("share-link:" + token, 1000, Duration.ofMinutes(10))) {
+            // 이 링크의 시도 한도를 다 씀
+        }
+        int i = 0;
+        while (!Character.isLetter(token.charAt(i))) i++;
+        char c = token.charAt(i);
+        String variant = token.substring(0, i) + (Character.isUpperCase(c) ? Character.toLowerCase(c) : Character.toUpperCase(c)) + token.substring(i + 1);
+
+        api().perform(MockMvcRequestBuilders.get("/api/public/shares/{t}", variant)).andExpect(status().isNotFound());
+        api().perform(MockMvcRequestBuilders.post("/api/public/shares/{t}/unlock", variant)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"password\":\"pa55word\"}"))
+                .andExpect(status().isNotFound());
+        api().perform(MockMvcRequestBuilders.get("/api/public/shares/{t}", token)).andExpect(status().isOk());
+    }
+
     @Test
     @DisplayName("[v1 경쟁 조건] 다운로드 횟수 제한은 동시 요청에서도 정확히 지켜진다")
     void downloadLimitIsAtomic() throws Exception {

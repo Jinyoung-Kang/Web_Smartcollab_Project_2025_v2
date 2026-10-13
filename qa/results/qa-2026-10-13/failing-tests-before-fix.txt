@@ -1,0 +1,41 @@
+# 6차 QA 결함 재현 시험 — 수정 전 코드(main 32c075d)에서 실행 (2026-10-13T10:46:15Z)
+# cd backend && ./gradlew test --tests (아래 9개 클래스)
+AdminAccountTest > [ADM-07][QA6-08] 시스템·관리자 계정과 없는 ID 는 삭제할 수 없고(404), 잘못된 page·size 는 400 이다(쪽 번호가 아주 커도 500 이 아님) FAILED
+AdminDeletionRaceTest > [QA6-06] 같은 계정을 동시에 두 번 삭제하면 두 번째는 404 이고, 보안 로그는 커밋된 삭제 한 번만 남는다 FAILED
+AdminDeletionRaceTest > [QA6-06] 관리자 삭제와 그 계정의 업로드가 겹쳐도 교착(1213)이 나지 않는다 — 삭제가 사용자 행부터 잠가 차례로 처리 FAILED
+AdminDeletionRaceTest > [QA6-05] 관리자 삭제와 팀장 위임이 겹쳐도 팀장은 한 명이다 — 위임받은 팀장을 그대로 두고 다른 멤버를 또 올리던 문제 FAILED
+FolderConcurrencyTest > [QA6-04] 휴지통에 들어가는 폴더 안의 문서는 동시에 저장할 수 없다 — 성공으로 답하고 휴지통 안의 문서에 새 버전이 쌓이던 문제 FAILED
+FolderConcurrencyTest > [QA6-04] 휴지통에 들어가는 폴더에는 동시에 파일을 올릴 수 없다 — 성공으로 답하고 휴지통 안에 저장되던 문제 FAILED
+ShareLinkTest > [QA6-02] 대소문자만 바꾼 공유 토큰은 다른 링크 — 비밀번호 시도 한도를 다 쓴 링크를 변형 토큰으로 다시 시도할 수 없다 FAILED
+AzureShutdownTest > [QA6-01] JVM 이 종료되는 중(정상 종료)에도 Azure 저장소에 쓸 수 있다 — SDK 공용 실행기가 먼저 닫혀 진행 중인 업로드가 500 이던 문제 FAILED
+DemoProtectionTest > [QA6-03] 일반 팀은 체험 계정을 초대할 수 없고, 이미 들어와 있는 체험 계정은 일반 팀의 팀장이 내보낼 수 있다 FAILED
+DemoSeedRecoveryTest > [QA6-07] 초기화 중 체험 계정 지우기가 실패해도 체험 팀이 없는 채로 남지 않는다 — 다음 시드가 빠진 팀을 알아보고 다시 만든다 FAILED
+TeamMembershipRaceTest > [QA6-10] 같은 사람을 동시에 두 번 초대하면 두 번째는 409 이고 대기 중 초대는 하나다 FAILED
+AdminAccountInitializerTest > [ADM-10][QA6-09] 비밀번호가 12자보다 짧거나, 체험 계정 아이디이거나, 로그인할 수 없는 형식의 아이디면 기동을 멈춘다 FAILED
+> Task :test FAILED
+49 tests completed, 12 failed
+
+## 실패 이유
+    java.lang.AssertionError: Status expected:<400> but was:<500>
+    java.lang.AssertionError: 
+    Expecting actual not to be null
+    java.lang.AssertionError: [업로드 쪽] 
+    Expecting actual:
+      "org.springframework.dao.CannotAcquireLockException: PreparedStatementCallback; SQL [insert into folders (name, owner_id, parent_folder_id, created_at) values ('늦은 폴더', ?, ?, ?)]; Deadlock found when trying to get lock; try restarting transaction
+    org.opentest4j.AssertionFailedError: 
+    expected: 1
+     but was: 2
+    java.lang.AssertionError: 
+    Expecting actual not to be null
+    java.lang.AssertionError: 
+    Expecting actual not to be null
+    java.lang.AssertionError: Status expected:<404> but was:<200>
+    java.lang.AssertionError: Status expected:<403> but was:<201>
+    java.lang.AssertionError: 
+    Expecting JSONArray:
+      []
+    java.lang.AssertionError: 
+    Expecting actual not to be null
+    java.lang.AssertionError: 
+    Expecting code to raise a throwable.
+AzureShutdownProbe 출력: PROBE FAIL java.lang.IllegalStateException: Shutdown in progress

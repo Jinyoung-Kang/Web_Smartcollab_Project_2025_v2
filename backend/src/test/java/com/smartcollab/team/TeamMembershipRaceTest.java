@@ -138,4 +138,27 @@ class TeamMembershipRaceTest extends IntegrationTest {
         assertThat(jdbc.queryForObject("select status from invitations where invitation_id = ?", String.class, inv)).isEqualTo("REJECTED");
         assertThat(members.existsByTeamIdAndUserId(teamId, invitee.userId)).isFalse();
     }
+
+    /**
+     * [QA6-10] 초대는 "이미 대기 중인 초대가 있는지" 확인한 뒤 넣는데 잠그지 않고, 초대 표에는 유일 제약도 없어, 같은 사람을 동시에 두 번
+     * 초대하면 대기 중 초대가 둘 생겼습니다(알림 둘, 둘 다 수락하면 수락 알림도 둘).
+     */
+    @Test
+    @DisplayName("[QA6-10] 같은 사람을 동시에 두 번 초대하면 두 번째는 409 이고 대기 중 초대는 하나다")
+    void concurrentDuplicateInvitationConflicts() throws Exception {
+        Api.Session leader = api().signUp("qa610l");
+        Api.Session invitee = api().signUp("qa610i");
+        long teamId = leader.createTeam("qa610 팀")[0];
+
+        Throwable result;
+        try (TransactionRace race = new TransactionRace(tx)) {
+            result = race.run(() -> {
+                teamService.invite(teamId, invitee.username, leader.userId);
+                invitations.flush();
+            }, () -> teamService.invite(teamId, invitee.username, leader.userId));
+        }
+
+        assertThat(result).isInstanceOf(ApiException.class).hasMessageContaining("이미 초대");
+        assertThat(jdbc.queryForObject("select count(*) from invitations where team_id = ? and status = 'PENDING'", Integer.class, teamId)).isOne();
+    }
 }
