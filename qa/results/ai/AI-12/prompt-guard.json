@@ -1,0 +1,39 @@
+{
+  "at": "2026-10-13T12:43:31.100Z",
+  "file": "사용자 신고 PDF (8쪽, 320KB, 한국어 + 영어 용어·C++ 코드). 공개 저장소라 결과 글은 남기지 않음",
+  "results": [
+    {
+      "run": 1,
+      "target": "KO",
+      "status": 200,
+      "ms": 11165,
+      "kind": "문서 전체",
+      "chars": 2758,
+      "hangulRatio": 0.38,
+      "inputTokens": 15364,
+      "outputTokens": 2673
+    },
+    {
+      "run": 2,
+      "target": "KO",
+      "status": 502,
+      "ms": 2483,
+      "kind": "실패",
+      "chars": 0,
+      "hangulRatio": 0,
+      "billedTokens": 15431,
+      "error": "AI 가 빈 결과를 돌려주었습니다. 다시 시도하세요."
+    },
+    {
+      "run": 3,
+      "target": "KO",
+      "status": 200,
+      "ms": 10147,
+      "kind": "문서 전체",
+      "chars": 3471,
+      "hangulRatio": 0.29,
+      "inputTokens": 15364,
+      "outputTokens": 2751
+    }
+  ]
+}
