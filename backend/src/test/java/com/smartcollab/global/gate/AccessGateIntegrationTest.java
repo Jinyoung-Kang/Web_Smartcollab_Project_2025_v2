@@ -3,6 +3,7 @@ package com.smartcollab.global.gate;
 import com.smartcollab.support.IntegrationTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.TestPropertySource;
@@ -32,7 +33,16 @@ class AccessGateIntegrationTest extends IntegrationTest {
     @LocalServerPort
     int port;
 
+    @Autowired
+    GateNotifier notifier;
+
     private final HttpClient http = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).build();
+
+    @Test
+    @DisplayName("[GATE-02] 개발 PC 셸에 TELEGRAM_BOT_TOKEN·TELEGRAM_CHAT_ID 가 있어도 시험의 잠금 해제·차단은 실제 텔레그램으로 알리지 않는다")
+    void alertsStayOffInTests() {
+        assertThat(notifier.enabled()).isFalse();
+    }
 
     @Test
     @DisplayName("[GATE-01] 잠금을 풀지 않은 API 는 로그인 검사보다 먼저 401 GATE_LOCKED(problem+json, requestId) 로 막는다")

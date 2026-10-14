@@ -57,6 +57,10 @@ public abstract class IntegrationTest {
         // 개발 PC 의 셸에 키가 있어도 시험이 실제 외부 API(과금)를 부르지 않게 비웁니다 — AI 는 가짜(DocumentAi)로 시험합니다 [AI-01]
         r.add("app.ai.api-key", () -> "");
         r.add("app.deepl.api-key", () -> "");
+        // 같은 이유로 텔레그램 설정도 비웁니다 — 잠금을 켠 시험의 잠금 해제·차단이 운영자 폰으로 알림을 보내지 않게.
+        // 알림은 가짜 전송부(GateNotifierTest·AccessGateFilterTest)로 시험합니다 [GATE-02]
+        r.add("app.gate.telegram.bot-token", () -> "");
+        r.add("app.gate.telegram.chat-id", () -> "");
     }
 
     @Autowired

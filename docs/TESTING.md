@@ -2,17 +2,17 @@
 
 | 층 | 도구 | 개수 | 실행 |
 |---|---|---:|---|
-| 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 418 | `cd backend && ./gradlew test` |
+| 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 441 | `cd backend && ./gradlew test` |
 | 백엔드 — CPU 1개 JVM | 같은 도구, `-XX:ActiveProcessorCount=1`(운영 App Service B1 과 같은 조건) · HTTPS Azurite | 2 | `cd backend && ./gradlew singleCarrierTest` (`check` 에 포함, CI 백엔드 작업에서도 실행) |
 | 프론트엔드 단위·컴포넌트 | Vitest · Testing Library · jsdom | 182 | `cd frontend && npm test` |
 | E2E (전체 스택) | Playwright · Docker Compose · axe-core | 19 (시나리오 10 + 관리자 1 + 대화상자 초점 2 + 배치 2 + 접근성 3·탭 제목 1) | `docker compose up -d --wait && cd e2e && npx playwright test` |
 
-백엔드 라인 커버리지 **92.4%**, 분기 커버리지 **80.1%** (JaCoCo, `backend/build/reports/jacoco/test/html`).
+백엔드 라인 커버리지 **92.4%**, 분기 커버리지 **80.8%** (JaCoCo, `backend/build/reports/jacoco/test/html`).
 
 ## 원칙
 
 - **H2 대신 실제 MySQL** 로 통합 테스트합니다. 재귀 CTE·`ON DELETE SET NULL`·조건부 UPDATE 처럼 DB 동작에 기대는 로직이 많아, 운영과 다른 DB 로 테스트하면 통과해도 믿을 수 없기 때문입니다.
-- 테스트마다 무작위 사용자 이름을 써서 데이터를 분리하고, 컨테이너와 Spring 컨텍스트는 한 번만 띄웁니다(전체 418건, `./gradlew clean build` 는 CPU 1개 시험·커버리지 포함 4분 50초 — AI-13 뒤 측정). 테스트 JVM 은 운영 컨테이너·CI 와 같은 UTC 로 실행합니다.
+- 테스트마다 무작위 사용자 이름을 써서 데이터를 분리하고, 컨테이너와 Spring 컨텍스트는 한 번만 띄웁니다(전체 441건, `./gradlew clean build` 는 CPU 1개 시험·커버리지 포함 4분 50초 — AI-13 뒤 측정). 테스트 JVM 은 운영 컨테이너·CI 와 같은 UTC 로 실행합니다.
 - v1 에서 찾은 결함마다 이름에 `[v1 …]` 을, 2026-09 코드 리뷰 항목에는 `[SEC-01]`·`[BUG-02]` 처럼 항목 ID 를 붙인 회귀 테스트가 있습니다 → [REFACTORING_REPORT.md](REFACTORING_REPORT.md), [REVIEW_2026-09.md](REVIEW_2026-09.md)
 - 인증은 실제 브라우저처럼 HttpOnly 쿠키 + CSRF 토큰으로 요청합니다(`support/Api`). CSRF 는 Spring Security 의 `csrf()` 도우미 대신 같은 토큰을 쿠키·헤더로 보내는 `Api.xsrf()` 를 씁니다 — `csrf()` 는 공유 CSRF 필터의 저장소를 바꿔, 같은 컨텍스트의 실제 HTTP 시험이 실행 순서에 따라 실패했습니다.
 
@@ -45,6 +45,7 @@
 | `RequestBodyLimitTest` | 실제 Tomcat 에 한도를 넘는 본문을 보내면 Content-Length·chunked 모두 413, 파일 업로드는 제외 (SEC-10), 업로드 경로가 아닌 multipart 는 읽기 전에 415 (S-18) |
 | `RequestTraceTest` | 추적 ID 가 응답 헤더·오류 본문·로그에서 같은지, 위조된 ID 교체, 쿼리 문자열·입력한 자격 증명·공유 토큰을 로그에 남기지 않는지 (ARC-02·SEC-11·S-07) |
 | `ScryptTest` · `AccessGateFilterTest` · `AccessGateIntegrationTest`, 프론트 `http.test` | 접근 코드 잠금 — 직접 구현한 scrypt 가 RFC 7914 벡터·Python `hashlib.scrypt`(다른 서비스 gate 의 해시)와 같은지, 잠금화면(인라인 스타일 없음)·API 401 `GATE_LOCKED`·헬스 체크 예외, 쿠키(__Host-·HttpOnly·Secure·SameSite) 위조·만료·코드 폐기, IP·전체 시도 제한, 다른 출처 거절·열린 리디렉션 방지, 실제 Tomcat 에서 보안 필터보다 먼저, 잠금이 풀린 화면에서 쿠키가 만료되면 잠금화면으로 (GATE-01) |
+| `GateNotifierTest` · `AccessGateFilterTest` · `AccessGateIntegrationTest` | 잠금 알림(텔레그램, 가짜 전송부) — 메시지 형식·KST·가린 IP(IPv4·IPv6 /48·IPv4-mapped·6to4)·User-Agent 요약 순서, 같은 IP 잠금 해제는 1시간에 한 번(기억 1000개)·전체로는 10분에 10건(넘친 수는 다음 해제 알림에 한 번 덧붙임, 큐가 차 버린 해제는 기억하지 않음), 5번째 실패에서 IP 잠금 1번·전체 잠금 1번·잠긴 동안의 거절과 맞는 코드로 되돌린 잠금은 알리지 않음, 하나만 설정하면 끄고 이름만 경고, 전송 실패·큐 상한(50)에도 응답은 그대로, 토큰·대화 ID 는 로그·toString 에 없음, application.yml 의 환경변수 연결, HTTP 전송부의 JSON·시간 상한(헤더 뒤 본문이 멈춰도), 통합 시험은 셸에 텔레그램 설정이 있어도 알림을 끔 (GATE-02) |
 | `SecurityHeadersTest` · `TranslationServiceTest` | CSP 가 인라인 스크립트·스타일을 막는지 (SEC-12), 파일 응답의 sandbox(PDF 미리보기 제외) (S-13) / 사용자별 하루 번역 분량, 거절된 요청은 분량 미사용, 권한 확인이 먼저 (SEC-07), 호출 실패 시 분량 반환 (S-16) |
 | `FolderTrashTest` | 폴더 휴지통 — 안의 폴더·파일이 드라이브·트리·검색·직접 접근·공유 링크에서 모두 사라짐, 복원, 영구 삭제(저장 공간 반환), 상위 폴더가 휴지통이면 최상위로 복원, 휴지통 폴더로는 이동·업로드 불가, 복사 시 휴지통 하위 폴더 제외, 보관 기간 만료, 팀 권한 (UX-06) |
 | `ItemDeletionTest` · `TrashPurgeBatchTest` | 여러 항목 삭제가 한 트랜잭션(전부 아니면 전무)·폴더당 알림 1번 (PERF-03), 고른 폴더 안의 항목을 함께 골라도 순서와 상관없이 그 폴더와 함께 휴지통으로 (S-15) / 휴지통 자동 비우기 500개씩 배치 (PERF-05) |

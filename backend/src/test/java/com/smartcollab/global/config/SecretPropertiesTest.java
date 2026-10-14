@@ -23,6 +23,8 @@ class SecretPropertiesTest {
     private static final String AI = "ai-key-marker-0005";
     private static final String GATE_SECRET = "gate-secret-marker-0006";
     private static final String GATE_CODES = "recruit:scrypt-hash-marker-0007";
+    private static final String TELEGRAM_TOKEN = "telegram-token-marker-0008";
+    private static final String TELEGRAM_CHAT = "telegram-chat-marker-0009";
 
     @Test
     @DisplayName("[L-4] 앱 설정의 toString 은 JWT 비밀 키·저장소 연결 문자열·DeepL 키·체험 계정 비밀번호를 적지 않는다")
@@ -37,13 +39,15 @@ class SecretPropertiesTest {
     }
 
     @Test
-    @DisplayName("[L-4] AI·접근 코드 설정의 toString 은 API 키·쿠키 서명 키·코드 해시를 적지 않는다")
+    @DisplayName("[L-4] AI·접근 코드 설정의 toString 은 API 키·쿠키 서명 키·코드 해시·텔레그램 봇 토큰·대화 ID 를 적지 않는다")
     void aiAndGatePropertiesHideSecrets() {
         AiProperties ai = new AiProperties(AI, "claude-haiku-5-5", "low", "low", 1000, DataSize.ofMegabytes(10),
                 Duration.ofSeconds(60), Duration.ofSeconds(120), 2);
-        GateProperties gate = new GateProperties(GATE_CODES, GATE_SECRET, "상시", null);
+        GateProperties gate = new GateProperties(GATE_CODES, GATE_SECRET, "상시", null,
+                new GateProperties.Telegram(TELEGRAM_TOKEN, TELEGRAM_CHAT));
 
         assertThat(ai.toString()).doesNotContain(AI).contains("claude-haiku-5-5");
-        assertThat(gate.toString()).doesNotContain(GATE_SECRET, GATE_CODES, "scrypt-hash-marker").contains("상시");
+        assertThat(gate.toString()).doesNotContain(GATE_SECRET, GATE_CODES, "scrypt-hash-marker", TELEGRAM_TOKEN, TELEGRAM_CHAT)
+                .contains("상시");
     }
 }

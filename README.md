@@ -15,7 +15,7 @@
 | **데이터·저장소** | MySQL 8 · Azure Blob Storage(또는 로컬 디스크) |
 | **AI** | Claude Haiku 5.5(Anthropic 공식 Java SDK) — 문서 요약·번역, 사용자별 토큰 한도. 키가 없으면 추출 요약·DeepL |
 | **배포** | Azure App Service(B1, jar) · Azure Database for MySQL(B1ms) · Azure Blob Storage 에 공개 데모로 배포 — 접근 코드가 있어야 들어갈 수 있음. 절차는 [DEPLOYMENT](docs/DEPLOYMENT.md) |
-| **CI·테스트** | GitHub Actions · JUnit 6 + Testcontainers(MySQL·Azurite) 420건 · Vitest 182건 · Playwright E2E 19건(접근성 자동 검사 포함) · ArchUnit 구조 규칙 |
+| **CI·테스트** | GitHub Actions · JUnit 6 + Testcontainers(MySQL·Azurite) 443건 · Vitest 182건 · Playwright E2E 19건(접근성 자동 검사 포함) · ArchUnit 구조 규칙 |
 
 ---
 
@@ -71,7 +71,7 @@ flowchart LR
     V --> ST[("Blob 저장소<br/>Azure · 로컬")]
 ```
 
-Azure App Service(B1, jar) + Azure Database for MySQL(B1ms) + Azure Blob Storage 에 공개 데모로 배포했습니다(Docker 이미지로도 배포 가능). 운영 프로필(`prod`)이 Azure 저장소·보안 쿠키를 켜고, 스키마는 기동 시 Flyway 가 만듭니다. 공개 데모는 로그인 앞에 접근 코드 잠금을 둘 수 있습니다([ADR-0013](docs/adr/0013-access-code-gate.md)) → [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+Azure App Service(B1, jar) + Azure Database for MySQL(B1ms) + Azure Blob Storage 에 공개 데모로 배포했습니다(Docker 이미지로도 배포 가능). 운영 프로필(`prod`)이 Azure 저장소·보안 쿠키를 켜고, 스키마는 기동 시 Flyway 가 만듭니다. 공개 데모는 로그인 앞에 접근 코드 잠금을 둘 수 있고([ADR-0013](docs/adr/0013-access-code-gate.md)), 잠금 해제·차단을 운영자 텔레그램으로 알릴 수 있습니다([ADR-0017](docs/adr/0017-gate-telegram-notify.md)) → [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 
 자세한 설계(데이터 모델, 권한 모델, 업로드·편집·실시간 흐름, 한계와 확장 방안)는 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
@@ -102,12 +102,12 @@ API 문서: <http://localhost:8080/swagger-ui.html> · 전체 목록 [docs/API.m
 ## 테스트
 
 ```bash
-cd backend && ./gradlew test          # 418건 (MySQL·Azurite 컨테이너 자동 실행), 커버리지 리포트 포함 — ./gradlew check 는 CPU 1개 시험 2건을 더 돌림
+cd backend && ./gradlew test          # 441건 (MySQL·Azurite 컨테이너 자동 실행), 커버리지 리포트 포함 — ./gradlew check 는 CPU 1개 시험 2건을 더 돌림
 cd frontend && npm test               # 182건
 docker compose up -d --wait && cd e2e && npm ci && npx playwright test   # E2E 19건 (접근성 자동 검사 포함)
 ```
 
-백엔드 라인 커버리지 92.4%(분기 80.1%). 첫 완성본(v1)에서 찾은 결함마다 회귀 테스트가 있습니다 → [docs/TESTING.md](docs/TESTING.md)
+백엔드 라인 커버리지 92.4%(분기 80.8%). 첫 완성본(v1)에서 찾은 결함마다 회귀 테스트가 있습니다 → [docs/TESTING.md](docs/TESTING.md)
 GitHub Actions 가 PR 과 main 푸시마다 백엔드·프론트엔드·E2E(Docker 이미지)·비밀값 검사(gitleaks)를 실행합니다.
 E2E 를 1분 안에 여러 번 돌리면 로그인 요청 제한에 걸리므로, 반복 실행 방법은 [TESTING](docs/TESTING.md) 을 참고하세요.
 
@@ -122,7 +122,7 @@ E2E 를 1분 안에 여러 번 돌리면 로그인 요청 제한에 걸리므로
 | [API](docs/API.md) | 엔드포인트, 오류 코드, WebSocket |
 | [TESTING](docs/TESTING.md) | 테스트 전략과 목록 |
 | [DEPLOYMENT](docs/DEPLOYMENT.md) | 환경 변수, Azure 배포 구성(App Service·Database for MySQL·Blob Storage), CI |
-| [ADR](docs/adr/README.md) | 주요 설계 결정 15건 |
+| [ADR](docs/adr/README.md) | 주요 설계 결정 17건 |
 | [REVIEW_2026-09](docs/REVIEW_2026-09.md) | 코드 리뷰 (1차) — 발견 28건(해결 21 · 보류 7)의 재현·원인·수정·검증 기록 |
 | [REVIEW_2026-09-28](docs/REVIEW_2026-09-28.md) | 2차 점검 — 아키텍처·성능·보안(OWASP)·UI/UX 기준 재점검, 측정값과 변경 기록 |
 | [REVIEW_2026-10-03](docs/REVIEW_2026-10-03.md) | 3차 점검 — 아키텍처·신뢰성·보안·프런트엔드 구조, 발견 43건의 처리 결과 |
