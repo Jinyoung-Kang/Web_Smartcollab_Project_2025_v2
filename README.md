@@ -15,7 +15,7 @@
 | **데이터·저장소** | MySQL 8 · Azure Blob Storage(또는 로컬 디스크) |
 | **AI** | Claude Haiku 5.5(Anthropic 공식 Java SDK) — 문서 요약·번역, 사용자별 토큰 한도. 키가 없으면 추출 요약·DeepL |
 | **배포** | Azure App Service(B1, jar) · Azure Database for MySQL(B1ms) · Azure Blob Storage 에 공개 데모로 배포 — 접근 코드가 있어야 들어갈 수 있음. 절차는 [DEPLOYMENT](docs/DEPLOYMENT.md) |
-| **CI·테스트** | GitHub Actions · JUnit 6 + Testcontainers(MySQL·Azurite) 443건 · Vitest 182건 · Playwright E2E 19건(접근성 자동 검사 포함) · ArchUnit 구조 규칙 |
+| **CI·테스트** | GitHub Actions · JUnit 6 + Testcontainers(MySQL·Azurite) 444건 · Vitest 182건 · Playwright E2E 19건(접근성 자동 검사 포함) · ArchUnit 구조 규칙 |
 
 ---
 
@@ -40,7 +40,7 @@
 
 ## 주요 기능
 
-- **드라이브**: 개인·팀 스토리지, 폴더 트리, 여러 파일 업로드(드래그 앤 드롭·진행률·취소), 이동·복사(폴더는 하위까지), 이름 검색(경로 표시), 휴지통(파일·폴더, 30일 뒤 자동 삭제, 폴더는 안의 파일과 함께 복원), 저장 공간 한도(개인 1GB·팀 5GB, 옛 버전·휴지통 포함, 사이드바에 사용량 표시)
+- **드라이브**: 개인·팀 스토리지, 폴더 트리, 여러 파일 업로드(드래그 앤 드롭·진행률·취소), 이동·복사(폴더는 하위까지), 이름 검색(경로 표시), 휴지통(파일·폴더, 30일 뒤 자동 삭제, 폴더는 안의 파일과 함께 복원), 저장 공간 한도(개인 2GB·팀 5GB, 옛 버전·휴지통 포함, 사이드바에 사용량 표시)
 - **미리보기·편집**: 이미지·PDF·텍스트 미리보기, Office 문서(Azure 저장소일 때), 텍스트 편집기(저장 충돌 감지)
 - **AI 요약·번역**: 텍스트·PDF·Word(docx) 문서를 편집기와 미리보기에서 Claude(Haiku 5.5)로 요약(요약 문단 + 핵심 항목)하고 영어·한국어·일본어·중국어로 번역. 사용자별 하루 토큰 한도, 같은 버전은 다시 과금하지 않음. 키가 없으면 핵심 문장 추출 요약·DeepL 번역([ADR-0011](docs/adr/0011-claude-document-tools.md))
 - **버전·서명**: 저장할 때마다 버전과 SHA-256 기록, 되돌리기, 팀장·소유자 서명(내용이 바뀌면 자동 무효 표시)
@@ -102,7 +102,7 @@ API 문서: <http://localhost:8080/swagger-ui.html> · 전체 목록 [docs/API.m
 ## 테스트
 
 ```bash
-cd backend && ./gradlew test          # 441건 (MySQL·Azurite 컨테이너 자동 실행), 커버리지 리포트 포함 — ./gradlew check 는 CPU 1개 시험 2건을 더 돌림
+cd backend && ./gradlew test          # 442건 (MySQL·Azurite 컨테이너 자동 실행), 커버리지 리포트 포함 — ./gradlew check 는 CPU 1개 시험 2건을 더 돌림
 cd frontend && npm test               # 182건
 docker compose up -d --wait && cd e2e && npm ci && npx playwright test   # E2E 19건 (접근성 자동 검사 포함)
 ```

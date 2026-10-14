@@ -2,7 +2,7 @@
 
 | 층 | 도구 | 개수 | 실행 |
 |---|---|---:|---|
-| 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 441 | `cd backend && ./gradlew test` |
+| 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 442 | `cd backend && ./gradlew test` |
 | 백엔드 — CPU 1개 JVM | 같은 도구, `-XX:ActiveProcessorCount=1`(운영 App Service B1 과 같은 조건) · HTTPS Azurite | 2 | `cd backend && ./gradlew singleCarrierTest` (`check` 에 포함, CI 백엔드 작업에서도 실행) |
 | 프론트엔드 단위·컴포넌트 | Vitest · Testing Library · jsdom | 182 | `cd frontend && npm test` |
 | E2E (전체 스택) | Playwright · Docker Compose · axe-core | 19 (시나리오 10 + 관리자 1 + 대화상자 초점 2 + 배치 2 + 접근성 3·탭 제목 1) | `docker compose up -d --wait && cd e2e && npx playwright test` |
@@ -12,7 +12,7 @@
 ## 원칙
 
 - **H2 대신 실제 MySQL** 로 통합 테스트합니다. 재귀 CTE·`ON DELETE SET NULL`·조건부 UPDATE 처럼 DB 동작에 기대는 로직이 많아, 운영과 다른 DB 로 테스트하면 통과해도 믿을 수 없기 때문입니다.
-- 테스트마다 무작위 사용자 이름을 써서 데이터를 분리하고, 컨테이너와 Spring 컨텍스트는 한 번만 띄웁니다(전체 441건, `./gradlew clean build` 는 CPU 1개 시험·커버리지 포함 4분 50초 — AI-13 뒤 측정). 테스트 JVM 은 운영 컨테이너·CI 와 같은 UTC 로 실행합니다.
+- 테스트마다 무작위 사용자 이름을 써서 데이터를 분리하고, 컨테이너와 Spring 컨텍스트는 한 번만 띄웁니다(전체 442건, `./gradlew clean build` 는 CPU 1개 시험·커버리지 포함 6분 48초 — CAP-01 뒤 측정, 같은 Docker VM 을 다른 작업과 함께 씀). 테스트 JVM 은 운영 컨테이너·CI 와 같은 UTC 로 실행합니다.
 - v1 에서 찾은 결함마다 이름에 `[v1 …]` 을, 2026-09 코드 리뷰 항목에는 `[SEC-01]`·`[BUG-02]` 처럼 항목 ID 를 붙인 회귀 테스트가 있습니다 → [REFACTORING_REPORT.md](REFACTORING_REPORT.md), [REVIEW_2026-09.md](REVIEW_2026-09.md)
 - 인증은 실제 브라우저처럼 HttpOnly 쿠키 + CSRF 토큰으로 요청합니다(`support/Api`). CSRF 는 Spring Security 의 `csrf()` 도우미 대신 같은 토큰을 쿠키·헤더로 보내는 `Api.xsrf()` 를 씁니다 — `csrf()` 는 공유 CSRF 필터의 저장소를 바꿔, 같은 컨텍스트의 실제 HTTP 시험이 실행 순서에 따라 실패했습니다.
 
@@ -36,7 +36,7 @@
 | `ClientIpRateLimitTest` | 실제 Tomcat 에 X-Forwarded-For 를 위조해 보내도 프록시가 덧붙인 IP 로 제한되는지 (SEC-01) |
 | `StorageCleanupTest` | 트랜잭션 밖에서 쓴 파일을 DB 저장·후속 복사 실패 시 지우는지 (PERF-01) |
 | `SpaRoutingTest` | 화면 경로는 index.html, API·정적 파일은 그대로 (BUG-02) |
-| `StorageQuotaTest` | 저장 공간 한도 — 옛 버전·휴지통 포함, 복사·텍스트 저장, 팀 한도, **동시 업로드 8개 중 한도만큼 6개만** (SEC-05) |
+| `StorageQuotaTest` · `DefaultQuotaTest`(CAP-01) | 저장 공간 한도 — 옛 버전·휴지통 포함, 복사·텍스트 저장, 팀 한도, **동시 업로드 8개 중 한도만큼 6개만** (SEC-05) / 기본 한도는 개인 드라이브·체험 계정 2GB, 팀 5GB (CAP-01) |
 | `DemoProtectionTest` | 체험 계정의 탈퇴·팀 삭제·새 팀 만들기 등 차단, 체험 한도, 초기화 후 복원 (SEC-06·S-10), 관리자도 체험 계정은 삭제 불가·목록에 체험 계정과 체험 한도로 표시 (ADM-11). 데모 모드를 켠 별도 컨텍스트 |
 | `TrashPurgeScheduleTest` · `CorsProfileTest` · `ProductionSettingsTest` · `GlobalExceptionHandlerTest` | 스케줄 시간대, 프로필별 CORS 출처, 운영 프로필은 DB 환경 변수 없이 기동하지 않음 (S-14), 로그에 입력값을 남기지 않는지 |
 | `DependencyVersionTest` | Jackson·Tomcat 이 공지가 고쳐진 버전 아래로 내려가지 않는지 (S-01) |
