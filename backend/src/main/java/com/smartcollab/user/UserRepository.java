@@ -43,6 +43,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findFirstByRole(Role role);
 
+    long countByRole(Role role);
+
+    long countByRoleAndUsernameIn(Role role, Collection<String> usernames);
+
     /** 관리 화면의 계정 목록 — 가입일 최신순 (ADR-0015) */
     Page<User> findByRoleOrderByCreatedAtDescIdDesc(Role role, Pageable pageable);
 

@@ -11,6 +11,9 @@ import java.util.Optional;
 
 public interface TeamMemberRepository extends JpaRepository<TeamMember, Long> {
 
+    /** 한 사람이 속한 팀 수(팀장·멤버 포함) [CAP-02] */
+    long countByUserId(Long userId);
+
     Optional<TeamMember> findByTeamIdAndUserId(Long teamId, Long userId);
 
     boolean existsByTeamIdAndUserId(Long teamId, Long userId);

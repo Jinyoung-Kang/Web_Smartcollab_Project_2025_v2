@@ -64,7 +64,7 @@ public record AppProperties(
     /**
      * 저장 공간 한도 (옛 버전·휴지통 포함 실제 저장량 기준)
      *
-     * @param teamsPerUser 한 사람이 팀장인 팀 수 상한 — 팀마다 한도를 받으므로 팀 수도 제한합니다 [S-10]
+     * @param teamsPerUser 한 계정이 속할 수 있는 팀 수(팀장·멤버 포함) [CAP-02]. 팀마다 저장 한도를 받으므로 팀장인 팀 수도 이 안에 듭니다 [S-10]
      * @param accounts     가입할 수 있는 계정 수(체험 계정 포함, 관리·시스템 계정 제외) [CAP-03]
      */
     public record Quota(DataSize personal, DataSize team, int teamsPerUser, int accounts) {
