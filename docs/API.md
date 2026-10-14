@@ -28,7 +28,7 @@
 | `CONFLICT` / `EDIT_CONFLICT` | 409 | 상태 충돌 / 다른 사람이 먼저 저장함 |
 | `LINK_EXPIRED` | 410 | 만료·소진·휴지통 파일의 공유 링크 |
 | `PAYLOAD_TOO_LARGE` | 413 | 업로드·편집·요청 본문 한도 초과, 요약·번역할 문서가 입력 토큰 상한을 넘거나 번역 결과가 출력 한도에서 잘림 |
-| `QUOTA_EXCEEDED` | 413 | 저장 공간 한도 초과 (개인 1GB·팀 5GB 기본, 옛 버전·휴지통 포함) |
+| `QUOTA_EXCEEDED` | 413 | 저장 공간 한도 초과 (개인 2GB·팀 5GB 기본, 옛 버전·휴지통 포함) |
 | `AI_REFUSED` | 422 | AI(Claude)가 안전 기준에 따라 문서의 요약·번역을 거절함 |
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | 업로드 경로가 아닌 곳으로 보낸 multipart 요청 (본문을 읽기 전에 거절) |
 | `RATE_LIMITED` | 429 | 요청 제한 초과 (로그인·가입·공유 비밀번호·탈퇴 비밀번호 확인 시도, 사용자별 하루 AI 토큰·DeepL 번역 분량) |

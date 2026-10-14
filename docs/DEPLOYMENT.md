@@ -42,11 +42,11 @@ open http://localhost:8080
 | `UPLOAD_MAX_FILE_SIZE` / `UPLOAD_MAX_REQUEST_SIZE` | | `200MB` / `210MB` | 파일 하나의 업로드 한도 / 업로드 요청 전체(파일 + 양식) 한도. 파일 한도를 올리면 요청 한도도 그보다 크게 |
 | `MAX_REQUEST_BODY_SIZE` | | `6MB` | 업로드를 뺀 요청 본문(JSON) 한도. `TEXT_EDIT_MAX_BYTES` 를 올리면 그 2배 이상으로 함께 올리세요 |
 | `TRASH_RETENTION_DAYS` | | `30` | 휴지통 보관 기간 |
-| `QUOTA_PERSONAL` / `QUOTA_TEAM` | | `1GB` / `5GB` | 저장 공간 한도 (옛 버전·휴지통 포함) |
+| `QUOTA_PERSONAL` / `QUOTA_TEAM` | | `2GB` / `5GB` | 저장 공간 한도 (옛 버전·휴지통 포함). 계정마다 저장하지 않고 이 값을 읽으므로 바꾸면 기존 계정에도 적용. 비용은 §6 |
 | `MAX_TEAMS_PER_USER` | | `10` | 한 사람이 팀장인 팀 수 (팀마다 저장 한도를 받으므로) |
 | `MAX_FOLDER_DEPTH` / `MAX_COPY_FOLDERS` | | `50` / `1000` | 폴더 깊이(최상위 아래 단계) / 한 번에 복사하는 폴더 수 |
 | `SIGNUP_RATE_PER_HOUR` | | `5` | IP 당 시간당 가입 횟수 |
-| `DEMO_QUOTA` | | `50MB` | 체험 계정·체험 팀의 저장 한도 |
+| `DEMO_QUOTA` | | `2GB` | 체험 계정·체험 팀의 저장 한도 (매일 초기화) |
 | `DEMO_SAMPLE_FILES` | | `true` | 체험 계정마다 내 드라이브에 '파일 유형별 시험' 폴더(텍스트·PDF·Office·이미지·기타 표본 16개, 약 190KB)를 만듦. 초기화 때도 다시 만듦 |
 | `DEMO_RESET_CRON` / `DEMO_RESET_ZONE` | | `0 0 5 * * *` / `Asia/Seoul` | 체험 데이터 초기화 시각 |
 | `TRASH_PURGE_CRON` / `TRASH_PURGE_ZONE` | | `0 0 4 * * *` / `Asia/Seoul` | 휴지통 자동 비우기 시각과 그 기준 시간대 (아래 두 작업도 이 시간대) |
@@ -199,3 +199,28 @@ Azure 에서는 Database for MySQL 의 자동 백업(시점 복원)과 Blob Stor
 | frontend | 타입 검사 · ESLint · Vitest · 빌드 |
 | e2e | Docker 이미지로 전체 스택 실행 → Playwright 사용자 시나리오 |
 | secrets | gitleaks 로 전체 커밋 이력 비밀값 검사 |
+
+## 6. 비용과 저장 한도
+
+저장 한도를 정할 때 쓴 값입니다(2026-10-15 측정, 원자료 [measurements/azure-cost.json](measurements/azure-cost.json)). 단가는 Azure 소매가 API 의
+Korea Central 종량제 가격(원), 비용은 Cost Management 의 이번 달 실제 비용입니다.
+
+| 항목 | 단가 | 월 비용 |
+|---|---|---|
+| App Service B1(Linux) | 시간당 24.57원 | 약 17,900원 — 지금 과금되는 유일한 항목 |
+| Database for MySQL B1ms + 저장 32GB | 시간당 35.48원 + GB 당 178.78원 | 무료 계정 12개월 동안 0원(750시간·32GB 무료), 그 뒤 약 31,600원 |
+| Blob Storage(Hot·LRS) 저장 | GB 당 월 27.30원 | 12개월 동안 5GB 무료. 지금 사용량 229MB |
+| Blob 쓰기 / 읽기 요청 | 1만 회당 68.24원 / 5.46원 | 12개월 동안 월 쓰기 1만·읽기 2만 회 무료. 업로드는 4MB 블록마다 쓰기 1회라 2GB 를 채워도 약 520회(4원 남짓) |
+| 인터넷 송신(내려받기·미리보기) | 월 100GB 무료, 그 뒤 GB 당 약 164원 | 저장보다 GB 당 6배 비쌈 |
+
+월 예산 100,000원(예산 알림 기준)에서 고정비를 뺀 나머지를 모두 저장에 쓴다고 보면, 계정마다 2GB 를 꽉 채워도 다음 수까지 예산 안입니다.
+
+| 경우 | 무료 12개월 동안 (여유 약 82,000원) | 그 뒤 (여유 약 50,400원) |
+|---|---|---|
+| 저장만 | 약 3,000GB → 2GB 계정 약 1,500개 | 약 1,850GB → 약 920개 |
+| 저장 2GB + 한 달에 2GB 내려받기 | 약 250개 | 약 170개 |
+
+- 한도는 최댓값이고 실제 비용은 쓴 만큼입니다. 저장량은 Azure Monitor 의 `UsedCapacity`, 비용은 Cost Management 에서 봅니다.
+- 개인 드라이브 말고도 한 사람이 팀장인 팀(최대 `MAX_TEAMS_PER_USER`=10개)마다 `QUOTA_TEAM`(5GB)을 받으므로 한 사람의 최대치는 2GB + 50GB 입니다.
+  남용이 보이면 팀 한도나 팀 수를 먼저 낮추세요. 가입은 IP 당 시간당 5회, 공개 데모는 접근 코드로 막습니다(ADR-0013).
+- 체험 계정(3개)과 체험 팀은 매일 초기화되므로 저장량이 쌓이지 않습니다.
