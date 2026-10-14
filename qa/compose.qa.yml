@@ -43,6 +43,8 @@ services:
       DEEPL_API_KEY: qa-mock-key
       DEEPL_API_URL: http://deepl-mock:9000
       SIGNUP_RATE_PER_HOUR: "100000"
+      # 점검 스크립트는 계정을 수십~수백 개 만듦 — 계정 수 상한(운영 20, ADR-0018)을 넉넉하게
+      MAX_ACCOUNTS: "100000"
       LOGIN_RATE_PER_MINUTE: "100000"
       LOGIN_ACCOUNT_RATE: "100000"
       SHARE_PASSWORD_RATE: "100000"
