@@ -2,17 +2,17 @@
 
 | 층 | 도구 | 개수 | 실행 |
 |---|---|---:|---|
-| 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 442 | `cd backend && ./gradlew test` |
+| 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 448 | `cd backend && ./gradlew test` |
 | 백엔드 — CPU 1개 JVM | 같은 도구, `-XX:ActiveProcessorCount=1`(운영 App Service B1 과 같은 조건) · HTTPS Azurite | 2 | `cd backend && ./gradlew singleCarrierTest` (`check` 에 포함, CI 백엔드 작업에서도 실행) |
 | 프론트엔드 단위·컴포넌트 | Vitest · Testing Library · jsdom | 182 | `cd frontend && npm test` |
 | E2E (전체 스택) | Playwright · Docker Compose · axe-core | 19 (시나리오 10 + 관리자 1 + 대화상자 초점 2 + 배치 2 + 접근성 3·탭 제목 1) | `docker compose up -d --wait && cd e2e && npx playwright test` |
 
-백엔드 라인 커버리지 **92.4%**, 분기 커버리지 **80.8%** (JaCoCo, `backend/build/reports/jacoco/test/html`).
+백엔드 라인 커버리지 **92.4%**, 분기 커버리지 **80.9%** (JaCoCo, `backend/build/reports/jacoco/test/html`).
 
 ## 원칙
 
 - **H2 대신 실제 MySQL** 로 통합 테스트합니다. 재귀 CTE·`ON DELETE SET NULL`·조건부 UPDATE 처럼 DB 동작에 기대는 로직이 많아, 운영과 다른 DB 로 테스트하면 통과해도 믿을 수 없기 때문입니다.
-- 테스트마다 무작위 사용자 이름을 써서 데이터를 분리하고, 컨테이너와 Spring 컨텍스트는 한 번만 띄웁니다(전체 442건, `./gradlew clean build` 는 CPU 1개 시험·커버리지 포함 6분 48초 — CAP-01 뒤 측정, 같은 Docker VM 을 다른 작업과 함께 씀). 테스트 JVM 은 운영 컨테이너·CI 와 같은 UTC 로 실행합니다.
+- 테스트마다 무작위 사용자 이름을 써서 데이터를 분리하고, 컨테이너와 Spring 컨텍스트는 한 번만 띄웁니다(전체 448건, `./gradlew clean build` 는 CPU 1개 시험·커버리지 포함 6분 39초 — CAP-02·03 뒤 측정, 같은 Docker VM 을 다른 작업과 함께 씀). 테스트 JVM 은 운영 컨테이너·CI 와 같은 UTC 로 실행합니다.
 - v1 에서 찾은 결함마다 이름에 `[v1 …]` 을, 2026-09 코드 리뷰 항목에는 `[SEC-01]`·`[BUG-02]` 처럼 항목 ID 를 붙인 회귀 테스트가 있습니다 → [REFACTORING_REPORT.md](REFACTORING_REPORT.md), [REVIEW_2026-09.md](REVIEW_2026-09.md)
 - 인증은 실제 브라우저처럼 HttpOnly 쿠키 + CSRF 토큰으로 요청합니다(`support/Api`). CSRF 는 Spring Security 의 `csrf()` 도우미 대신 같은 토큰을 쿠키·헤더로 보내는 `Api.xsrf()` 를 씁니다 — `csrf()` 는 공유 CSRF 필터의 저장소를 바꿔, 같은 컨텍스트의 실제 HTTP 시험이 실행 순서에 따라 실패했습니다.
 
@@ -24,7 +24,7 @@
 | `WebSocketSecurityTest` · `StompSubscriptionLimitTest` | 실제 서버(랜덤 포트)에 WebSocket 으로 접속 — 비로그인 거부, 사칭 불가, 비멤버 구독 차단, 알림 푸시, 접속자 갱신, 같은 목적지 중복 구독 거절 / 연결당 구독 상한·해제·끊김 정리, 거절된 구독은 자리를 차지하지 않음 (S-11) |
 | `DriveWorkflowTest` | 업로드·다운로드 파일명, 안전한 inline 미리보기, 휴지통 수명주기(커밋 후 저장소 삭제), 폴더 삭제(휴지통·서명 포함), 복사본 다운로드, 순환 이동 차단, 검색 |
 | `TextEditingTest` | 낙관적 잠금(409), 버전 복원, 현재 버전 서명·무효화, 추출 요약, 번역 키 없음 처리 |
-| `TeamWorkflowTest` | 초대·수락·중복 방지, 권한 적용, 팀장 위임, 팀 삭제 정리, 채팅 커서 페이지, 채팅에 공유된 파일의 정보(미리보기 종류)·휴지통이면 404, 새 멤버의 편집 권한은 초대자를 따름·초대 권한을 잃은 사람의 초대는 수락 불가 (S-08), 팀장인 팀 10개·위임으로도 넘지 않음 (S-10) |
+| `TeamWorkflowTest` | 초대·수락·중복 방지, 권한 적용, 팀장 위임, 팀 삭제 정리, 채팅 커서 페이지, 채팅에 공유된 파일의 정보(미리보기 종류)·휴지통이면 404, 새 멤버의 편집 권한은 초대자를 따름·초대 권한을 잃은 사람의 초대는 수락 불가 (S-08), 팀장인 팀도 소속 상한 6개 안·위임으로도 넘지 않음 (S-10·CAP-02) |
 | `ShareLinkTest` | 비밀번호·grant 흐름, **동시 다운로드 12건 중 정확히 3건만 성공**, 만료·해제·휴지통, 만든 사람이 팀에서 나가면 링크 동작 중지 (S-09) |
 | `AuthFlowTest` | 쿠키·CSRF 인증 흐름, 요청 제한, 악센트 변형 아이디로 로그인 불가·긴 아이디 조기 거절 (S-02·S-03), 체험 계정 아이디로 가입 불가 (S-19) |
 | `FolderLimitsTest` · `FolderConcurrencyTest` · `FileContentConcurrencyTest` | 폴더 깊이 50단계·복사 폴더 1,000개·중복 항목 (S-04·S-05) / 다른 트랜잭션이 잠금을 쥔 채 기다리는 동안 요청을 보내(`support/TransactionRace`) 경합을 결정적으로 재현 — 휴지통 표시 유실·순환 이동·휴지통 폴더 아래 생성 (S-06), 저장·복원과 겹친 서명 (S-17), 복사 중 대상이 깊은 곳으로 옮겨지면 잠근 뒤 깊이 재확인 / `TrashConcurrencyTest`: 휴지통 비우기·자동 비우기와 겹친 파일 복원 (독립 검토) |
@@ -36,6 +36,7 @@
 | `ClientIpRateLimitTest` | 실제 Tomcat 에 X-Forwarded-For 를 위조해 보내도 프록시가 덧붙인 IP 로 제한되는지 (SEC-01) |
 | `StorageCleanupTest` | 트랜잭션 밖에서 쓴 파일을 DB 저장·후속 복사 실패 시 지우는지 (PERF-01) |
 | `SpaRoutingTest` | 화면 경로는 index.html, API·정적 파일은 그대로 (BUG-02) |
+| `TeamMembershipLimitTest` · `AccountLimitTest`(CAP-02·03) | 한 계정의 팀 소속 6개(팀장·멤버 포함) — 7번째 팀 만들기·6개인 사람 초대·6개가 된 뒤 수락은 409, 동시 수락도 6개 / 계정 20개(체험 포함, 관리·시스템 제외) — 상한에서 가입 409, 동시 가입 8건 중 남은 자리만, 체험 모드는 체험 3자리 예약, 체험 데이터 생성은 상한과 무관 (ADR-0018) |
 | `StorageQuotaTest` · `DefaultQuotaTest`(CAP-01) | 저장 공간 한도 — 옛 버전·휴지통 포함, 복사·텍스트 저장, 팀 한도, **동시 업로드 8개 중 한도만큼 6개만** (SEC-05) / 기본 한도는 개인 드라이브·체험 계정 2GB, 팀 5GB (CAP-01) |
 | `DemoProtectionTest` | 체험 계정의 탈퇴·팀 삭제·새 팀 만들기 등 차단, 체험 한도, 초기화 후 복원 (SEC-06·S-10), 관리자도 체험 계정은 삭제 불가·목록에 체험 계정과 체험 한도로 표시 (ADM-11). 데모 모드를 켠 별도 컨텍스트 |
 | `TrashPurgeScheduleTest` · `CorsProfileTest` · `ProductionSettingsTest` · `GlobalExceptionHandlerTest` | 스케줄 시간대, 프로필별 CORS 출처, 운영 프로필은 DB 환경 변수 없이 기동하지 않음 (S-14), 로그에 입력값을 남기지 않는지 |
@@ -95,7 +96,7 @@
 로컬에서 E2E 를 1분 안에 여러 번 돌리면, 모든 요청이 한 IP 로 묶여 로그인 요청 제한(분당 10회)에 걸립니다. 반복 실행할 때는 `.env` 에 `LOGIN_RATE_PER_MINUTE=200`, `LOGIN_ACCOUNT_RATE=200` 을 넣고 `docker compose up -d --wait` 로 다시 띄우세요(CI 의 E2E 작업도 같은 값을 씁니다).
 
 관리자 E2E(`admin.spec.ts`)는 스택과 Playwright 양쪽에 같은 `ADMIN_USERNAME`·`ADMIN_PASSWORD` 가 있어야 돕니다(`.env` 에 넣고 띄운 뒤 `set -a && . ../.env && set +a` 로 셸에도).
-E2E 는 실행마다 계정을 3개 가입하므로(관리자 1·긴 이름 2) 한 시간에 두 번 넘게 돌리면 가입 제한(IP 당 시간당 5회)에 걸립니다 — 반복할 때는 `.env` 에 `SIGNUP_RATE_PER_HOUR=200` 도 넣으세요(CI 의 E2E 작업도 같은 값).
+E2E 는 실행마다 계정을 3개 가입하므로(관리자 1·긴 이름 2) 한 시간에 두 번 넘게 돌리면 가입 제한(IP 당 시간당 5회)에 걸립니다 — 반복할 때는 `.env` 에 `SIGNUP_RATE_PER_HOUR=200` 도 넣으세요(CI 의 E2E 작업도 같은 값). 로컬 스택은 DB 가 남아 계정이 쌓이므로 계정 수 상한(기본 20, ADR-0018)에도 걸립니다 — `MAX_ACCOUNTS=1000` 을 함께 넣으세요(CI 도 1000, QA 스택은 10만).
 
 E2E 가 실제로 잡아낸 결함: 넓은 화면에서도 모바일용 팀 패널이 숨은 채로 함께 렌더링되어 채팅 요청·DOM 이 중복되던 문제(`useMediaQuery` 로 한 쪽만 렌더링하도록 수정).
 
