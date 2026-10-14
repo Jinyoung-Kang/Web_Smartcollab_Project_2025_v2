@@ -1,5 +1,6 @@
 package com.smartcollab.file;
 
+import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.support.Api;
 import com.smartcollab.support.IntegrationTest;
 import org.junit.jupiter.api.DisplayName;
@@ -24,6 +25,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * (stored_bytes)를 같은 트랜잭션에서 고치고, 한도 확인은 그 값을 읽습니다. 집계는 실제 합계와 늘 같아야 합니다.
  */
 class StorageUsageCounterTest extends IntegrationTest {
+
+    @Autowired
+    AppProperties props;
 
     @Autowired
     StorageUsageReconciler reconciler;
@@ -53,12 +57,13 @@ class StorageUsageCounterTest extends IntegrationTest {
     void quotaUsesCounter() throws Exception {
         Api.Session s = api().signUp("imp01q");
         s.uploadText(s.rootFolderId, "작은.txt", "abc");
-        jdbc.update("update users set stored_bytes = ? where user_id = ?", 1024L * 1024 * 1024 - 5, s.userId);   // 1GB 한도의 5바이트 전
+        long almostFull = props.quota().personal().toBytes() - 5;   // 개인 한도의 5바이트 전
+        jdbc.update("update users set stored_bytes = ? where user_id = ?", almostFull, s.userId);
 
         s.upload(s.rootFolderId, "넘침.bin", new byte[10])
                 .andExpect(status().isContentTooLarge())
                 .andExpect(jsonPath("$.code").value("QUOTA_EXCEEDED"));
-        s.get("/api/files/usage").andExpect(jsonPath("$.storedBytes").value(1024L * 1024 * 1024 - 5));
+        s.get("/api/files/usage").andExpect(jsonPath("$.storedBytes").value(almostFull));
     }
 
     @Test
