@@ -182,6 +182,12 @@ app:
     # 잠금화면에 적을 운영 시간 (비우면 줄을 감춤)
     hours: ${GATE_HOURS:}
     cookie-ttl: ${GATE_COOKIE_TTL:12h}
+    # 잠금 해제(같은 IP 는 1시간에 한 번)·IP 잠금·전체 잠금을 운영자 텔레그램으로 알림. 둘 다 있어야 켜짐 [GATE-02, ADR-0017]
+    telegram:
+      # @BotFather 가 준 봇 토큰 — 요청 주소에 들어가므로 로그에 남기지 않음
+      bot-token: ${TELEGRAM_BOT_TOKEN:}
+      # 알림을 받을 대화 ID (봇에게 말을 건 뒤 getUpdates 의 chat.id)
+      chat-id: ${TELEGRAM_CHAT_ID:}
   http:
     # 파일 업로드를 뺀 요청 본문(JSON 등)의 최대 크기 [SEC-10]. 텍스트 편집 저장(TEXT_EDIT_MAX_BYTES, 2MB)이
     # JSON 으로 이스케이프되면 커질 수 있으므로 그 2배 이상으로 둡니다.

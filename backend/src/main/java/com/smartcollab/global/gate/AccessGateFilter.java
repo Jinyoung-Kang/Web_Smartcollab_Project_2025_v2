@@ -36,6 +36,7 @@ import java.util.regex.Pattern;
  *       화면 이동(HTML)은 잠금화면, 나머지(API·WebSocket·정적 파일)는 401 problem+json {@code GATE_LOCKED} 입니다.</li>
  *   <li>상태 확인({@code /actuator/health/**})은 막지 않습니다 — App Service 헬스 체크가 쿠키 없이 부릅니다.</li>
  *   <li>틀린 시도는 IP·전체 단위로 제한하고({@link GateLimiter}), 해시 계산(회당 16MB)은 동시에 2개까지만 합니다.</li>
+ *   <li>잠금 해제·IP 잠금·전체 잠금은 운영자 텔레그램으로 알립니다({@link GateNotifier}, 설정했을 때만) [GATE-02].</li>
  * </ul>
  * 스프링 시큐리티보다 먼저 실행되므로 로그인·CSRF 처리와 섞이지 않습니다. 잠금 해제 요청의 위조는 Origin 확인으로 막습니다.
  */
@@ -59,6 +60,7 @@ public class AccessGateFilter extends OncePerRequestFilter {
     private final GateToken tokens;
     private final GateLimiter limiter;
     private final GatePage page;
+    private final GateNotifier notifier;
     private final Duration cookieTtl;
     private final boolean secureCookie;
     private final ObjectMapper mapper;
@@ -66,8 +68,10 @@ public class AccessGateFilter extends OncePerRequestFilter {
     private final Semaphore hashing = new Semaphore(2);
     private final byte[] css;
 
-    public AccessGateFilter(GateProperties props, boolean secureCookie, boolean demoEnabled, ObjectMapper mapper, Clock clock) {
+    public AccessGateFilter(GateProperties props, boolean secureCookie, boolean demoEnabled, ObjectMapper mapper, Clock clock,
+                            GateNotifier notifier) {
         this.enabled = props.enabled();
+        this.notifier = notifier;
         this.secureCookie = secureCookie;
         this.cookieTtl = props.cookieTtl();
         this.mapper = mapper;
@@ -200,11 +204,19 @@ public class AccessGateFilter extends OncePerRequestFilter {
         if (matched.isEmpty()) {
             limiter.failed(attempt);
             SecurityEventLog.gateUnlockFailed(ip);
+            // 잠금은 이 시도에서 새로 걸렸을 때만 알립니다 — 이미 잠긴 동안의 시도는 위에서 거절되어 여기까지 오지 않음
+            if (attempt.lockedIp()) {
+                notifier.lockedIp(ip, request.getHeader(HttpHeaders.USER_AGENT));
+            }
+            if (attempt.lockedGlobal()) {
+                notifier.lockedGlobal();
+            }
             sendPage(request, response, HttpServletResponse.SC_UNAUTHORIZED, next, "접근 코드가 올바르지 않습니다.");
             return;
         }
         limiter.succeeded(attempt);
         SecurityEventLog.gateUnlocked(matched.get(), ip);
+        notifier.unlocked(matched.get(), ip, request.getHeader(HttpHeaders.USER_AGENT));
         String token = tokens.sign(matched.get(), clock.instant().plus(cookieTtl).getEpochSecond());
         redirect(request, response, next, cookie(token, cookieTtl));
     }

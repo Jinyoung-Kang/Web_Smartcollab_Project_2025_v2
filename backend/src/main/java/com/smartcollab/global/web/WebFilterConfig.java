@@ -2,6 +2,7 @@ package com.smartcollab.global.web;
 
 import com.smartcollab.global.config.AppProperties;
 import com.smartcollab.global.gate.AccessGateFilter;
+import com.smartcollab.global.gate.GateNotifier;
 import com.smartcollab.global.gate.GateProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -45,11 +46,18 @@ public class WebFilterConfig {
 
     /** 접근 코드 잠금 — 추적 ID 를 정한 직후, 본문 제한·보안 필터보다 먼저. GATE_CODES 가 없으면 아무것도 하지 않습니다 [GATE-01] */
     @Bean
-    FilterRegistrationBean<AccessGateFilter> accessGateFilter(GateProperties gate, AppProperties props, ObjectMapper mapper) {
+    FilterRegistrationBean<AccessGateFilter> accessGateFilter(GateProperties gate, AppProperties props, ObjectMapper mapper,
+                                                              GateNotifier gateNotifier) {
         FilterRegistrationBean<AccessGateFilter> registration = new FilterRegistrationBean<>(
-                new AccessGateFilter(gate, props.cookie().secure(), props.demo().enabled(), mapper, Clock.systemUTC()));
+                new AccessGateFilter(gate, props.cookie().secure(), props.demo().enabled(), mapper, Clock.systemUTC(), gateNotifier));
         registration.setOrder(TRACE_ORDER + 2);
         return registration;
+    }
+
+    /** 잠금 해제·차단 알림(텔레그램) — 빈으로 두어 앱이 멈출 때 보내는 스레드를 닫습니다. 설정이 없으면 아무것도 하지 않습니다 [GATE-02] */
+    @Bean(destroyMethod = "close")
+    GateNotifier gateNotifier(GateProperties gate, ObjectMapper mapper) {
+        return GateNotifier.create(gate, mapper, Clock.systemUTC());
     }
 
     @Bean

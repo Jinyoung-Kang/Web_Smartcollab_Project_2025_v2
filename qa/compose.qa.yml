@@ -38,6 +38,8 @@ services:
     environment:
       DB_URL: jdbc:mysql://toxiproxy:13306/smartcollab?characterEncoding=UTF-8&serverTimezone=UTC
       ANTHROPIC_API_KEY: ""   # 점검은 과금되는 Claude 를 부르지 않고 DeepL 모의 서버로 (.env 의 키를 물려받지 않게)
+      TELEGRAM_BOT_TOKEN: ""  # 잠금 점검(gate-bypass)의 실패 시도가 운영자 텔레그램으로 가지 않게 [GATE-02]
+      TELEGRAM_CHAT_ID: ""
       DEEPL_API_KEY: qa-mock-key
       DEEPL_API_URL: http://deepl-mock:9000
       SIGNUP_RATE_PER_HOUR: "100000"

@@ -1,6 +1,7 @@
 package com.smartcollab.global.gate;
 
 import jakarta.servlet.http.Cookie;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockFilterChain;
@@ -16,6 +17,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -38,14 +40,25 @@ class AccessGateFilterTest {
     private static final String CODES = "recruit:" + AccessCodes.hash(CODE, SALT, 1024, 8, 1)
             + ",other:" + AccessCodes.hash("ANOTHER-CODE", SALT, 1024, 8, 1);
     private static final String HOST = "smartcollab.example";
+    private static final String CHROME_WINDOWS =
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
 
     private final MutableClock clock = new MutableClock(Instant.parse("2026-10-12T00:00:00Z"));
+    private final List<String> alerts = new CopyOnWriteArrayList<>();
+    private boolean transportFails;
+    private GateNotifier notifier;
     private AccessGateFilter filter = filter(CODES);
+
+    @AfterEach
+    void closeNotifier() {
+        notifier.close();
+    }
 
     @Test
     @DisplayName("[GATE-01] 잠금을 켜지 않으면(GATE_CODES 없음) 모든 요청을 그대로 통과시킨다")
     void disabledWithoutCodes() throws Exception {
-        filter = new AccessGateFilter(new GateProperties("", "", "", null), true, false, JsonMapper.builder().build(), clock);
+        filter = new AccessGateFilter(new GateProperties("", "", "", null, null), true, false, JsonMapper.builder().build(), clock,
+                notifier(""));
 
         Result r = send(api("/api/auth/me"));
 
@@ -273,26 +286,145 @@ class AccessGateFilterTest {
     @Test
     @DisplayName("[GATE-01] 잠금을 켰는데 서명 키가 짧거나 코드 형식이 틀리면 기동을 멈춘다")
     void failsFastOnBadConfiguration() {
-        assertThatThrownBy(() -> new AccessGateFilter(new GateProperties(CODES, "short", "", null), true, false,
-                JsonMapper.builder().build(), clock)).hasMessageContaining("GATE_SECRET");
-        assertThatThrownBy(() -> new AccessGateFilter(new GateProperties("recruit", SECRET, "", null), true, false,
-                JsonMapper.builder().build(), clock)).hasMessageContaining("GATE_CODES");
+        assertThatThrownBy(() -> new AccessGateFilter(new GateProperties(CODES, "short", "", null, null), true, false,
+                JsonMapper.builder().build(), clock, notifier(CODES))).hasMessageContaining("GATE_SECRET");
+        assertThatThrownBy(() -> new AccessGateFilter(new GateProperties("recruit", SECRET, "", null, null), true, false,
+                JsonMapper.builder().build(), clock, notifier(CODES))).hasMessageContaining("GATE_CODES");
     }
 
     @Test
     @DisplayName("[GATE-01] 체험 계정을 켠 배포는 잠금화면에 체험 계정 안내를 덧붙이고, 운영 시간이 없으면 그 줄을 감춘다")
     void pageTextFollowsSettings() throws Exception {
-        filter = new AccessGateFilter(new GateProperties(CODES, SECRET, "", null), true, true, JsonMapper.builder().build(), clock);
+        filter = new AccessGateFilter(new GateProperties(CODES, SECRET, "", null, null), true, true, JsonMapper.builder().build(), clock,
+                notifier(CODES));
 
         String html = send(page("/")).res.getContentAsString();
 
         assertThat(html).contains("체험 계정").doesNotContain("운영 시간");
     }
 
+    @Test
+    @DisplayName("[GATE-02] 잠금 해제에 성공하면 운영자에게 알린다(코드 이름·가린 IP·기기) — 같은 IP 는 1시간 안에 다시 알리지 않는다")
+    void notifiesUnlockOncePerIp() throws Exception {
+        MockHttpServletRequest first = unlock(CODE, "/", "203.0.113.5");
+        first.addHeader("User-Agent", CHROME_WINDOWS);
+
+        assertThat(send(first).res.getStatus()).isEqualTo(303);
+        assertThat(send(unlock(CODE, "/", "203.0.113.5")).res.getStatus()).isEqualTo(303);   // 같은 IP — 알리지 않음
+        assertThat(send(unlock("ANOTHER-CODE", "/", "198.51.100.7")).res.getStatus()).isEqualTo(303);
+
+        List<String> sent = sentAlerts();
+        assertThat(sent).hasSize(2);
+        assertThat(sent.getFirst()).isEqualTo("""
+                🔓 SmartCollab — 잠금 해제
+                코드: recruit
+                시각: 2026-10-12 09:00 KST
+                IP: 203.0.113.x
+                기기: Chrome · Windows""").doesNotContain("203.0.113.5", "Mozilla");
+        assertThat(sent.get(1)).contains("코드: other", "IP: 198.51.100.x", "기기: 알 수 없음");
+    }
+
+    @Test
+    @DisplayName("[GATE-02] 한 IP 의 5번째 실패에서 IP 잠금을 한 번 알리고, 잠긴 동안의 거절(429)마다 알리지는 않는다 — 응답은 그대로")
+    void notifiesIpLockOnce() throws Exception {
+        List<Integer> statuses = new ArrayList<>();
+        for (int i = 0; i < GateLimiter.IP_MAX_FAILS + 3; i++) {
+            MockHttpServletRequest req = unlock("WRONG-" + i, "/", "203.0.113.5");
+            req.addHeader("User-Agent", CHROME_WINDOWS);
+            statuses.add(send(req).res.getStatus());
+        }
+
+        List<String> sent = sentAlerts();
+        assertThat(statuses).containsExactly(401, 401, 401, 401, 401, 429, 429, 429);
+        assertThat(sent).hasSize(1);
+        assertThat(sent.getFirst()).startsWith("⛔ SmartCollab — 접근 코드 5회 실패\n15분 동안 이 IP 의 시도를 막습니다")
+                .contains("IP: 203.0.113.x", "기기: Chrome · Windows");
+    }
+
+    @Test
+    @DisplayName("[GATE-02] 전체 잠금(1시간 30회 실패)이 걸린 순간 한 번 알린다 — 그 뒤의 거절마다 알리지는 않는다")
+    void notifiesGlobalLockOnce() throws Exception {
+        for (int i = 0; i < GateLimiter.GLOBAL_MAX_FAILS; i++) {
+            assertThat(send(unlock("WRONG", "/", "10.0." + (i / 200) + "." + (i % 200))).res.getStatus()).isEqualTo(401);
+        }
+        for (int i = 0; i < 3; i++) {
+            assertThat(send(unlock(CODE, "/", "192.0.2." + i)).res.getStatus()).isEqualTo(429);
+        }
+
+        List<String> sent = sentAlerts();
+        assertThat(sent).hasSize(1);
+        assertThat(sent.getFirst()).isEqualTo("""
+                🚨 SmartCollab — 전체 잠금
+                1시간 동안 30회 실패해 30분 동안 모든 시도를 막습니다
+                시각: 2026-10-12 09:00 KST""");
+    }
+
+    @Test
+    @DisplayName("[GATE-02] 맞는 코드로 되돌려진 잠금(5번째·30번째 시도가 성공)은 잠금으로 알리지 않는다")
+    void revertedLocksAreNotNotified() throws Exception {
+        for (int i = 0; i < GateLimiter.IP_MAX_FAILS - 1; i++) {
+            send(unlock("WRONG-" + i, "/", "203.0.113.5"));
+        }
+        assertThat(send(unlock(CODE, "/", "203.0.113.5")).res.getStatus()).isEqualTo(303);   // 5번째 시도 — 미리 건 IP 잠금을 되돌림
+        for (int i = GateLimiter.IP_MAX_FAILS - 1; i < GateLimiter.GLOBAL_MAX_FAILS - 1; i++) {
+            send(unlock("WRONG", "/", "10.0.0." + i));
+        }
+        assertThat(send(unlock(CODE, "/", "198.51.100.7")).res.getStatus()).isEqualTo(303);   // 30번째 — 미리 건 전체 잠금을 되돌림
+
+        List<String> sent = sentAlerts();
+        assertThat(count(sent, "🔓")).isEqualTo(2);
+        assertThat(count(sent, "⛔") + count(sent, "🚨")).isZero();
+    }
+
+    @Test
+    @DisplayName("[GATE-02] 알림 전송이 실패해도 잠금 해제·차단 응답과 쿠키는 그대로다")
+    void transportFailureDoesNotChangeResponses() throws Exception {
+        transportFails = true;
+
+        Result unlocked = send(unlock(CODE, "/drive", "203.0.113.5"));
+        List<Integer> statuses = new ArrayList<>();
+        for (int i = 0; i < GateLimiter.IP_MAX_FAILS + 1; i++) {
+            statuses.add(send(unlock("WRONG-" + i, "/", "198.51.100.7")).res.getStatus());
+        }
+
+        assertThat(unlocked.res.getStatus()).isEqualTo(303);
+        assertThat(unlocked.res.getHeader("Location")).isEqualTo("/drive");
+        assertThat(unlocked.res.getHeader("Set-Cookie")).startsWith(AccessGateFilter.SECURE_COOKIE + "=");
+        assertThat(statuses).containsExactly(401, 401, 401, 401, 401, 429);
+        assertThat(sentAlerts()).isEmpty();
+    }
+
     // ── 도우미 ──
 
     private AccessGateFilter filter(String codes) {
-        return new AccessGateFilter(new GateProperties(codes, SECRET, "상시", null), true, false, JsonMapper.builder().build(), clock);
+        return new AccessGateFilter(new GateProperties(codes, SECRET, "상시", null, null), true, false, JsonMapper.builder().build(), clock,
+                notifier(codes));
+    }
+
+    /** 가짜 전송부로 보낸 알림을 모읍니다 — 실제 텔레그램은 부르지 않음 [GATE-02] */
+    private GateNotifier notifier(String codes) {
+        if (notifier != null) {
+            notifier.close();
+        }
+        notifier = GateNotifier.create(new GateProperties(codes, SECRET, "", null, new GateProperties.Telegram("bot-token-marker", "chat-1")),
+                clock, text -> {
+                    if (transportFails) {
+                        throw new IllegalStateException("telegram down");
+                    }
+                    alerts.add(text);
+                    return 200;
+                });
+        return notifier;
+    }
+
+    /** 작업자가 큐에 든 알림을 모두 보낼 때까지 기다린 뒤 보낸 알림 */
+    private List<String> sentAlerts() {
+        notifier.close();
+        return List.copyOf(alerts);
+    }
+
+    private static long count(List<String> alerts, String prefix) {
+        return alerts.stream().filter(a -> a.startsWith(prefix)).count();
     }
 
     private Result send(MockHttpServletRequest req) throws Exception {
