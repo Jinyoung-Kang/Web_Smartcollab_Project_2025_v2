@@ -54,6 +54,8 @@ public abstract class IntegrationTest {
         r.add("app.rate-limit.login-per-account-per-10-minutes", () -> 1000);
         r.add("app.rate-limit.share-password-per-link-per-10-minutes", () -> 1000);
         r.add("app.rate-limit.signup-per-hour", () -> 1000);
+        // 시험마다 계정을 새로 만들어 같은 DB 에 수백 개가 쌓입니다. 계정 수 상한은 AccountLimitTest 가 따로 봅니다 [CAP-03]
+        r.add("app.quota.accounts", () -> 1_000_000);
         // 개발 PC 의 셸에 키가 있어도 시험이 실제 외부 API(과금)를 부르지 않게 비웁니다 — AI 는 가짜(DocumentAi)로 시험합니다 [AI-01]
         r.add("app.ai.api-key", () -> "");
         r.add("app.deepl.api-key", () -> "");
