@@ -1,0 +1,61 @@
+{
+  "measuredAt": "2026-10-15",
+  "currency": "KRW",
+  "source": "Azure Retail Prices API (prices.azure.com, currencyCode=KRW, koreacentral, 종량제 소매가) · Cost Management query(MonthToDate, ActualCost) · Azure Monitor UsedCapacity",
+  "resources": {
+    "appService": "B1 Linux",
+    "mysql": "Flexible Server B1ms, 저장 32GB(자동 증가 꺼짐)",
+    "storage": "StorageV2 Standard_LRS Hot"
+  },
+  "unitPrices": {
+    "appServiceB1PerHour": 24.5655,
+    "mysqlB1msPerHour": 35.4835,
+    "mysqlStoragePerGbMonth": 178.7823,
+    "blobHotLrsPerGbMonth": 27.295,
+    "blobWritePer10k": 68.2375,
+    "blobReadPer10k": 5.459,
+    "egressPerGbAfter100GB": 163.77
+  },
+  "monthToDateCost": {
+    "2026-10-12": 487.25,
+    "2026-10-13": 589.58,
+    "2026-10-14": 245.66,
+    "byMeter": {
+      "App Service B1": 1322.46,
+      "Bandwidth Intra Continent Data Transfer Out": 0.02,
+      "Blob All Other Operations": 0.002,
+      "MySQL B1MS Compute - Free": 0,
+      "MySQL Storage Data Stored - Free": 0,
+      "Blob Hot LRS Data Stored - Free": 0,
+      "Blob Write/Read Operations - Free": 0,
+      "Standard Data Transfer Out - Free": 0
+    }
+  },
+  "blobUsedBytes": 229045816,
+  "budget": {
+    "amountKRW": 100000,
+    "timeGrain": "Monthly",
+    "note": "예산 알림 금액(이름은 저장소 밖에 둠)"
+  },
+  "freeAccount12Months": "Blob Hot LRS 5GB·읽기 2만·쓰기 1만 회/월, MySQL B1MS 750시간·저장 32GB·백업 32GB (Azure 무료 계정, 가입 뒤 12개월). 인터넷 송신 월 100GB 무료",
+  "monthly": {
+    "appServiceB1": 17933,
+    "mysqlAfterFree": 31624
+  },
+  "capacity": {
+    "storageOnly": {
+      "duringFree": {
+        "blobGB": 3012,
+        "accounts2GB": 1505
+      },
+      "afterFree": {
+        "blobGB": 1848,
+        "accounts2GB": 924
+      }
+    },
+    "store2GBAndDownload2GBPerMonth": {
+      "duringFree": 257,
+      "afterFree": 174
+    }
+  }
+}
