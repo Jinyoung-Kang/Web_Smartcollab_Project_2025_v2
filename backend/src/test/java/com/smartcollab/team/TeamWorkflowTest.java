@@ -82,30 +82,37 @@ class TeamWorkflowTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("[S-10] 한 사람이 팀장인 팀은 10개까지 — 팀마다 저장 한도를 받아 계정 하나로 한도를 늘릴 수 있었음")
+    @DisplayName("[S-10·CAP-02] 팀장인 팀도 소속 팀 상한(6개) 안 — 팀마다 저장 한도를 받아 계정 하나로 한도를 늘릴 수 있었음")
     void teamCountPerLeaderIsLimited() throws Exception {
         Api.Session s = api().signUp("teamcap");
-        for (int i = 1; i <= 10; i++) {
+        for (int i = 1; i <= 6; i++) {
             s.postJson("/api/teams", Map.of("name", "팀 " + i)).andExpect(status().isCreated());
         }
-        s.postJson("/api/teams", Map.of("name", "팀 11")).andExpect(status().isConflict())
-                .andExpect(jsonPath("$.detail").value("팀장으로 있는 팀은 10개까지 만들 수 있습니다. 쓰지 않는 팀을 삭제하거나 팀장을 넘기세요."));
+        s.postJson("/api/teams", Map.of("name", "팀 7")).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("한 계정은 팀 6개까지 속할 수 있습니다(팀장·멤버 포함). 쓰지 않는 팀에서 나가거나 팀을 삭제하세요."));
     }
 
+    /**
+     * [S-10] 위임으로 팀장인 팀 수 상한을 우회하던 문제. 소속 팀 상한(CAP-02) 안의 계정은 6개 팀을 이끌면서 다른 팀 멤버일 수 없으므로,
+     * 상한을 낮추기 전부터 더 많은 팀에 속해 있던 계정을 DB 에 직접 만들어 확인합니다.
+     */
     @Test
-    @DisplayName("[S-10] 팀장을 넘겨받아도 팀장인 팀이 10개를 넘을 수 없다 (위임으로 상한을 우회하던 문제)")
+    @DisplayName("[S-10] 팀장을 넘겨받아도 팀장인 팀이 상한(6개)을 넘을 수 없다 — 상한을 낮추기 전부터 더 많은 팀에 속한 계정")
     void delegationRespectsTeamCap() throws Exception {
         Api.Session full = api().signUp("teamcapd");
-        for (int i = 1; i <= 10; i++) {
+        for (int i = 1; i <= 6; i++) {
             full.postJson("/api/teams", Map.of("name", "팀 " + i)).andExpect(status().isCreated());
         }
         Api.Session leader = api().signUp("teamcapl");
         long[] team = leader.createTeam("넘길 팀");
-        long memberId = join(leader, full, team[0]);
+        jdbc.update("insert into team_members (team_id, user_id, is_team_leader, can_edit, can_delete, can_invite, joined_at) "
+                + "values (?, ?, false, true, false, false, ?)", team[0], full.userId, java.sql.Timestamp.from(java.time.Instant.now()));
+        long memberId = jdbc.queryForObject("select team_member_id from team_members where team_id = ? and user_id = ?",
+                Long.class, team[0], full.userId);
 
         leader.post("/api/teams/{t}/leader/{m}", team[0], memberId)
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.detail").value("새 팀장이 이미 팀장인 팀이 10개라 넘길 수 없습니다."));
+                .andExpect(jsonPath("$.detail").value("새 팀장이 이미 팀장인 팀이 6개라 넘길 수 없습니다."));
     }
 
     private boolean canEditOf(Api.Session viewer, long teamId, String username) throws Exception {

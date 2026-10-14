@@ -133,6 +133,7 @@ class AccessControlTest extends IntegrationTest {
         owner.get("/api/admin/users").andExpect(status().isForbidden());
 
         String body = Api.body(api().loginAdmin().get("/api/admin/users?size=100"));
-        assertThat(body).contains(owner.username).doesNotContain("$2a$").doesNotContain("password").doesNotContain("email");
+        assertThat(body).contains(owner.username).doesNotContain("$2a$").doesNotContain("password")
+                .doesNotContain("\"email\"");   // 필드 이름 — 다른 시험이 만든 아이디("noemail…")가 목록에 섞일 수 있음
     }
 }

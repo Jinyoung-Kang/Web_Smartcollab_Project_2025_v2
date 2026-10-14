@@ -136,8 +136,10 @@ app:
   quota:
     personal: ${QUOTA_PERSONAL:2GB}
     team: ${QUOTA_TEAM:5GB}
-    # 한 사람이 팀장인 팀 수 상한(팀마다 위 한도를 받으므로) [S-10]
-    teams-per-user: ${MAX_TEAMS_PER_USER:10}
+    # 한 계정이 속할 수 있는 팀 수 — 팀장·멤버 포함 [CAP-02]. 팀마다 위 팀 한도를 받으므로 팀장인 팀 수도 이 안에 듭니다 [S-10]
+    teams-per-user: ${MAX_TEAMS_PER_USER:6}
+    # 가입할 수 있는 계정 수 — 체험 계정 포함, 관리·시스템 계정 제외 [CAP-03]
+    accounts: ${MAX_ACCOUNTS:20}
   deepl:
     api-key: ${DEEPL_API_KEY:}
     base-url: ${DEEPL_API_URL:https://api-free.deepl.com}

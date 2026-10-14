@@ -38,6 +38,11 @@ public class DemoAccounts {
         return enabled && user != null && isReserved(user.getUsername());
     }
 
+    /** 체험 계정용으로 예약된 아이디들 */
+    public static Set<String> usernames() {
+        return USERNAMES;
+    }
+
     /** 체험 계정용으로 예약된 아이디인지. DB 콜레이션(대소문자 구분 없음)과 같게 소문자로 비교합니다. */
     public static boolean isReserved(String username) {
         return username != null && USERNAMES.contains(username.toLowerCase(Locale.ROOT));

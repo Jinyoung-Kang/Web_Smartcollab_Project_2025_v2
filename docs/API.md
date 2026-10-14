@@ -42,7 +42,7 @@
 | Method | Path | 설명 |
 |---|---|---|
 | GET | `/api/auth/csrf` | CSRF 토큰 발급 — 쿠키와 같은 값을 돌려주므로 그대로 `X-XSRF-TOKEN` 헤더에 사용 |
-| POST | `/api/auth/signup` | 가입 후 바로 로그인 (201). 체험 계정용 아이디(`demo1~3`, 대소문자 무관)는 409 |
+| POST | `/api/auth/signup` | 가입 후 바로 로그인 (201). 체험 계정용 아이디(`demo1~3`, 대소문자 무관)는 409. 계정 수가 상한(`MAX_ACCOUNTS`, 기본 20, 체험 계정 포함)이면 409 (CAP-03) |
 | POST | `/api/auth/login` | 로그인 (IP 당 분당 10회 제한) |
 | POST | `/api/auth/logout` | 쿠키 삭제 |
 | GET | `/api/auth/me` | 내 정보(`role`: `USER`·`ADMIN`) + 개인 루트 폴더 ID — 관리 전용 계정은 드라이브가 없어 `rootFolderId` 가 없음 (로그인 전이면 401) |
@@ -135,11 +135,11 @@
 
 | Method | Path | 설명 |
 |---|---|---|
-| GET / POST | `/api/teams` | 내 팀 목록 / 팀 만들기 (팀장인 팀이 10개면 409, 체험 계정은 403) |
+| GET / POST | `/api/teams` | 내 팀 목록 / 팀 만들기 (이미 팀 6개에 속해 있으면 409 — 팀장·멤버 포함, CAP-02. 체험 계정은 403) |
 | GET / DELETE | `/api/teams/{id}` | 팀 상세(멤버·내 권한·루트 폴더) / 팀 삭제 |
 | GET | `/api/teams/{id}/presence` | 접속 중인 멤버 |
-| POST | `/api/teams/{id}/invitations` | 초대 `{username}`. 이미 대기 중인 초대가 있으면 409(동시에 보내도 하나만, QA6-10). 데모 모드에서 일반 팀은 체험 계정을 초대할 수 없음 — 403(QA6-03) |
-| POST | `/api/invitations/{id}/accept` · `/reject` | 초대 응답. 편집 권한은 초대한 사람이 편집할 수 있을 때만 받음. 초대한 사람이 더 이상 초대할 수 없으면 수락은 409(거절로 정리) |
+| POST | `/api/teams/{id}/invitations` | 초대 `{username}`. 이미 대기 중인 초대가 있으면 409(동시에 보내도 하나만, QA6-10). 데모 모드에서 일반 팀은 체험 계정을 초대할 수 없음 — 403(QA6-03). 받는 사람이 이미 팀 6개에 속해 있으면 409(CAP-02) |
+| POST | `/api/invitations/{id}/accept` · `/reject` | 초대 응답. 편집 권한은 초대한 사람이 편집할 수 있을 때만 받음. 초대한 사람이 더 이상 초대할 수 없거나 이미 팀 6개에 속해 있으면 수락은 409(거절로 정리) |
 | PUT | `/api/teams/{id}/members/{memberId}/permissions` | 권한 변경 (팀장) |
 | DELETE | `/api/teams/{id}/members/{memberId}` | 내보내기 (팀장) |
 | POST | `/api/teams/{id}/leader/{memberId}` | 팀장 위임 |

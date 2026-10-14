@@ -23,6 +23,8 @@ import org.springframework.util.StringUtils;
 import java.time.Duration;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Pattern;
 
 @Service
@@ -43,6 +45,13 @@ public class AuthService {
 
     private volatile String dummyHash;
 
+    /**
+     * 외부 가입을 한 번에 하나씩 — 계정 수를 센 뒤 넣는 사이에 다른 가입이 끼어들어 상한을 넘지 않게 합니다 [CAP-03]. 서버 안의 잠금이라
+     * 인스턴스가 하나일 때만 정확합니다(App Service B1 1대 — 요청 제한기·동시 실행 상한과 같은 전제, ADR-0012). 시스템 계정 행을 DB 에서
+     * 잠그는 방법은 탈퇴가 그 행을 참조하며 잠그는 순서와 반대라 같은 아이디의 재가입과 겹치면 교착될 수 있어 쓰지 않았습니다.
+     */
+    private final ReentrantLock signupLock = new ReentrantLock(true);
+
     /** 외부 요청의 가입. 한 IP 에서 계정을 대량으로 만드는 것을 막습니다 [SEC-05]. */
     public Account signUp(AuthDtos.SignUpRequest req, String clientIp) {
         if (!rateLimiter.tryAcquire("signup:" + clientIp, props.rateLimit().signupPerHour(), Duration.ofHours(1))) {
@@ -52,7 +61,22 @@ public class AuthService {
         if (DemoAccounts.isReserved(req.username())) {   // [S-19] 체험 데이터 생성은 아래 signUp(req) 를 직접 씁니다
             throw ApiException.conflict("체험 계정용으로 예약된 아이디라 가입할 수 없습니다.");
         }
-        return Account.of(signUp(req));
+        requireAccountRoom();   // 꽉 찼으면 비밀번호 해시·잠금 없이 바로 거절
+        return Account.of(create(req, true));
+    }
+
+    /**
+     * 가입할 자리가 있는지 [CAP-03]. 체험 계정도 세고, 관리·시스템 계정은 세지 않습니다. 체험 모드면 체험 계정 자리를 늘 남겨 둡니다 —
+     * 매일 초기화가 체험 계정을 지웠다가 다시 만드는 사이 일반 가입이 그 자리를 차지하면 체험 계정을 다시 만들지 못합니다.
+     */
+    private void requireAccountRoom() {
+        int max = props.quota().accounts();
+        long demo = users.countByRoleAndUsernameIn(Role.USER, DemoAccounts.usernames());
+        long regular = users.countByRole(Role.USER) - demo;
+        long demoSlots = props.demo().enabled() ? Math.max(demo, DemoAccounts.ACCOUNTS.size()) : demo;
+        if (regular + demoSlots >= max) {
+            throw ApiException.conflict("가입할 수 있는 계정 수(" + max + "개, 체험 계정 포함)를 모두 사용했습니다. 관리자에게 문의하세요.");
+        }
     }
 
     /**
@@ -60,13 +84,40 @@ public class AuthService {
      * 쥐지 않습니다 [M-2]. 인증 없이 부를 수 있는 경로라 동시 요청이 풀을 차지하면 다른 API 가 커넥션을 기다렸습니다.
      */
     public User signUp(AuthDtos.SignUpRequest req) {
+        return create(req, false);
+    }
+
+    /** @param limited 외부 가입이면 계정 수 상한을 지킵니다(잠금 안에서 다시 세고 넣음) [CAP-03] */
+    private User create(AuthDtos.SignUpRequest req, boolean limited) {
         if (!req.password().equals(req.passwordConfirm())) {
             throw ApiException.badRequest("비밀번호와 비밀번호 확인이 일치하지 않습니다.");
         }
         String hash = passwordEncoder.encode(req.password());
         // v1 은 빈 이메일("")을 그대로 저장해, 이메일 없이 가입한 두 번째 사용자부터 UNIQUE 위반(500)이 났습니다.
         String email = StringUtils.hasText(req.email()) ? req.email().strip().toLowerCase(Locale.ROOT) : null;
+        if (!limited) {
+            return insert(req, hash, email, false);
+        }
+        try {
+            if (!signupLock.tryLock(10, TimeUnit.SECONDS)) {
+                throw new ApiException(ErrorCode.SERVICE_UNAVAILABLE);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new ApiException(ErrorCode.SERVICE_UNAVAILABLE);
+        }
+        try {
+            return insert(req, hash, email, true);   // 커밋까지 잠금을 쥠
+        } finally {
+            signupLock.unlock();
+        }
+    }
+
+    private User insert(AuthDtos.SignUpRequest req, String hash, String email, boolean limited) {
         return tx.writeReadCommitted(() -> {
+            if (limited) {
+                requireAccountRoom();
+            }
             if (users.existsByUsername(req.username())) {
                 throw ApiException.conflict("이미 사용 중인 아이디입니다.");
             }

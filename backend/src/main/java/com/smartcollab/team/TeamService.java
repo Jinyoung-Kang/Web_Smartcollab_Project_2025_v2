@@ -42,16 +42,16 @@ public class TeamService {
     private final AppProperties props;
 
     /**
-     * 팀과 팀장 멤버십, 팀 루트 폴더를 함께 만듭니다. 팀마다 저장 한도를 받으므로, 한 사람이 팀장인 팀 수를 제한하고
-     * 체험 계정은 새 팀을 만들 수 없습니다 [S-10]. 사용자 행을 먼저 잠가 동시 요청으로 상한을 넘지 않게 합니다.
+     * 팀과 팀장 멤버십, 팀 루트 폴더를 함께 만듭니다. 한 계정이 속할 수 있는 팀 수(팀장·멤버 포함)를 넘지 않게 하고 [CAP-02],
+     * 체험 계정은 새 팀을 만들 수 없습니다 [S-10]. 사용자 행을 먼저 잠가 동시 요청(만들기·초대 수락)으로 상한을 넘지 않게 합니다.
      */
     @Transactional
     public TeamDtos.TeamSummary create(String name, Long userId) {
         User owner = users.lockById(userId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
         demoAccounts.forbidIfDemo(owner, "체험 계정은 새 팀을 만들 수 없습니다.");
         int max = props.quota().teamsPerUser();
-        if (teams.countByOwnerId(userId) >= max) {
-            throw ApiException.conflict("팀장으로 있는 팀은 " + max + "개까지 만들 수 있습니다. 쓰지 않는 팀을 삭제하거나 팀장을 넘기세요.");
+        if (members.countByUserId(userId) >= max) {
+            throw ApiException.conflict("한 계정은 팀 " + max + "개까지 속할 수 있습니다(팀장·멤버 포함). 쓰지 않는 팀에서 나가거나 팀을 삭제하세요.");
         }
         return createTeam(name, owner);
     }
@@ -119,6 +119,11 @@ public class TeamService {
         if (invitations.existsByTeamIdAndInviteeIdAndStatus(teamId, invitee.getId(), Invitation.Status.PENDING)) {
             throw ApiException.conflict("이미 초대를 보내 응답을 기다리는 중입니다.");
         }
+        // 들어갈 수 없는 사람에게는 초대를 보내지 않습니다 — 수락할 때 다시 확인합니다 [CAP-02]
+        int max = props.quota().teamsPerUser();
+        if (members.countByUserId(invitee.getId()) >= max) {
+            throw ApiException.conflict("초대할 사용자가 이미 팀 " + max + "개에 속해 있어 초대할 수 없습니다.");
+        }
         Team team = inviterMembership.getTeam();
         User inviter = inviterMembership.getUser();
         Invitation invitation = invitations.save(new Invitation(team, inviter, invitee));
@@ -128,6 +133,11 @@ public class TeamService {
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public void respondToInvitation(Long invitationId, boolean accept, Long userId) {
+        if (accept) {
+            // 수락은 받는 사람의 사용자 행을 먼저 잠가, 초대 두 개를 동시에 수락하거나 팀을 만드는 요청과 겹쳐도 소속 팀 수를 넘지 않게 합니다
+            // [CAP-02]. 팀 만들기·팀장 위임·관리자 삭제와 같은 사용자 행 → 팀 행 순서라 교착되지 않습니다(ADR-0009).
+            users.lockById(userId);
+        }
         // 팀 행 → 초대 행 순서로 잠급니다. 팀 삭제가 같은 순서(팀 행을 먼저 잠근 뒤 초대를 지움)라, 초대 행을 먼저 잠그면 멤버·알림을 넣을 때의
         // 팀 외래 키 확인과 서로 기다려 교착(1213)이 났습니다 [L-6 후속]. 팀이 지워졌으면 아래에서 "초대 없음"으로 끝납니다.
         invitations.findTeamId(invitationId).ifPresent(this::lockTeam);
@@ -148,6 +158,10 @@ public class TeamService {
         invitation.respond(accept ? Invitation.Status.ACCEPTED : Invitation.Status.REJECTED);
         if (accept) {
             if (!members.existsByTeamIdAndUserId(team.getId(), userId)) {
+                int max = props.quota().teamsPerUser();
+                if (members.countByUserId(userId) >= max) {
+                    throw ApiException.conflict("이미 팀 " + max + "개에 속해 있어 초대를 수락할 수 없습니다. 다른 팀에서 나간 뒤 수락하거나 초대를 거절하세요.");
+                }
                 members.save(TeamMember.invitedBy(inviter, invitee));
             }
             events.publishEvent(new ChangeEvents.TeamChanged(team.getId(), ChangeEvents.TeamChangeType.MEMBERS_CHANGED));
@@ -229,7 +243,8 @@ public class TeamService {
         }
         // 매일 초기화는 체험 계정이 이끄는 팀을 영구 삭제합니다 — 일반 사용자의 팀이 체험 계정에게 넘어가면 그 팀이 통째로 사라졌습니다 [H-3]
         demoAccounts.forbidIfDemo(next.getUser(), "체험 계정에게는 팀장을 넘길 수 없습니다.");
-        // 팀을 만들 때와 같은 상한을 넘겨받을 때도 지킵니다 — 이전에는 위임으로 한 사람이 10개 넘게 이끌 수 있었습니다 [S-10].
+        // 팀장인 팀 수도 상한 안이어야 합니다 — 이전에는 위임으로 한 사람이 상한보다 많이 이끌 수 있었습니다 [S-10]. 소속 팀 수 상한
+        // [CAP-02] 안이면 저절로 지켜지지만, 상한을 낮추기 전부터 더 많은 팀에 속한 계정을 위해 남겨 둡니다.
         int max = props.quota().teamsPerUser();
         if (teams.countByOwnerId(next.getUser().getId()) >= max) {
             throw ApiException.conflict("새 팀장이 이미 팀장인 팀이 " + max + "개라 넘길 수 없습니다.");

@@ -15,7 +15,7 @@
 | **데이터·저장소** | MySQL 8 · Azure Blob Storage(또는 로컬 디스크) |
 | **AI** | Claude Haiku 5.5(Anthropic 공식 Java SDK) — 문서 요약·번역, 사용자별 토큰 한도. 키가 없으면 추출 요약·DeepL |
 | **배포** | Azure App Service(B1, jar) · Azure Database for MySQL(B1ms) · Azure Blob Storage 에 공개 데모로 배포 — 접근 코드가 있어야 들어갈 수 있음. 절차는 [DEPLOYMENT](docs/DEPLOYMENT.md) |
-| **CI·테스트** | GitHub Actions · JUnit 6 + Testcontainers(MySQL·Azurite) 444건 · Vitest 182건 · Playwright E2E 19건(접근성 자동 검사 포함) · ArchUnit 구조 규칙 |
+| **CI·테스트** | GitHub Actions · JUnit 6 + Testcontainers(MySQL·Azurite) 450건 · Vitest 182건 · Playwright E2E 19건(접근성 자동 검사 포함) · ArchUnit 구조 규칙 |
 
 ---
 
@@ -44,7 +44,7 @@
 - **미리보기·편집**: 이미지·PDF·텍스트 미리보기, Office 문서(Azure 저장소일 때), 텍스트 편집기(저장 충돌 감지)
 - **AI 요약·번역**: 텍스트·PDF·Word(docx) 문서를 편집기와 미리보기에서 Claude(Haiku 5.5)로 요약(요약 문단 + 핵심 항목)하고 영어·한국어·일본어·중국어로 번역. 사용자별 하루 토큰 한도, 같은 버전은 다시 과금하지 않음. 키가 없으면 핵심 문장 추출 요약·DeepL 번역([ADR-0011](docs/adr/0011-claude-document-tools.md))
 - **버전·서명**: 저장할 때마다 버전과 SHA-256 기록, 되돌리기, 팀장·소유자 서명(내용이 바뀌면 자동 무효 표시)
-- **팀 협업**: 초대·수락, 멤버별 편집·삭제·초대 권한, 팀장 위임, 실시간 채팅(파일 공유·미리보기), 접속 중 표시, 다른 사람의 변경 즉시 반영
+- **팀 협업**: 초대·수락, 멤버별 편집·삭제·초대 권한, 팀장 위임, 실시간 채팅(파일 공유·미리보기), 접속 중 표시, 다른 사람의 변경 즉시 반영. 한 계정은 팀 6개까지(팀장·멤버 포함), 가입은 체험 계정 포함 20개까지
 - **외부 공유**: 비밀번호·유효 기간·다운로드 횟수 제한 링크, 링크 목록·해제, 로그인 없는 다운로드 페이지
 - **알림**: 초대·권한 변경·팀장 위임 등을 WebSocket 으로 즉시 전달
 - **관리 전용 계정**: 환경 변수로 만드는 관리자가 가입한 계정의 아이디·이름·소속 팀·드라이브 사용량·가입일을 보고 계정을 삭제(탈퇴 처리). 파일·대화는 볼 수 없고, 팀장 계정을 지우면 가장 먼저 들어온 멤버에게 팀장을 넘김([ADR-0015](docs/adr/0015-admin-only-account.md))
@@ -102,12 +102,12 @@ API 문서: <http://localhost:8080/swagger-ui.html> · 전체 목록 [docs/API.m
 ## 테스트
 
 ```bash
-cd backend && ./gradlew test          # 442건 (MySQL·Azurite 컨테이너 자동 실행), 커버리지 리포트 포함 — ./gradlew check 는 CPU 1개 시험 2건을 더 돌림
+cd backend && ./gradlew test          # 448건 (MySQL·Azurite 컨테이너 자동 실행), 커버리지 리포트 포함 — ./gradlew check 는 CPU 1개 시험 2건을 더 돌림
 cd frontend && npm test               # 182건
 docker compose up -d --wait && cd e2e && npm ci && npx playwright test   # E2E 19건 (접근성 자동 검사 포함)
 ```
 
-백엔드 라인 커버리지 92.4%(분기 80.8%). 첫 완성본(v1)에서 찾은 결함마다 회귀 테스트가 있습니다 → [docs/TESTING.md](docs/TESTING.md)
+백엔드 라인 커버리지 92.4%(분기 80.9%). 첫 완성본(v1)에서 찾은 결함마다 회귀 테스트가 있습니다 → [docs/TESTING.md](docs/TESTING.md)
 GitHub Actions 가 PR 과 main 푸시마다 백엔드·프론트엔드·E2E(Docker 이미지)·비밀값 검사(gitleaks)를 실행합니다.
 E2E 를 1분 안에 여러 번 돌리면 로그인 요청 제한에 걸리므로, 반복 실행 방법은 [TESTING](docs/TESTING.md) 을 참고하세요.
 
