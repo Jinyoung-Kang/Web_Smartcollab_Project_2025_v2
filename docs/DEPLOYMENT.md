@@ -69,6 +69,8 @@ open http://localhost:8080
 | `GATE_CODES` | | – (끔) | 접근 코드 잠금. `이름:scrypt해시,이름:scrypt해시` — 있으면 코드를 맞힌 브라우저만 화면·API 에 닿습니다(헬스 체크 제외). 해시 만드는 법은 §3.2 (ADR-0013) |
 | `GATE_SECRET` | 잠금 시 ✔ | – | 잠금 해제 쿠키 서명 키(32바이트 이상). 바꾸면 모두 다시 코드를 입력합니다 |
 | `GATE_HOURS` / `GATE_COOKIE_TTL` | | – / `12h` | 잠금화면에 적을 운영 시간(비우면 줄을 감춤) / 잠금을 푼 뒤 다시 묻기까지의 시간 |
+| `TELEGRAM_BOT_TOKEN` | | – (끔) | 접근 코드 잠금 알림을 보낼 텔레그램 봇 토큰(@BotFather). `TELEGRAM_CHAT_ID` 와 둘 다 있고 잠금이 켜져 있을 때만 잠금 해제(같은 IP 는 1시간에 한 번, 전체 10분에 10건까지)·IP 잠금·전체 잠금을 알립니다. 하나만 있으면 끄고 기동 로그에 경고 (ADR-0017) |
+| `TELEGRAM_CHAT_ID` | | – (끔) | 알림을 받을 대화 ID — 봇에게 메시지를 한 번 보낸 뒤 `getUpdates` 응답의 `chat.id` |
 | `SWAGGER_ENABLED` | | `false` (`prod`) | 운영에서 API 문서 노출 여부 |
 | `SQL_LOG_LEVEL` | | `warn` | 실행한 SQL 로그(`debug` 면 모두 출력). 문제를 볼 때만 잠깐 |
 | `PORT` | | `8080` | 앱이 듣는 포트(App Service 등). Docker Compose 에서는 컨테이너 안 8080 고정이고 밖의 포트는 `APP_PORT` |
@@ -108,6 +110,7 @@ az webapp deploy -g <리소스그룹> -n <앱이름> --src-path backend/build/li
 - 공개 데모라면 접근 코드 잠금을 켜세요(ADR-0013). 코드 원문은 서버에 두지 않고 scrypt 해시만 넣습니다. 포트폴리오의 다른 서비스 잠금(gate)과
   형식이 같아 그쪽 `gate.py hash` 출력도 그대로 쓸 수 있습니다. 코드를 여러 개(예: 회사별) 두면 로그(`security-event gate-unlocked code=이름`)로
   누가 열었는지 알 수 있고, 목록에서 지우면 그 코드로 받은 쿠키도 바로 무효가 됩니다.
+  `TELEGRAM_BOT_TOKEN`·`TELEGRAM_CHAT_ID` 를 함께 넣으면 잠금 해제(같은 IP 는 1시간에 한 번, 전체 10분에 10건까지)·IP 잠금·전체 잠금을 텔레그램으로 받습니다 — 서비스·코드 이름·가린 IP·브라우저/OS 만 보냅니다(ADR-0017).
 
   ```bash
   # 코드를 입력(화면에 보이지 않음)하면 해시를 출력 → GATE_CODES=이름:<해시>

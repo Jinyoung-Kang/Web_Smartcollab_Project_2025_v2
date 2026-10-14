@@ -18,3 +18,4 @@
 | [0014](0014-platform-threads-on-java21.md) | Java 21 에서는 요청 처리에 가상 스레드를 쓰지 않음 — CPU 1개(App Service B1)에서 Azure SDK 의 synchronized 대기로 서버 전체가 멈춤 | 채택 |
 | [0015](0015-admin-only-account.md) | 관리 전용 계정 — 환경 변수로 만들고 계정 목록·삭제만, 파일·대화에는 닿지 않음. 팀장 계정은 가장 먼저 들어온 멤버에게 위임 | 채택 |
 | [0016](0016-pdf-translation-from-extracted-text.md) | PDF 번역은 서버가 뽑은 글자를 보냄(Apache PDFBox) — 원문을 알아 결과를 확인, 글자가 거의 없는 PDF 만 원본, 압축 폭탄 상한 | 채택 |
+| [0017](0017-gate-telegram-notify.md) | 접근 코드 잠금 알림은 텔레그램으로 — 잠금 해제(같은 IP 1시간에 한 번)·잠금이 걸린 순간만, 가린 IP, 요청과 떼어 작업자 하나로 보냄 | 채택 |
