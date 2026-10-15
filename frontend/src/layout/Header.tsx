@@ -35,11 +35,11 @@ export function Header({ onOpenMenu }: { onOpenMenu: () => void }) {
       <IconButton label="메뉴 열기" className="lg:hidden" onClick={onOpenMenu}>
         <MenuIcon className="size-5" />
       </IconButton>
-      {/* 좁은 화면에서는 글자가 숨어 이름 없는 링크가 되므로 이름을 직접 줍니다 [QA-11] */}
+      {/* 로고는 글자만(아이콘 이미지 없음). 좁은 화면에서는 예전처럼 글자를 숨기므로 링크째 숨겨 검색 칸 자리를 남깁니다 —
+          글자를 보이면 320px 화면에서 검색 칸이 50px 로 줄었음. 내 드라이브는 메뉴 단추의 사이드바로 갑니다 [QA-11] */}
       {/* shrink-0: 긴 이름·검색 칸에 밀려 로고가 눌리지 않게 [UX-07] */}
-      <Link to="/drive" aria-label="SmartCollab" className="flex shrink-0 items-center gap-2 font-bold text-slate-900">
-        <img src="/favicon.svg" alt="" className="size-7 rounded-lg" />
-        <span className="hidden sm:inline">SmartCollab</span>
+      <Link to="/drive" className="hidden shrink-0 font-bold text-slate-900 sm:block">
+        SmartCollab
       </Link>
 
       <form onSubmit={submit} role="search" className="mx-auto w-full max-w-xl">

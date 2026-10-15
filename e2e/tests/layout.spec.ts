@@ -108,11 +108,12 @@ test('[UX-07] 긴 사용자 이름·팀 이름이 사이드바·헤더·멤버 �
   expect.soft(await dialog.evaluate((el) => el.scrollWidth - el.clientWidth), '권한 변경 대화상자 가로 넘침').toBe(0)
   await page.keyboard.press('Escape')
 
-  // 좁은 화면: 로고 아이콘이 눌리지 않음
+  // 좁은 화면: 로고(글자만, 아이콘 이미지 없음)는 숨기고 검색 칸에 안내 문구가 다 들어감 — 로고 글자를 보이면 320px 에서 검색 칸이 50px 였음
   await page.setViewportSize({ width: 375, height: 812 })
   await page.goto('/drive')
   await expect(page.getByRole('heading', { level: 1, name: '내 드라이브' })).toBeVisible()
-  expect.soft((await logo.locator('img').boundingBox())!.width, '좁은 화면의 로고 아이콘').toBeGreaterThanOrEqual(27)
+  await expect(logo).toBeHidden()
+  expect.soft((await header.getByRole('textbox', { name: '파일 검색' }).boundingBox())!.width, '좁은 화면의 검색 칸 너비').toBeGreaterThanOrEqual(192)
   expect.soft(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), '375 폭 가로 넘침').toBe(0)
 
   await leader.context.close()

@@ -74,10 +74,7 @@ export default function AdminPage() {
   return (
     <div className="flex min-h-dvh flex-col bg-slate-50">
       <header className="flex h-14 shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-3 sm:px-4">
-        <span className="flex items-center gap-2 font-bold text-slate-900">
-          <img src="/favicon.svg" alt="" className="size-7 rounded-lg" />
-          SmartCollab
-        </span>
+        <span className="font-bold text-slate-900">SmartCollab</span>
         <Badge tone="brand">관리</Badge>
         <div className="ml-auto flex min-w-0 items-center gap-2">
           <span className="hidden min-w-0 truncate text-sm text-slate-600 sm:inline">@{me?.username}</span>
