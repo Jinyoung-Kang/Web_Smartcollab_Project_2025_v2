@@ -9,7 +9,7 @@ import { StorageMeter } from '@/components/ui/StorageMeter'
 import { NewTeamDialog } from '@/features/team/NewTeamDialog'
 import { formatBytes } from '@/lib/format'
 import { cn } from '@/lib/cn'
-import { queryKeys } from '@/api/queryKeys'
+import { queryKeys, scopeOf } from '@/api/queryKeys'
 
 const navClass = (active: boolean) =>
   cn(
@@ -22,7 +22,12 @@ export function Sidebar() {
   const { unread } = useTeamActivity()
   const [creating, setCreating] = useState(false)
   const teams = useQuery({ queryKey: queryKeys.teams, queryFn: teamApi.list })
-  const usage = useQuery({ queryKey: queryKeys.usage.of('personal'), queryFn: () => fileApi.usage() })
+  // 사용량은 보고 있는 드라이브를 따릅니다 — 팀 화면(폴더·휴지통)이면 그 팀, 아니면 내 드라이브. 예전에는 팀 화면에서도
+  // 내 드라이브 사용량만 보여 팀 저장 공간이 얼마나 남았는지 알 수 없었습니다 [UX-08]
+  const teamMatch = /^\/teams\/(\d+)/.exec(location.pathname)
+  const teamId = teamMatch ? Number(teamMatch[1]) : undefined
+  const team = teamId === undefined ? undefined : teams.data?.find((t) => t.id === teamId)
+  const usage = useQuery({ queryKey: queryKeys.usage.of(scopeOf(teamId)), queryFn: () => fileApi.usage(teamId) })
 
   return (
     <nav aria-label="주 메뉴" className="flex h-full flex-col overflow-y-auto px-3 py-4">
@@ -71,7 +76,8 @@ export function Sidebar() {
 
       {usage.data && (
         <div className="mt-auto rounded-xl bg-slate-50 px-3 py-3 text-xs text-slate-500">
-          <p className="font-medium text-slate-700">내 드라이브 사용량</p>
+          <p className="font-medium text-slate-700">{teamId === undefined ? '내 드라이브 사용량' : '팀 드라이브 사용량'}</p>
+          {team && <p className="truncate text-slate-600" title={team.name}>{team.name}</p>}
           <p className="mt-1">
             파일 {usage.data.fileCount.toLocaleString()}개 · {formatBytes(usage.data.totalBytes)}
           </p>
