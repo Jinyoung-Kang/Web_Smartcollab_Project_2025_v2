@@ -4,7 +4,7 @@
 |---|---|---:|---|
 | 백엔드 단위·통합 | JUnit 6 · Spring Boot Test · MockMvc · **Testcontainers(MySQL 8.4, Azurite)** · ArchUnit | 448 | `cd backend && ./gradlew test` |
 | 백엔드 — CPU 1개 JVM | 같은 도구, `-XX:ActiveProcessorCount=1`(운영 App Service B1 과 같은 조건) · HTTPS Azurite | 2 | `cd backend && ./gradlew singleCarrierTest` (`check` 에 포함, CI 백엔드 작업에서도 실행) |
-| 프론트엔드 단위·컴포넌트 | Vitest · Testing Library · jsdom | 182 | `cd frontend && npm test` |
+| 프론트엔드 단위·컴포넌트 | Vitest · Testing Library · jsdom | 185 | `cd frontend && npm test` |
 | E2E (전체 스택) | Playwright · Docker Compose · axe-core | 19 (시나리오 10 + 관리자 1 + 대화상자 초점 2 + 배치 2 + 접근성 3·탭 제목 1) | `docker compose up -d --wait && cd e2e && npx playwright test` |
 
 백엔드 라인 커버리지 **92.4%**, 분기 커버리지 **80.9%** (JaCoCo, `backend/build/reports/jacoco/test/html`).
@@ -89,6 +89,7 @@
 | `BulkDeletionBenchmarkTest` (`BENCH=true` 일 때만) | 파일 5천·2만·5만 개 계정 삭제 시간 (M-6, 결과 `qa/results/review-2026-10-12`) |
 | 프론트 `useTextDocument.test` · `Dialog.test` · `DeleteAccountDialog.test` · `Menu.test` · `SearchPage.test` · `endpoints.test` 외 (L-8) | 응답을 기다리는 사이 입력한 글을 덮지 않음, 저장·덮어쓰기는 한 번에 하나·사용량 캐시도 갱신, 대화상자 안에서 끌다 밖에서 놓아도 닫히지 않음, 탈퇴 창 다시 열면 비밀번호 비움, 메뉴·좁은 화면 패널 Esc·초점 복귀, 검색·공유 링크·버전 기록·폴더 목록 오류 안내, 링크 해제 확인, 복원 중복 막기, 채팅은 새 메시지만 알림, 공유 토큰 인코딩 |
 | 프론트 `AuthProvider.test`(M-3) · `ChatTab.test`(M-4) · `PreviewDialog.test`(M-5) · `Sidebar.test`(M-7) | 로그아웃 실패 시 로그인 상태 유지·안내, 채팅은 HTTP 로 저장 확인 뒤 실패하면 입력 되돌림, 진행 중인 AI 작업 단추 끄기, 안 읽은 표시에 이름 |
+| 프론트 `Sidebar.test` · `StorageMeter.test`(UX-08) | 사이드바 사용량은 보고 있는 드라이브를 따름 — 팀 폴더·팀 휴지통이면 그 팀(팀 이름·사용량·전체 용량), 그 밖은 내 드라이브. 남은 용량 표시(한도를 넘었으면 0) |
 | 프론트 순수 함수 `toolAvailability.test` · `trashRules.test` | 형식·설정별 요약·번역 사용 가능 여부와 안내, 휴지통 남은 보관 일수·영구 삭제 문구 (구조 정리 뒤 단위 시험) |
 
 `.env` 의 `APP_PORT` 를 바꿨다면 E2E 에 주소를 알려 주세요: `E2E_BASE_URL=http://localhost:8081 npx playwright test`.
